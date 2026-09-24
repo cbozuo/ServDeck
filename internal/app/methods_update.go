@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	updateRepo                             = "Syngnat/GoNavi"
+	updateRepo                             = "chenbozuo/ServDeck"
 	updateLatestAPIURL                     = "https://api.github.com/repos/" + updateRepo + "/releases/latest"
 	updateDevAPIURL                        = "https://api.github.com/repos/" + updateRepo + "/releases/tags/" + updateDevReleaseTag
 	updateChecksumAsset                    = "SHA256SUMS"

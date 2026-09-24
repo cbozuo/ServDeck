@@ -10,7 +10,7 @@ import {
 import {
   resolveTitleBarLayout,
   shouldDockCollapsedSidebarActionsInTitlebar,
-} from './utils/titlebarLayout';
+} from './utils/titleBarLayout';
 
 const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 const appCss = readFileSync(new URL('./App.css', import.meta.url), 'utf8');

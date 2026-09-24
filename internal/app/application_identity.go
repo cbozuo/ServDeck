@@ -5,7 +5,7 @@ package app
 // button to this ID for the life of the pin. Replacing it with a per-icon ID
 // detaches that button: an MSI pin stops grouping with the running window, and
 // a portable pin is removed.
-const windowsApplicationUserModelID = "Syngnat.GoNavi"
+const windowsApplicationUserModelID = "chenbozuo.ServDeck"
 
 // windowsApplicationUserModelIDForIconPath returns the taskbar identity used
 // while iconPath is the active brand icon. The path used to be hashed into the

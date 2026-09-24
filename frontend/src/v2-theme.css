@@ -3459,6 +3459,28 @@ body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gn-v2-tree-folder-icon .a
   line-height: 1;
 }
 
+/* 文件夹分组:收起显示闭合文件夹,展开显示打开文件夹。
+   节点同时渲染两个图标,由 antd Tree 的 switcher 状态类切换显隐。 */
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gn-v2-tree-folder-icon .gn-folder-state-open {
+  display: none;
+}
+
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode-switcher-open .gn-v2-tree-folder-icon .gn-folder-state-closed {
+  display: none;
+}
+
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode-switcher-open .gn-v2-tree-folder-icon .gn-folder-state-open {
+  display: inline-flex;
+}
+
+/* 展开箭头:无独立悬浮背景,视觉融入所在行(仅保留颜色反馈) */
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-switcher,
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-switcher:hover,
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-switcher::before {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode:has(.gn-v2-tree-title.is-connection-group) .ant-tree-iconEle .anticon-folder,
 body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode:has(.gn-v2-tree-title.is-connection-group) .ant-tree-iconEle .anticon-folder-open,
 body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode:has(.gn-v2-tree-title[data-node-type="all-saved-queries"]) .ant-tree-iconEle .anticon-folder,
@@ -4500,6 +4522,8 @@ body[data-ui-version="v2"] .gn-v2-titlebar {
   overflow: visible;
   background: var(--gn-bg-titlebar) !important;
   border: 0 !important;
+  /* 标题栏底部分隔线,与内容区区分 */
+  border-bottom: 1px solid var(--gn-br-2, rgba(16, 24, 40, 0.14)) !important;
   box-shadow: none !important;
 }
 

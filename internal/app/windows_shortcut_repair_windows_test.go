@@ -103,9 +103,9 @@ $duplicateGoNaviTarget = Join-Path $env:GONAVI_TEST_ROOT 'alternate-install\GoNa
 New-TestShortcut (Join-Path $pins 'GoNavi (2).lnk') $duplicateGoNaviTarget ''
 # A pin left behind by a previous rotated brand identity only ties back to
 # GoNavi through its AppUserModel.ID, so MSI repair must recognize every
-# identity in the Syngnat.GoNavi family.
+# identity in the chenbozuo.ServDeck family.
 New-TestShortcut (Join-Path $pins 'GoNavi-rotated.lnk') $alternateGoNaviTarget ''
-[void](Set-GoNaviShortcutRelaunchProperties -ShortcutPath (Join-Path $pins 'GoNavi-rotated.lnk') -TargetPath $alternateGoNaviTarget -IconPath $missingIcon -ApplicationUserModelID 'Syngnat.GoNavi.Icon.deadbeefdeadbeefdeadbeef')
+[void](Set-GoNaviShortcutRelaunchProperties -ShortcutPath (Join-Path $pins 'GoNavi-rotated.lnk') -TargetPath $alternateGoNaviTarget -IconPath $missingIcon -ApplicationUserModelID 'chenbozuo.ServDeck.Icon.deadbeefdeadbeefdeadbeef')
 $blankIconBefore = $shell.CreateShortcut((Join-Path $pins 'blank-icon.lnk')).IconLocation
 $otherMissingIconBefore = $shell.CreateShortcut((Join-Path $pins 'other-missing-icon.lnk')).IconLocation
 
@@ -184,7 +184,7 @@ if (-not (Test-SameFilePath $duplicateShortcut.TargetPath $target)) {
 # the pin through AppUserModel.RelaunchCommand.
 $refreshedIcon = Join-Path $env:GONAVI_TEST_ROOT 'gonavi-brand-0123456789abcdef01234567.ico'
 [IO.File]::WriteAllBytes($refreshedIcon, [byte[]](0, 0, 1, 0, 0, 0))
-$refreshedAumid = 'Syngnat.GoNavi.Icon.0123456789abcdef01234567'
+$refreshedAumid = 'chenbozuo.ServDeck.Icon.0123456789abcdef01234567'
 $refreshedBrandCount = Set-GoNaviShortcutBrandIcon -TargetPath $target -IconPath $refreshedIcon -ApplicationUserModelID $refreshedAumid -ShortcutDirectories @($pins) -TaskbarDirectory $pins
 if ($refreshedBrandCount -ne 7) {
     throw ('unexpected refreshed brand icon shortcut update count: ' + $refreshedBrandCount)
@@ -221,13 +221,13 @@ $portableIcon = Join-Path $portableRoot 'gonavi-brand-portable.ico'
 [IO.File]::WriteAllBytes($portableIcon, [byte[]](0, 0, 1, 0, 0, 0))
 $portableShortcutPath = Join-Path $portablePins 'GoNavi-history.lnk'
 New-TestShortcut $portableShortcutPath $portableInstalledTarget ''
-[void](Set-GoNaviShortcutRelaunchProperties -ShortcutPath $portableShortcutPath -TargetPath $portableInstalledTarget -IconPath $missingIcon -ApplicationUserModelID 'Syngnat.GoNavi.Icon.deadbeef')
+[void](Set-GoNaviShortcutRelaunchProperties -ShortcutPath $portableShortcutPath -TargetPath $portableInstalledTarget -IconPath $missingIcon -ApplicationUserModelID 'chenbozuo.ServDeck.Icon.deadbeef')
 $portableStablePath = Join-Path $portablePins 'GoNavi-stable.lnk'
 New-TestShortcut $portableStablePath $portableTarget ''
-[void](Set-GoNaviShortcutRelaunchProperties -ShortcutPath $portableStablePath -TargetPath $portableTarget -IconPath $missingIcon -ApplicationUserModelID 'Syngnat.GoNavi')
+[void](Set-GoNaviShortcutRelaunchProperties -ShortcutPath $portableStablePath -TargetPath $portableTarget -IconPath $missingIcon -ApplicationUserModelID 'chenbozuo.ServDeck')
 $portablePlainPath = Join-Path $portablePins 'GoNavi-plain.lnk'
 New-TestShortcut $portablePlainPath $portableTarget ''
-$portableUpdateCount = Set-GoNaviShortcutBrandIcon -TargetPath $portableTarget -IconPath $portableIcon -ApplicationUserModelID 'Syngnat.GoNavi.Icon.0123456789abcdef01234567' -ShortcutDirectories @($portablePins) -TaskbarDirectory $portablePins
+$portableUpdateCount = Set-GoNaviShortcutBrandIcon -TargetPath $portableTarget -IconPath $portableIcon -ApplicationUserModelID 'chenbozuo.ServDeck.Icon.0123456789abcdef01234567' -ShortcutDirectories @($portablePins) -TaskbarDirectory $portablePins
 if ($portableUpdateCount -ne 3) {
     throw ('unexpected portable shortcut update count: ' + $portableUpdateCount)
 }

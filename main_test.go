@@ -41,7 +41,7 @@ func TestNewDesktopAgentToolCatalogIncludesWorkspaceInspection(t *testing.T) {
 
 func TestShouldEnableWindowsMSISingleInstanceOnlyForInstalledMainGUI(t *testing.T) {
 	installDir := t.TempDir()
-	executablePath := filepath.Join(installDir, "GoNavi.exe")
+	executablePath := filepath.Join(installDir, "ServDeck.exe")
 
 	if shouldEnableWindowsMSISingleInstance("windows", executablePath) {
 		t.Fatal("Portable executable unexpectedly enabled single-instance mode")
@@ -85,7 +85,7 @@ func TestPrimaryWindowActivatorQueuesRequestsUntilRuntimeStartup(t *testing.T) {
 func TestMainReturnsNonZeroForSpecialModeFailure(t *testing.T) {
 	const helperEnv = "GONAVI_SPECIAL_MODE_FAILURE_HELPER"
 	if os.Getenv(helperEnv) == "1" {
-		os.Args = []string{"GoNavi", "mcp-server", "invalid-mode"}
+		os.Args = []string{"ServDeck", "mcp-server", "invalid-mode"}
 		main()
 		return
 	}
@@ -106,7 +106,7 @@ func TestMainReturnsZeroForSuccessfulSpecialMode(t *testing.T) {
 	const helperEnv = "GONAVI_SPECIAL_MODE_SUCCESS_HELPER"
 	if os.Getenv(helperEnv) == "1" {
 		os.Args = []string{
-			"GoNavi",
+			"ServDeck",
 			"mcp-server",
 			"remote-config",
 			"--client",

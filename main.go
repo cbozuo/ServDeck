@@ -96,7 +96,7 @@ func main() {
 	// 代价是 CPU 开销略增，但导出/导入场景属 I/O 密集型，GC 开销可忽略。
 	debug.SetGCPercent(50)
 	if err := waitForWindowsRestartParent(os.Args[1:]); err != nil {
-		logger.Errorf("等待旧 GoNavi 进程退出失败：%v", err)
+		logger.Errorf("等待旧 ServDeck 进程退出失败：%v", err)
 		return
 	}
 
@@ -108,14 +108,14 @@ func main() {
 			return
 		}
 		if maintenanceActive {
-			logger.Warnf("当前 GoNavi 安装正在更新，已阻止新进程启动：%s", executablePath)
+			logger.Warnf("当前 ServDeck 安装正在更新，已阻止新进程启动：%s", executablePath)
 			return
 		}
 	}
 	handled, err := runSpecialMode(os.Args[1:])
 	if handled {
 		if err != nil && !isNormalSpecialModeExit(err) {
-			reportFatalError(err, "GoNavi 特殊模式退出")
+			reportFatalError(err, "ServDeck 特殊模式退出")
 			os.Exit(1)
 		}
 		return
@@ -196,7 +196,7 @@ func main() {
 
 	// Create application with options
 	err = wails.Run(&options.App{
-		Title:              "GoNavi",
+		Title:              "ServDeck",
 		Logger:             logger.NewWailsAdapter(),
 		LogLevel:           wailslogger.INFO,
 		LogLevelProduction: wailslogger.INFO,
@@ -402,7 +402,7 @@ func runMCPServerMode(ctx context.Context, args []string) error {
 		if err != nil {
 			return reportUsageHelp(err, func() { mcpserver.WriteHTTPServerUsage(os.Stdout) })
 		}
-		logger.Infof("GoNavi MCP Streamable HTTP Server 启动：addr=%s path=%s schemaOnly=%v", options.Addr, options.Path, options.SchemaOnly)
+		logger.Infof("ServDeck MCP Streamable HTTP Server 启动：addr=%s path=%s schemaOnly=%v", options.Addr, options.Path, options.SchemaOnly)
 		return mcpserver.RunAppStreamableHTTPServer(ctx, options)
 	case "remote-config", "--remote-config":
 		err := mcpserver.WriteRemoteMCPClientConfig(os.Stdout, args[1:])
@@ -450,7 +450,7 @@ func resolveMainWindowChrome(goos string) mainWindowChromeOptions {
 }
 
 func resolveWindowVisualOptions(goos string, lowMemoryMode bool) (*options.RGBA, *windows.Options) {
-	// A visible Acrylic surface keeps DWM composing after GoNavi loses focus.
+	// A visible Acrylic surface keeps DWM composing after ServDeck loses focus.
 	// Windows therefore uses an opaque surface by default; macOS keeps its separate native effect path.
 	disableTransparency := lowMemoryMode || strings.EqualFold(strings.TrimSpace(goos), "windows")
 	if disableTransparency {
@@ -476,16 +476,16 @@ func resolveWindowVisualOptions(goos string, lowMemoryMode bool) (*options.RGBA,
 
 func resolveWindowsRuntimeMessages() *windows.Messages {
 	messages := windows.DefaultMessages()
-	messages.InstallationRequired = "GoNavi 需要 Microsoft Edge WebView2 运行时。点击确定下载并安装（安装程序会在后台下载，请稍候）。\n\nGoNavi requires the Microsoft Edge WebView2 Runtime. Press OK to download and install."
-	messages.UpdateRequired = "GoNavi 需要更新 Microsoft Edge WebView2 运行时。点击确定下载并安装。\n\nThe WebView2 runtime needs updating. Press OK to download and install."
+	messages.InstallationRequired = "ServDeck 需要 Microsoft Edge WebView2 运行时。点击确定下载并安装（安装程序会在后台下载，请稍候）。\n\nServDeck requires the Microsoft Edge WebView2 Runtime. Press OK to download and install."
+	messages.UpdateRequired = "ServDeck 需要更新 Microsoft Edge WebView2 运行时。点击确定下载并安装。\n\nThe WebView2 runtime needs updating. Press OK to download and install."
 	messages.MissingRequirements = "缺少运行组件 / Missing Requirements"
 	messages.Webview2NotInstalled = "未安装 WebView2 运行时 / WebView2 runtime not installed"
-	messages.Error = "GoNavi 启动失败"
+	messages.Error = "ServDeck 启动失败"
 	messages.FailedToInstall = "WebView2 运行时安装失败，请重试或由管理员安装独立安装包。\n\nThe runtime failed to install. Please retry, or ask an administrator to install the standalone installer."
-	messages.DownloadPage = "GoNavi 需要 Microsoft Edge WebView2 运行时。点击确定打开下载页。最低版本：\n\nThis application requires the WebView2 runtime. Press OK to open the download page. Minimum version required: "
+	messages.DownloadPage = "ServDeck 需要 Microsoft Edge WebView2 运行时。点击确定打开下载页。最低版本：\n\nThis application requires the WebView2 runtime. Press OK to open the download page. Minimum version required: "
 	messages.PressOKToInstall = "点击确定安装 / Press OK to install."
-	messages.ContactAdmin = "GoNavi 需要 Microsoft Edge WebView2 运行时才能打开。请联系系统管理员安装。\n\nThe WebView2 runtime is required to run GoNavi. Please contact your system administrator."
+	messages.ContactAdmin = "ServDeck 需要 Microsoft Edge WebView2 运行时才能打开。请联系系统管理员安装。\n\nThe WebView2 runtime is required to run ServDeck. Please contact your system administrator."
 	messages.InvalidFixedWebview2 = "已指定的 WebView2 运行时无效，请检查路径与最低版本。\n\nThe specified WebView2 runtime is not valid."
-	messages.WebView2ProcessCrash = "WebView2 进程已崩溃，需要重新打开 GoNavi。\n\nThe WebView2 process crashed and GoNavi needs to be restarted."
+	messages.WebView2ProcessCrash = "WebView2 进程已崩溃，需要重新打开 ServDeck。\n\nThe WebView2 process crashed and ServDeck needs to be restarted."
 	return messages
 }

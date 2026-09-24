@@ -344,7 +344,7 @@ import {
   resolveTitleBarLayout,
   resolveTitlebarRuntimePlatform,
   shouldDockCollapsedSidebarActionsInTitlebar as resolveCollapsedSidebarDocking,
-} from './utils/titlebarLayout';
+} from './utils/titleBarLayout';
 import './App.css';
 import './v2-theme.css';
 import './styles/v2-theme-workbench.css';
@@ -1143,7 +1143,8 @@ function App() {
   const resolvedUiFontFamily = resolveUIFontFamily(appearance.customUIFontFamily);
   const resolvedMonoFontFamily = resolveMonoFontFamily(appearance.customMonoFontFamily);
   const appComponentSize: 'small' | 'middle' | 'large' = effectiveUiScale <= 0.92 ? 'small' : (effectiveUiScale >= 1.12 ? 'large' : 'middle');
-  const titleBarButtonWidth = Math.max(40, Math.round(46 * effectiveUiScale));
+  // IDEA 风格:窗口按钮为正方形,宽度与标题栏高度一致(hover 背景呈正方形)。
+  const titleBarButtonWidth = Math.max(28, Math.round(40 * effectiveUiScale));
   const floatingLogButtonHeight = Math.max(30, Math.round(34 * effectiveUiScale));
   const resolvedAppearance = resolveAppearanceValues(appearance);
   const effectiveOpacity = normalizeOpacityForPlatform(resolvedAppearance.opacity);
@@ -6834,9 +6835,9 @@ function App() {
 
       return (
           <div className="gonavi-about-pane">
-              <section className="gonavi-about-identity" aria-label="GoNavi">
+              <section className="gonavi-about-identity" aria-label="ServDeck">
                   <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 18, lineHeight: 1.15, fontWeight: 800, color: overlayTheme.titleText }}>GoNavi</div>
+                      <div style={{ fontSize: 18, lineHeight: 1.15, fontWeight: 800, color: overlayTheme.titleText }}>ServDeck</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4, flexWrap: 'wrap', color: mutedText, fontWeight: 600, fontSize: 12 }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                               <UserOutlined />
@@ -8222,11 +8223,11 @@ function App() {
                 justifyContent: 'flex-start',
                 // Match the titlebar to the adjacent theme surface with its compensated opacity.
                 background: 'var(--gn-bg-titlebar)',
-                borderBottom: 'none',
                 userSelect: 'none',
                 WebkitAppRegion: isWebRuntime ? 'no-drag' : 'drag',
                 '--wails-draggable': isWebRuntime ? 'no-drag' : 'drag',
                 '--gn-titlebar-action-height': `${titleBarLayout.actionHeight}px`,
+                '--gn-titlebar-button-width': `${titleBarButtonWidth}px`,
                 '--gn-titlebar-divider-height': `${titleBarLayout.dividerHeight}px`,
                 '--gn-titlebar-collapsed-upper-height': `${titleBarLayout.upperBandHeight}px`,
                 '--gn-titlebar-window-controls-width': `${isWebRuntime ? titleBarButtonWidth : (useNativeMacWindowControls ? 0 : titleBarButtonWidth * 3)}px`,
@@ -8241,7 +8242,7 @@ function App() {
                     data-titlebar-brand-region="true"
                     style={{ display: 'flex', alignItems: 'center', gap: Math.max(6, Math.round(8 * effectiveUiScale)), fontWeight: 700, minWidth: 0, letterSpacing: '-0.01em' }}
                   >
-                      <span>GoNavi</span>
+                      <span>ServDeck</span>
                   </div>
                   <TitleBarPrimaryActions
                     newQueryLabel={t(primaryActionIsMessageQueue

@@ -114,7 +114,7 @@ type AboutInfo = {
 
 const DEFAULT_ABOUT_INFO: AboutInfo = {
   version: '',
-  author: 'Syngnat',
+  author: 'chenbozuo',
   repoUrl: 'https://github.com/Syngnat/GoNavi',
   issueUrl: 'https://github.com/Syngnat/GoNavi/issues',
   releaseUrl: 'https://github.com/Syngnat/GoNavi/releases',
@@ -1072,8 +1072,7 @@ export const useAppUpdateManager = ({
       }
       if (silent && !aboutOpen && updateMutedVersionRef.current !== infoKey && updateNotifiedVersionRef.current !== infoKey) {
         updateNotifiedVersionRef.current = infoKey;
-        // 启动/后台检查发现更新时，打开设置中心「关于」页，不再弹旧版关于对话框
-        openUpdateCenter();
+        // 启动/后台检查发现更新时保持静默,不再自动打开设置中心「关于」页。
       }
     } else if (!silent) {
       setUpdateDownloadProgress((prev) => {

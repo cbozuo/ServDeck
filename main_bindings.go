@@ -31,7 +31,7 @@ func runWailsBindingsGeneration() error {
 		return err
 	}
 	return wails.Run(&options.App{
-		Title: "GoNavi",
+		Title: "ServDeck",
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

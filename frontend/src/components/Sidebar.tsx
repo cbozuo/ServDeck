@@ -1470,7 +1470,8 @@ const Sidebar: React.FC<{
               className="gn-v2-tree-folder-icon"
               data-sidebar-tree-folder-icon="true"
             >
-              <FolderOutlined />
+              <FolderOutlined className="gn-folder-state-closed" />
+              <FolderOpenOutlined className="gn-folder-state-open" />
             </span>
           ),
           type: 'tag',
@@ -1492,8 +1493,8 @@ const Sidebar: React.FC<{
       if (allSavedQueriesNode) {
         orderedNodes.push(allSavedQueriesNode);
       }
-      const externalSQLRootNode = prev.find((node) => node.type === 'external-sql-root');
-      return externalSQLRootNode ? [...orderedNodes, externalSQLRootNode] : orderedNodes;
+      // 「外部 SQL 文件」入口已移除,不再拼入连接树。
+      return orderedNodes;
     });
   }, [connections, connectionTags, sidebarRootOrder, rootSortMode, rootConnectionSortMode, allSavedQueriesNode]);
 
@@ -1861,7 +1862,7 @@ const Sidebar: React.FC<{
   }, [buildExternalSQLRootTreeNode, externalSQLDirectories]);
 
   useEffect(() => {
-      void refreshGlobalExternalSQLRootNode(false);
+      // 「外部 SQL 文件」功能已移除,不再在启动时加载外部目录树。
   }, [refreshGlobalExternalSQLRootNode]);
 
   const openDataImportWorkbench = useCallback((input: BuildDataImportWorkbenchTabInput) => {
@@ -2644,8 +2645,20 @@ const Sidebar: React.FC<{
           return null;
       }
       const keepCollapsed = shouldKeepSidebarSwitcherCollapsedWhileLoading(node, loadingNodesRef.current);
-      return <CaretDownFilled rotate={keepCollapsed ? -90 : undefined} />;
-  }, []);
+      return (
+          <CaretDownFilled
+              rotate={keepCollapsed ? -90 : undefined}
+              onClick={() => {
+                  // 与点击行保持一致:箭头点击同步行选中态(展开/收起仍由 Tree 处理)
+                  const treeNode = node.data;
+                  if (!treeNode?.key) {
+                      return;
+                  }
+                  onSelect([treeNode.key], { node: treeNode, selectedNodes: [treeNode] });
+              }}
+          />
+      );
+  }, [onSelect]);
 
 
   const buildRuntimeConfig = (conn: any, overrideDatabase?: string, clearDatabase: boolean = false) => {

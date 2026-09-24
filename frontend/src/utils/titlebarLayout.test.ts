@@ -7,7 +7,7 @@ import {
   resolveTitleBarLayout,
   resolveTitlebarRuntimePlatform,
   shouldDockCollapsedSidebarActionsInTitlebar,
-} from './titlebarLayout';
+} from './titleBarLayout';
 
 describe('titlebarLayout', () => {
   describe('normalizeTitlebarRuntimePlatform', () => {

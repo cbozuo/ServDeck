@@ -44,6 +44,6 @@ const loadEntry = async (): Promise<void> => {
 };
 
 void loadEntry().catch((error) => {
-  console.error('[GoNavi] Failed to load frontend entry', error);
+  console.error('[ServDeck] Failed to load frontend entry', error);
   showBootSplashError(error instanceof Error ? error.message : String(error));
 });

@@ -2543,14 +2543,15 @@ body[data-ui-version="v2"] .gn-v2-titlebar-system-actions {
 
 body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn {
     display: inline-flex;
-    width: var(--gn-titlebar-action-height, 30px);
-    min-width: var(--gn-titlebar-action-height, 30px);
-    height: var(--gn-titlebar-action-height, 30px) !important;
+    width: var(--gn-titlebar-button-width, 40px);
+    min-width: var(--gn-titlebar-button-width, 40px);
+    height: 100% !important;
+    min-height: 100% !important;
     padding: 0 !important;
     align-items: center;
     justify-content: center;
     border: 0;
-    border-radius: 7px;
+    border-radius: 0;
     color: var(--gn-fg-3, var(--ant-color-text-tertiary));
     box-shadow: none;
 }

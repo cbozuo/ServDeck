@@ -100,7 +100,7 @@ type nativeWindowsWindowPropertyStoreVTable struct {
 }
 
 // setWindowsTaskbarProperties updates the relaunch icon of the live taskbar
-// group. AppUserModel.ID stays Syngnat.GoNavi, the same value as the MSI
+// group. AppUserModel.ID stays chenbozuo.ServDeck, the same value as the MSI
 // shortcuts; writing that same ID last tells Explorer to re-read the icon
 // path without moving the window into a second taskbar button.
 func setWindowsTaskbarProperties(hwnd uintptr, iconPath string) error {

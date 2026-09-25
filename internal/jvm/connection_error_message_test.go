@@ -125,7 +125,7 @@ func TestDescribeConnectionTestErrorLocalizesGenericAndEndpointMessagesInEnglish
 	got := DescribeConnectionTestError(cfg, errors.New(raw))
 	want := strings.Join([]string{
 		"Endpoint connection failed: Endpoint Base URL is invalid.",
-		"Suggestion: Enter a full http:// or https:// URL that points to the management API root implementing the GoNavi JVM HTTP contract, for example http://127.0.0.1:19090/manage/jvm.",
+		"Suggestion: Enter a full http:// or https:// URL that points to the management API root implementing the ServDeck JVM HTTP contract, for example http://127.0.0.1:19090/manage/jvm.",
 		`Technical detail: endpoint baseurl is invalid: parse ":bad-url": missing protocol scheme`,
 	}, "\n")
 	if got != want {

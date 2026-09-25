@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -16,13 +15,10 @@ import (
 	"sync"
 	"syscall"
 
-	aiservice "GoNavi-Wails/internal/ai/service"
 	"GoNavi-Wails/internal/app"
 	"GoNavi-Wails/internal/logger"
-	"GoNavi-Wails/internal/mcpserver"
 	"GoNavi-Wails/internal/nativewindow"
 	"GoNavi-Wails/internal/webserver"
-
 	"github.com/wailsapp/wails/v2"
 	wailslogger "github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/menu"
@@ -156,20 +152,11 @@ func main() {
 	app.StartWindowsRuntimeProcessReaper()
 	// Create an instance of the app structure
 	application := app.NewApp()
-	aiService := aiservice.NewServiceWithConfigChangeHandler(app.NewCloudBackupChangeHandler(application))
-	agentTools, agentToolsErr := newDesktopAgentToolCatalog(application, aiService)
-	if agentToolsErr != nil {
-		logger.Warnf("初始化 AI Agent 工具目录失败：%v", agentToolsErr)
-	} else if err := aiservice.ConfigureAgentHarnessDependencies(aiService, aiservice.AgentHarnessDependencies{
-		Tools: agentTools,
-	}); err != nil {
-		logger.Warnf("配置 AI Agent Run Harness 依赖失败：%v", err)
-	}
-	nativeWindowManager, nativeWindowErr := nativewindow.NewManager(assets, application, aiService)
+	nativeWindowManager, nativeWindowErr := nativewindow.NewManager(assets, application)
 	if nativeWindowErr != nil {
 		logger.Warnf("初始化原生独立窗口管理器失败：%v", nativeWindowErr)
 	}
-	bindings := collectWailsBindings(application, aiService, nativeWindowManager)
+	bindings := collectWailsBindings(application, nativeWindowManager)
 	lowMemoryMode := isLowMemoryMode()
 	backgroundColour, windowsOptions := resolveWindowVisualOptions(runtime.GOOS, lowMemoryMode)
 	windowsOptions.WebviewUserDataPath = resolveWindowsWebviewUserDataPath()
@@ -270,10 +257,6 @@ func main() {
 				}
 			}
 			app.InitializeLifecycle(application, lifecycleCtx)
-			aiservice.InitializeLifecycle(aiService, lifecycleCtx)
-			if err := aiservice.RepairInstalledLocalMCPClientConfigs(aiService); err != nil {
-				logger.Warnf("自动修复本地 MCP 客户端配置失败：%v", err)
-			}
 		},
 		OnDomReady: func(ctx context.Context) {
 			// 每次 WebView 导航完成（含用户刷新前端）都会触发。
@@ -285,7 +268,6 @@ func main() {
 		OnShutdown: func(ctx context.Context) {
 			app.StartWindowsRuntimeProcessReaper()
 			nativewindow.ShutdownLifecycle(nativeWindowManager)
-			aiservice.ShutdownWithContext(aiService, ctx)
 			application.Shutdown()
 		},
 		OnBeforeClose: app.NewBeforeCloseHandler(application),
@@ -320,21 +302,6 @@ func reportFatalError(err error, message string) {
 	fmt.Fprintf(os.Stderr, "[ERROR] %s；错误链：%s\n", message, logger.ErrorChain(err))
 }
 
-// newDesktopAgentToolCatalog keeps the Wails adapter on the same complete Go
-// tool catalog as the CLI: database/MCP tools plus snapshot-bound workspace
-// inspection. The catalog itself owns no desktop lifecycle; AppBackend merely
-// borrows the already-created application instance.
-func newDesktopAgentToolCatalog(application *app.App, aiService *aiservice.Service) (*mcpserver.CompositeToolCatalog, error) {
-	backend, err := mcpserver.NewAppBackendFromApp(application)
-	if err != nil {
-		return nil, err
-	}
-	return mcpserver.NewCompositeToolCatalog(
-		mcpserver.NewAgentToolCatalogWithDynamicSource(backend, mcpserver.NewServiceMCPSource(aiService)),
-		mcpserver.NewWorkspaceSnapshotToolCatalog(),
-	), nil
-}
-
 func buildMacApplicationMenu(onNativeSelectCurrentLine func(), frameless bool) *menu.Menu {
 	result := menu.NewMenuFromItems(
 		menu.AppMenu(),
@@ -363,10 +330,6 @@ func runSpecialMode(args []string) (bool, error) {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		return true, app.RunSyncWorker(ctx, args[1:])
-	case "mcp-server", "--mcp-server":
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-		defer stop()
-		return true, runMCPServerMode(ctx, args[1:])
 	case "web-server", "--web-server":
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
@@ -382,45 +345,6 @@ func runSpecialMode(args []string) (bool, error) {
 
 func isNormalSpecialModeExit(err error) bool {
 	return errors.Is(err, context.Canceled) || errors.Is(err, io.EOF)
-}
-
-func runMCPServerMode(ctx context.Context, args []string) error {
-	if len(args) == 0 {
-		return mcpserver.RunAppStdioServer(ctx)
-	}
-
-	mode := strings.ToLower(strings.TrimSpace(args[0]))
-	switch mode {
-	case "help", "--help", "-h":
-		// 与 internal/cli 的 writeMCPUsage 同一惯例：帮助走 stdout、退出成功。
-		mcpserver.WriteAppMCPServerUsage(os.Stdout)
-		return nil
-	case "stdio", "--stdio":
-		return mcpserver.RunAppStdioServer(ctx)
-	case "http", "--http", "streamable-http", "--streamable-http":
-		options, err := mcpserver.ParseHTTPServerOptions(args[1:])
-		if err != nil {
-			return reportUsageHelp(err, func() { mcpserver.WriteHTTPServerUsage(os.Stdout) })
-		}
-		logger.Infof("ServDeck MCP Streamable HTTP Server 启动：addr=%s path=%s schemaOnly=%v", options.Addr, options.Path, options.SchemaOnly)
-		return mcpserver.RunAppStreamableHTTPServer(ctx, options)
-	case "remote-config", "--remote-config":
-		err := mcpserver.WriteRemoteMCPClientConfig(os.Stdout, args[1:])
-		return reportUsageHelp(err, func() { mcpserver.WriteRemoteMCPClientConfigUsage(os.Stdout) })
-	default:
-		return fmt.Errorf("未知 MCP server 模式: %s（支持 stdio/http/remote-config）", args[0])
-	}
-}
-
-// reportUsageHelp 把 -h/--help 从错误转成正常退出：用户主动求助不是失败。
-// flag 包会把 ErrHelp 当错误返回，而各子模式的用法输出都被设成了丢弃
-// （io.Discard），若不在这里补打，终端只会剩一屏空白加一个非零退出码。
-func reportUsageHelp(err error, writeUsage func()) error {
-	if !errors.Is(err, flag.ErrHelp) {
-		return err
-	}
-	writeUsage()
-	return nil
 }
 
 func isLowMemoryMode() bool {

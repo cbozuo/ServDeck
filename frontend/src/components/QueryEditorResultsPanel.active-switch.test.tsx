@@ -115,5 +115,7 @@ describe('result set switching re-render cost', () => {
     // Only the two grids whose `isActive` flipped should have re-rendered.
     expect(renderedSql).toEqual(['SELECT 1', 'SELECT 2']);
     expect(renderCounts.has('SELECT 3')).toBe(false);
-  });
+    // it() 内部动态 import 整个结果面板组件树,全量并行跑时 transform 负载高,
+    // 放宽超时避免与断言语义无关的偶发超时。
+  }, 30000);
 });

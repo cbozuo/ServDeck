@@ -72,7 +72,6 @@ describe('securityUpdatePresentation', () => {
   it('maps issue scope actions to existing repair entry labels', () => {
     expect(getSecurityUpdateIssueActionMeta({ id: 'conn', scope: 'connection', action: 'open_connection' }, zh).label).toBe('打开连接');
     expect(getSecurityUpdateIssueActionMeta({ id: 'proxy', scope: 'global_proxy', action: 'open_proxy_settings' }, zh).label).toBe('代理设置');
-    expect(getSecurityUpdateIssueActionMeta({ id: 'ai', scope: 'ai_provider', action: 'open_ai_settings' }, zh).label).toBe('AI 设置');
     expect(getSecurityUpdateIssueActionMeta({ id: 'system', scope: 'system', action: 'view_details' }, zh).label).toBe('查看详情');
   });
 

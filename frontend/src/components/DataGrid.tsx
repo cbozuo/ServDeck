@@ -118,11 +118,9 @@ import {
     unescapeCellText,
 } from '../utils/dataGridCellTextTransform';
 import {
-    DEFAULT_SHORTCUT_OPTIONS,
     getShortcutPlatform,
     isEditableElement,
     isShortcutMatch,
-    resolveShortcutDisplay,
 } from '../utils/shortcuts';
 import {
     TEMPORAL_FORMATS,
@@ -1277,7 +1275,7 @@ const DataGrid: React.FC<DataGridProps> = ({
   }, [displayColumnNames, columnMetaMap, columnTypeMapByLowerName]);
 
   // 仅数据格右对齐：数值与日期时间列右对齐，其余保持左对齐；表头不受影响。
-  // 由显示设置开关控制，默认关闭（全左）。
+  // 由列展示配置开关控制，默认禁用（全左）。
   const gridColumnAlignMap = useMemo<Record<string, GridColumnAlign>>(() => {
       const next: Record<string, GridColumnAlign> = {};
       displayColumnNames.forEach((columnName) => {
@@ -2069,7 +2067,7 @@ const DataGrid: React.FC<DataGridProps> = ({
     resetCellSelection();
   }, [resetCellSelection]);
 
-  // 重新查询/刷新时重置选中与挂起删除（含索引键错位防护），逻辑见 hook 文件
+  // 重新查询/刷新时重置选中与挂起删除（含 index 键错位防护），逻辑见 hook 文件
   const { selectionResetSourceDataRef } = useDataGridReloadReset({
     data,
     resetCellSelection,
@@ -5963,7 +5961,6 @@ const DataGrid: React.FC<DataGridProps> = ({
       onPageChange(nextPage, pagination.pageSize);
   }, [onPageChange, pagination, paginationTotalPages]);
 
-  const aiShortcutLabel = resolveShortcutDisplay(shortcutOptions ?? DEFAULT_SHORTCUT_OPTIONS, 'toggleAIPanel', activeShortcutPlatform);
     return (
     <DataGridShell
       {...{
@@ -5983,7 +5980,6 @@ const DataGrid: React.FC<DataGridProps> = ({
         activePageFindPosition,
         activeShortcutPlatform,
         addFilter,
-        aiShortcutLabel,
         allSelectedAreDeleted,
         applyAllFiltersDisabled,
         applyAllFiltersEnabled,

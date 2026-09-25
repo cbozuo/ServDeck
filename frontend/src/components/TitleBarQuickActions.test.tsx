@@ -94,7 +94,8 @@ describe('TitleBarQuickActions', () => {
     expect(toolbar.props['aria-label']).toBe('Object actions');
     expect(toolbar.props['data-no-titlebar-toggle']).toBe('true');
     expect(toolbar.findAllByProps({ className: 'gn-v2-titlebar-quick-label' })).toHaveLength(0);
-    expect(toolbar.findAll((node) => Boolean(node.props['data-titlebar-icon']))).toHaveLength(0);
+    // 方案 B:动作按钮为图标+文字,传入的 icon 会在按钮内渲染
+    expect(toolbar.findAll((node) => Boolean(node.props['data-titlebar-icon']))).toHaveLength(3);
     const batchMenuButton = toolbar.findByProps({ 'data-titlebar-quick-menu': 'batch-actions' });
     expect(batchMenuButton.props['data-no-titlebar-toggle']).toBe('true');
     const dropdowns = renderer.root.findAll((node) => Array.isArray(node.props.menu?.items)) as ReactTestInstance[];

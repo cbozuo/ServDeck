@@ -71,6 +71,7 @@ const TitleBarQuickActions: React.FC<TitleBarQuickActionsProps> = ({ label, acti
             data-no-titlebar-toggle="true"
             aria-label={action.label}
           >
+            {action.icon}
             <span>{action.label}</span>
           </button>
         </Dropdown>
@@ -86,6 +87,7 @@ const TitleBarQuickActions: React.FC<TitleBarQuickActionsProps> = ({ label, acti
           disabled={action.disabled}
           onClick={action.onClick}
         >
+          {action.icon}
           <span>{action.label}</span>
         </button>
       </Tooltip>

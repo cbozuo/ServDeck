@@ -1,4 +1,5 @@
 import React from 'react';
+import { ApiOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   getShortcutDisplayLabel,
   resolveShortcutBinding,
@@ -58,7 +59,8 @@ const TitleBarPrimaryActions: React.FC<TitleBarPrimaryActionsProps> = ({
       data-gonavi-new-query-action="true"
       onClick={onNewQuery}
     >
-      {newQueryLabel}
+      <PlusOutlined className="gonavi-titlebar-action-icon" />
+      <span>{newQueryLabel}</span>
     </button>
     <button
       type="button"
@@ -68,10 +70,12 @@ const TitleBarPrimaryActions: React.FC<TitleBarPrimaryActionsProps> = ({
       data-gonavi-create-connection-action="true"
       onClick={onNewConnection}
     >
-      {newConnectionLabel}
+      <ApiOutlined className="gonavi-titlebar-action-icon" />
+      <span>{newConnectionLabel}</span>
     </button>
     {connectionGroupLabel && onConnectionGroupManagement && <button type="button" className="gonavi-titlebar-primary-action" aria-label={connectionGroupLabel} data-gonavi-connection-group-management-action="true" onClick={onConnectionGroupManagement}>
-      {connectionGroupLabel}
+      <FolderOutlined className="gonavi-titlebar-action-icon" />
+      <span>{connectionGroupLabel}</span>
     </button>}
   </div>
 );

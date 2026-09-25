@@ -33,7 +33,7 @@ const placeholdersOf = (value: string): string[] => Array.from(
 describe('i18n catalog integrity', () => {
   it('keeps placeholder sets identical across every locale', () => {
     const keys = Object.keys(catalogs['en-US']);
-    expect(keys.length).toBeGreaterThan(8000);
+    expect(keys.length).toBeGreaterThan(7000);
 
     const mismatched: string[] = [];
     for (const key of keys) {

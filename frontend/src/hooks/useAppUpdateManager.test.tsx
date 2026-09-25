@@ -130,7 +130,9 @@ describe('useAppUpdateManager', () => {
     expect(resolveUpdateInstallAction({ packageType: 'msi', autoRelaunch: false })).toBe('launch-installer');
   });
 
-  it('schedules silent update checks when auto-check is enabled', async () => {
+  it('never schedules silent update checks automatically', async () => {
+    storeApi.autoCheckForUpdates = true;
+    storeApi.autoCheckForUpdatesIntervalMinutes = 30;
     backendApp.CheckForUpdatesSilently.mockResolvedValue({
       success: true,
       data: {
@@ -143,63 +145,7 @@ describe('useAppUpdateManager', () => {
     renderHook();
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000);
-    });
-
-    expect(backendApp.CheckForUpdatesSilently).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(30 * 60 * 1000);
-    });
-
-    expect(backendApp.CheckForUpdatesSilently).toHaveBeenCalledTimes(2);
-  });
-
-  it('uses the configured auto-check interval for subsequent silent checks', async () => {
-    storeApi.autoCheckForUpdatesIntervalMinutes = 15;
-    backendApp.CheckForUpdatesSilently.mockResolvedValue({
-      success: true,
-      data: {
-        hasUpdate: false,
-        currentVersion: '0.8.1',
-        latestVersion: '0.8.1',
-      },
-    });
-
-    renderHook();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000);
-    });
-    expect(backendApp.CheckForUpdatesSilently).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(14 * 60 * 1000);
-    });
-    expect(backendApp.CheckForUpdatesSilently).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(60 * 1000);
-    });
-    expect(backendApp.CheckForUpdatesSilently).toHaveBeenCalledTimes(2);
-  });
-
-  it('does not schedule silent update checks when auto-check is disabled', async () => {
-    storeApi.autoCheckForUpdates = false;
-    backendApp.CheckForUpdatesSilently.mockResolvedValue({
-      success: true,
-      data: {
-        hasUpdate: false,
-        currentVersion: '0.8.1',
-        latestVersion: '0.8.1',
-      },
-    });
-
-    renderHook();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000);
-      await vi.advanceTimersByTimeAsync(30 * 60 * 1000);
+      await vi.advanceTimersByTimeAsync(2000 + 30 * 60 * 1000);
     });
 
     expect(backendApp.CheckForUpdatesSilently).not.toHaveBeenCalled();
@@ -1389,14 +1335,14 @@ describe('useAppUpdateManager', () => {
     });
 
     expect(hook?.aboutDisplayVersion).toBe('0.8.5');
-    expect(hook?.aboutInfo?.author).toBe('Syngnat');
+    expect(hook?.aboutInfo?.author).toBe('chenbozuo');
     expect(hook?.aboutInfo?.repoUrl).toBe('https://github.com/Syngnat/GoNavi');
     expect(hook?.aboutInfo?.issueUrl).toBe('https://github.com/Syngnat/GoNavi/issues');
     expect(hook?.aboutInfo?.releaseUrl).toBe('https://github.com/Syngnat/GoNavi/releases');
     expect(messageApi.error).not.toHaveBeenCalled();
   });
 
-  it('opens the settings-center bridge on silent update discovery', async () => {
+  it('keeps the settings-center bridge closed on silent update discovery', async () => {
     const bridge = {
       open: vi.fn(),
       close: vi.fn(),
@@ -1431,7 +1377,7 @@ describe('useAppUpdateManager', () => {
       await hook?.checkForUpdates(true);
     });
 
-    expect(bridge.open).toHaveBeenCalledTimes(1);
+    expect(bridge.open).not.toHaveBeenCalled();
     expect(hook?.lastUpdateInfo?.hasUpdate).toBe(true);
     expect(hook?.lastUpdateInfo?.latestVersion).toBe('0.8.2');
   });

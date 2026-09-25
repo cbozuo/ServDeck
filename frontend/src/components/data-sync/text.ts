@@ -501,6 +501,7 @@ const zhCN = {
   'status.canceled': '已取消',
   'status.cancelled': '已取消',
   'status.interrupted': '已中断',
+  'data_sync.worker.background': '启用定时任务后由后台进程执行，关闭 ServDeck 窗口后继续运行，重新登录系统时自动启动。电脑需保持唤醒，当前用户需保持登录，数据源与备份目录需可访问；睡眠或关机期间无法执行，恢复后按任务的错过执行策略处理。',
 } as const;
 
 export type DataSyncWorkbenchTextKey = keyof typeof zhCN;
@@ -1007,6 +1008,7 @@ const enUS: Record<DataSyncWorkbenchTextKey, string> = {
   'status.canceled': 'Canceled',
   'status.cancelled': 'Cancelled',
   'status.interrupted': 'Interrupted',
+  'data_sync.worker.background': 'Scheduled tasks run in a background process and keep running after the ServDeck window is closed, and start automatically when you sign back in. Keep the computer awake and the current user signed in, and keep data sources and the backup directory accessible; tasks cannot run while asleep or powered off, and the missed-run policy applies on recovery.',
 };
 
 export type DataSyncWorkbenchTranslate = (

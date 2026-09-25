@@ -27,7 +27,6 @@ vi.mock('@ant-design/icons', () => {
   return {
     CloseOutlined: Icon,
     CopyOutlined: Icon,
-    RobotOutlined: Icon,
     SearchOutlined: Icon,
     TableOutlined: Icon,
   };
@@ -63,10 +62,9 @@ describe('SidebarSearchPanel recent query actions', () => {
         activeIndex={0}
         label="Search"
         placeholder="Search"
-        aiMode={false}
         objectMode={false}
         flatItems={[recentItem]}
-        sections={{ goTo: [], ai: [], actions: [], recent: [recentItem] }}
+        sections={{ goTo: [], actions: [], recent: [recentItem] }}
         inputRef={{ current: null }}
         handlers={{
           onSearchValueChange: vi.fn(),
@@ -114,10 +112,9 @@ describe('SidebarSearchPanel recent query actions', () => {
         activeIndex={0}
         label="Search"
         placeholder="Search"
-        aiMode={false}
         objectMode={false}
         flatItems={[]}
-        sections={{ goTo: [], ai: [], actions: [], recent: [] }}
+        sections={{ goTo: [], actions: [], recent: [] }}
         inputRef={{ current: null }}
         handlers={{
           onSearchValueChange: vi.fn(),
@@ -158,10 +155,9 @@ describe('SidebarSearchPanel recent query actions', () => {
         activeIndex={0}
         label="Search"
         placeholder="Search"
-        aiMode={false}
         objectMode={false}
         flatItems={[item]}
-        sections={{ goTo: [item], ai: [], actions: [], recent: [] }}
+        sections={{ goTo: [item], actions: [], recent: [] }}
         inputRef={{ current: null }}
         handlers={{
           onSearchValueChange: vi.fn(),
@@ -218,10 +214,9 @@ describe('SidebarSearchPanel recent query actions', () => {
         activeIndex={0}
         label="Search"
         placeholder="Search"
-        aiMode={false}
         objectMode={false}
         flatItems={[item]}
-        sections={{ goTo: [], ai: [], actions: [item], recent: [] }}
+        sections={{ goTo: [], actions: [item], recent: [] }}
         inputRef={{ current: null }}
         handlers={{
           onSearchValueChange: vi.fn(),

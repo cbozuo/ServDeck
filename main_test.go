@@ -9,35 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"GoNavi-Wails/internal/ai/runharness"
-	aiservice "GoNavi-Wails/internal/ai/service"
-	"GoNavi-Wails/internal/app"
-
 	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/menu/keys"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
-
-func TestNewDesktopAgentToolCatalogIncludesWorkspaceInspection(t *testing.T) {
-	application := app.NewApp()
-	service := aiservice.NewService()
-	catalog, err := newDesktopAgentToolCatalog(application, service)
-	if err != nil {
-		t.Fatalf("newDesktopAgentToolCatalog: %v", err)
-	}
-
-	for _, name := range []string{"execute_sql", "inspect_active_tab"} {
-		descriptor, executor, err := catalog.Resolve(context.Background(), name)
-		if err != nil || executor == nil {
-			t.Fatalf("Resolve(%q) = %#v, %v", name, descriptor, err)
-		}
-		if name == "inspect_active_tab" && descriptor.Effect != runharness.ToolEffectReadOnly {
-			t.Fatalf("workspace tool effect = %q, want read_only", descriptor.Effect)
-		}
-	}
-}
 
 func TestShouldEnableWindowsMSISingleInstanceOnlyForInstalledMainGUI(t *testing.T) {
 	installDir := t.TempDir()
@@ -85,7 +62,7 @@ func TestPrimaryWindowActivatorQueuesRequestsUntilRuntimeStartup(t *testing.T) {
 func TestMainReturnsNonZeroForSpecialModeFailure(t *testing.T) {
 	const helperEnv = "GONAVI_SPECIAL_MODE_FAILURE_HELPER"
 	if os.Getenv(helperEnv) == "1" {
-		os.Args = []string{"ServDeck", "mcp-server", "invalid-mode"}
+		os.Args = []string{"ServDeck", "web-server", "--unexpected-argument"}
 		main()
 		return
 	}
@@ -99,31 +76,6 @@ func TestMainReturnsNonZeroForSpecialModeFailure(t *testing.T) {
 	}
 	if exitErr.ExitCode() != 1 {
 		t.Fatalf("special-mode failure exit code = %d, want 1", exitErr.ExitCode())
-	}
-}
-
-func TestMainReturnsZeroForSuccessfulSpecialMode(t *testing.T) {
-	const helperEnv = "GONAVI_SPECIAL_MODE_SUCCESS_HELPER"
-	if os.Getenv(helperEnv) == "1" {
-		os.Args = []string{
-			"ServDeck",
-			"mcp-server",
-			"remote-config",
-			"--client",
-			"openclaw",
-			"--url",
-			"https://example.com/mcp",
-			"--token",
-			"test-token",
-		}
-		main()
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run=^TestMainReturnsZeroForSuccessfulSpecialMode$")
-	cmd.Env = append(os.Environ(), helperEnv+"=1")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("successful special mode returned error: %v", err)
 	}
 }
 

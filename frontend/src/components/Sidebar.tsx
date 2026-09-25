@@ -97,6 +97,7 @@ import { createSidebarResizeAwareFrameScheduler } from '../utils/sidebarResizeLi
 	  AppstoreOutlined,
 	  AuditOutlined,
 	  CaretDownFilled,
+	  ApartmentOutlined,
 	  ClockCircleOutlined,
 	  CloudOutlined,
 	  CloudDownloadOutlined,
@@ -826,7 +827,6 @@ const Sidebar: React.FC<{
   /** Whether web-only settings entries (e.g. browser auth) should appear. */
   isWebRuntime?: boolean;
   onOpenDataSyncWorkbench?: (entryMode: DataSyncEntryModeAlias) => void;
-  onToggleAI?: () => void;
   onToggleLogPanel?: () => void;
   v2ExplorerContext?: V2ExplorerContext;
   collapsedSidebarActionsTarget?: HTMLElement | null;
@@ -847,7 +847,6 @@ const Sidebar: React.FC<{
   onOpenSettings,
   onOpenSettingsNavigation,
   isWebRuntime = false,
-  onToggleAI,
   onToggleLogPanel,
   v2ExplorerContext,
   collapsedSidebarActionsTarget,
@@ -917,8 +916,6 @@ const Sidebar: React.FC<{
   const shortcutOptions = useStore(state => state.shortcutOptions);
   const languagePreference = useStore(state => state.languagePreference);
   const setAppearance = useStore(state => state.setAppearance);
-  const setAIPanelVisible = useStore(state => state.setAIPanelVisible);
-  const addAIContext = useStore(state => state.addAIContext);
   void languagePreference;
   const darkMode = theme === 'dark';
   const resolvedAppearance = resolveAppearanceValues(appearance);
@@ -1038,6 +1035,8 @@ const Sidebar: React.FC<{
   const [loadedKeys, setLoadedKeys] = useState<React.Key[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
   const selectedSidebarKeyRef = useRef('');
+  // 选中信息写入 Tree 的 selectedKeys(行出现主题色背景),同时同步到 ref 供
+  // 标题栏/上下文等业务逻辑消费。ref 只记首键,选中集合以 selectedKeys 为准。
   const setSidebarSelectedKeys = useCallback((
       action: React.SetStateAction<React.Key[]>,
   ) => {
@@ -1067,6 +1066,8 @@ const Sidebar: React.FC<{
       dataRef?: unknown,
   ) => TreeNode[]>(() => []);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 双击展开切换的幂等守卫:记录最近一次切换的节点与时间,300ms 内同节点重复触发忽略。
+  const sidebarDoubleClickToggleGuardRef = useRef<{ key: string; time: number } | null>(null);
   const treeDragSelectSuppressUntilRef = useRef(0);
   const treeDragSelectionSnapshotRef = useRef<{
       selectedKeys: React.Key[];
@@ -2346,7 +2347,12 @@ const Sidebar: React.FC<{
       selectedNodesRef.current = info.selectedNodes || [];
 
       if (keys.length === 0) {
-          publishTitlebarSelection(null);
+          // antd Tree 再次点击已选中行会清空选择;改为保持选中(与点击展开
+          // 箭头的行为一致),不做取消选中。
+          if (info?.node?.key != null) {
+              setSidebarSelectedKeys([info.node.key]);
+              selectedNodesRef.current = [info.node];
+          }
           return;
       }
       if (shouldSkipSidebarSelectWhileDragging(isTreeDragging, info)) return;
@@ -2459,10 +2465,26 @@ const Sidebar: React.FC<{
           clearTimeout(clickTimerRef.current);
           clickTimerRef.current = null;
       }
+      // 来源守卫:事件落在展开箭头(switcher)上时,展开/收起已由 antd 的逐击
+      // 处理完成,这里再切换会与两次单击叠加成 2~3 次翻转,净效果随机表现为
+      // "双击有时无效"。箭头区域的点击交给 antd,双击只处理行主体。
+      const switcherEl = (e?.target as HTMLElement | null | undefined)?.closest?.('.ant-tree-switcher');
+      if (switcherEl) {
+          return;
+      }
       const { type, dataRef, key: nodeKey } = node;
       if (type === 'v2-table-section' || type === 'v2-database-section') {
           return;
       }
+      // 幂等守卫:同一节点 300ms 内的重复双击切换忽略,兜底消除残余的双触发竞态。
+      const guardKey = String(nodeKey ?? '');
+      const now = Date.now();
+      if (sidebarDoubleClickToggleGuardRef.current
+          && sidebarDoubleClickToggleGuardRef.current.key === guardKey
+          && now - sidebarDoubleClickToggleGuardRef.current.time < 300) {
+          return;
+      }
+      sidebarDoubleClickToggleGuardRef.current = { key: guardKey, time: now };
       const nodeConnectionId = resolveSidebarNodeConnectionId(node, connectionIds);
       // Context-menu actions call this handler directly, without rc-tree's
       // preceding select event. Keep the tree selection in sync so the
@@ -3222,7 +3244,6 @@ const Sidebar: React.FC<{
       handleCopyTableAsInsert,
       openTableDdlInDesigner,
       openTableInERView,
-      injectTablePromptToAI,
       handleCreateDatabase,
       openCreateSchemaModal,
       handleCreateSchema,
@@ -3319,8 +3340,6 @@ const Sidebar: React.FC<{
       openDesign,
       onDoubleClick,
       runExportWithProgress,
-      setAIPanelVisible,
-      addAIContext,
       migrateVisibilityForRenamedDatabase,
       removeVisibilityForDeletedDatabase,
       migrateVisibilityForRenamedSchema,
@@ -3396,7 +3415,6 @@ const Sidebar: React.FC<{
       openCreateStarRocksRollup,
       handleExport,
       openExportDialog,
-      injectTablePromptToAI,
       handleTableDataDangerAction,
       handleDeleteTable,
       openCreateSchemaModal,
@@ -3433,11 +3451,9 @@ const Sidebar: React.FC<{
       searchScopePopoverContent,
       displayTreeData,
       v2CommandSearchObjectMode,
-      v2CommandSearchAiMode,
       filteredCommandSearchTreeItems,
       filteredCommandSearchActionItems,
       filteredCommandSearchRecentItems,
-      commandSearchAiItem,
       commandSearchFlatItems,
       flattenConnectionNodes,
       activeConnection,
@@ -3468,9 +3484,7 @@ const Sidebar: React.FC<{
       overlayTheme,
       darkMode,
       onCreateConnection,
-      onToggleAI,
       onToggleLogPanel,
-      setAIPanelVisible,
       extractObjectName,
   });
   // The tree never scrolls horizontally: long labels ellipsize and the user
@@ -4263,6 +4277,7 @@ const Sidebar: React.FC<{
   const v2TitlebarQuickActions: TitleBarQuickAction[] = [
     {
       key: 'data-workflow',
+      icon: <ApartmentOutlined aria-hidden="true" />,
       label: v2DataWorkflowLabel,
       menu: [
         {
@@ -4305,6 +4320,7 @@ const Sidebar: React.FC<{
     },
     {
       key: 'sql-tools',
+      icon: <DatabaseOutlined aria-hidden="true" />,
       label: v2SqlToolsLabel,
       menu: [
         {
@@ -4330,6 +4346,7 @@ const Sidebar: React.FC<{
     },
     {
       key: 'drivers',
+      icon: <HddOutlined aria-hidden="true" />,
       label: t('app.tools.entry.drivers.title'),
       onClick: () => onOpenSettingsNavigation?.({ group: 'workspace', action: 'drivers' }),
     },
@@ -4448,12 +4465,10 @@ const Sidebar: React.FC<{
     activeIndex: v2CommandActiveIndex,
     label: v2CommandSearchLabel,
     placeholder: v2CommandSearchPlaceholder,
-    aiMode: v2CommandSearchAiMode,
     objectMode: v2CommandSearchObjectMode,
     flatItems: commandSearchFlatItems,
     sections: {
       goTo: filteredCommandSearchTreeItems,
-      ai: commandSearchAiItem,
       actions: filteredCommandSearchActionItems,
       recent: filteredCommandSearchRecentItems,
     },

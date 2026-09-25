@@ -915,7 +915,6 @@ describe('Sidebar locate toolbar', () => {
       },
       onCollapseSidebar: mocks.noop,
       collapseSidebarLabel: t('app.sidebar.collapse'),
-      onToggleAI: mocks.noop,
       onOpenSettings: mocks.noop,
     });
     const actionsStart = markup.indexOf('<div class="gn-v2-explorer-actions"');
@@ -974,7 +973,6 @@ describe('Sidebar locate toolbar', () => {
       v2ExplorerContext,
       onCollapseSidebar: mocks.noop,
       collapseSidebarLabel: t('app.sidebar.collapse'),
-      onToggleAI: mocks.noop,
       onOpenSettings: mocks.noop,
     });
     const actionsStart = markup.indexOf('<div class="gn-v2-explorer-actions"');
@@ -1046,7 +1044,6 @@ describe('Sidebar locate toolbar', () => {
       },
       onCollapseSidebar: mocks.noop,
       collapseSidebarLabel: t('app.sidebar.collapse'),
-      onToggleAI: mocks.noop,
       onOpenSettings: mocks.noop,
     });
     const summaryIndex = markup.indexOf('data-sidebar-active-context-summary="true"');
@@ -1078,7 +1075,6 @@ describe('Sidebar locate toolbar', () => {
       v2ExplorerContext,
       onCollapseSidebar: mocks.noop,
       collapseSidebarLabel: t('app.sidebar.collapse'),
-      onToggleAI: mocks.noop,
       onOpenSettings: mocks.noop,
     });
     const summaryIndex = markup.indexOf('data-sidebar-active-context-summary="true"');
@@ -2311,8 +2307,6 @@ describe('Sidebar locate toolbar', () => {
     expect(markup).not.toContain('JSON · .json');
     expect(markup).not.toContain('Markdown · .md');
     expect(markup).not.toContain('HTML · .html');
-    expect(markup).toContain('用 AI 解释这张表');
-    expect(markup).toContain('用 AI 生成查询');
     expect(markup).toContain('截断表 · TRUNCATE');
     expect(markup).toContain('清空表 · DELETE');
     expect(markup).toContain('删除表 · DROP');
@@ -2758,19 +2752,6 @@ describe('Sidebar locate toolbar', () => {
     expect(markup).not.toContain('CSV · .csv');
     expect(markup).not.toContain('JSON · .json');
     expect(markup).not.toContain('导出表数据');
-  });
-
-  it('localizes v2 table context menu ai block in english', () => {
-    setCurrentLanguage('en-US');
-
-    const markup = renderToStaticMarkup(
-      <V2TableContextMenuView tableName="t1" />,
-    );
-
-    expect(markup).toContain('Use AI to explain this table');
-    expect(markup).toContain('Use AI to generate a query');
-    expect(markup).not.toContain('用 AI 解释这张表');
-    expect(markup).not.toContain('用 AI 生成查询');
   });
 
   it('localizes v2 table context menu danger block in english while keeping raw truncate and drop', () => {

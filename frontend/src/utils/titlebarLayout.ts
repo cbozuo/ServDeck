@@ -137,9 +137,9 @@ export const resolveTitleBarLayout = (
 ): TitleBarLayout => {
   const scale = resolveUiScale(uiScale);
   const resolvedSidebarButtonScale = resolveSidebarButtonScale(sidebarButtonScale);
-  const titlebarBaseHeight = 40;
+  const titlebarBaseHeight = 48;
   const actionBaseHeight = 30;
-  const dividerBaseHeight = 14;
+  const dividerBaseHeight = 16;
   const compactLayout = {
     height: Math.max(28, Math.round(titlebarBaseHeight * scale)),
     actionHeight: Math.max(24, Math.round(actionBaseHeight * scale)),

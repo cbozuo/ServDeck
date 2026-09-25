@@ -109,34 +109,34 @@ describe('titlebarLayout', () => {
 
   it('uses the larger default V2 titlebar while the explorer is expanded', () => {
     expect(resolveTitleBarLayout(1)).toEqual({
-      height: 36,
+      height: 48,
       actionHeight: 30,
-      dividerHeight: 14,
-      upperBandHeight: 36,
+      dividerHeight: 16,
+      upperBandHeight: 48,
       emptyWorkbenchTopOffset: 0,
     });
   });
 
   it('keeps the expanded V2 layout responsive to the configured UI scale', () => {
     expect(resolveTitleBarLayout(0.8, false)).toEqual({
-      height: 29,
+      height: 38,
       actionHeight: 24,
-      dividerHeight: 11,
-      upperBandHeight: 29,
+      dividerHeight: 13,
+      upperBandHeight: 38,
       emptyWorkbenchTopOffset: 0,
     });
     expect(resolveTitleBarLayout(1.25, false)).toEqual({
-      height: 45,
+      height: 60,
       actionHeight: 38,
-      dividerHeight: 18,
-      upperBandHeight: 45,
+      dividerHeight: 20,
+      upperBandHeight: 60,
       emptyWorkbenchTopOffset: 0,
     });
     expect(resolveTitleBarLayout(1.1, false)).toEqual({
-      height: 40,
+      height: 53,
       actionHeight: 33,
-      dividerHeight: 15,
-      upperBandHeight: 40,
+      dividerHeight: 18,
+      upperBandHeight: 53,
       emptyWorkbenchTopOffset: 0,
     });
   });
@@ -145,30 +145,30 @@ describe('titlebarLayout', () => {
     expect(resolveTitleBarLayout(1, true)).toEqual({
       height: 59,
       actionHeight: 30,
-      dividerHeight: 14,
+      dividerHeight: 16,
       upperBandHeight: 31,
-      emptyWorkbenchTopOffset: 23,
+      emptyWorkbenchTopOffset: 11,
     });
     expect(resolveTitleBarLayout(0.8, true)).toEqual({
       height: 52,
       actionHeight: 24,
-      dividerHeight: 11,
+      dividerHeight: 13,
       upperBandHeight: 29,
-      emptyWorkbenchTopOffset: 23,
+      emptyWorkbenchTopOffset: 14,
     });
     expect(resolveTitleBarLayout(1.25, true)).toEqual({
       height: 70,
       actionHeight: 38,
-      dividerHeight: 18,
+      dividerHeight: 20,
       upperBandHeight: 35,
-      emptyWorkbenchTopOffset: 25,
+      emptyWorkbenchTopOffset: 10,
     });
     expect(resolveTitleBarLayout(1.1, true)).toEqual({
       height: 64,
       actionHeight: 33,
-      dividerHeight: 15,
+      dividerHeight: 18,
       upperBandHeight: 33,
-      emptyWorkbenchTopOffset: 24,
+      emptyWorkbenchTopOffset: 11,
     });
   });
 
@@ -176,9 +176,9 @@ describe('titlebarLayout', () => {
     expect(resolveTitleBarLayout(1, true, 1.8)).toEqual({
       height: 80,
       actionHeight: 30,
-      dividerHeight: 14,
+      dividerHeight: 16,
       upperBandHeight: 31,
-      emptyWorkbenchTopOffset: 44,
+      emptyWorkbenchTopOffset: 32,
     });
   });
 

@@ -171,7 +171,7 @@ describe('QueryEditorToolbar Elasticsearch mode', () => {
       allowClear: true,
     });
     expect(antdState.transactionProps).toHaveLength(0);
-    expect(menuKeys()).toEqual(expect.arrayContaining(['match_all', 'ai-generate']));
+    expect(menuKeys()).toEqual(expect.arrayContaining(['match_all']));
     expect(menuKeys()).not.toEqual(expect.arrayContaining([
       'ai-inline-completion',
       'save-file',
@@ -184,7 +184,6 @@ describe('QueryEditorToolbar Elasticsearch mode', () => {
       'query_editor.elasticsearch.action.run_current',
       'query_editor.elasticsearch.action.run_all',
       'query_editor.action.save',
-      'query_editor.elasticsearch.action.ai',
       'query_editor.elasticsearch.action.format',
     ]));
     expect(labels).not.toEqual(expect.arrayContaining([
@@ -211,7 +210,6 @@ describe('QueryEditorToolbar Elasticsearch mode', () => {
     expect(antdState.selectProps).toHaveLength(3);
     expect(antdState.transactionProps).toHaveLength(1);
     expect(menuKeys()).toEqual(expect.arrayContaining([
-      'ai-inline-completion',
       'save-file',
       'format-setting',
     ]));

@@ -329,7 +329,7 @@ const DataGridPaginationBar: React.FC<DataGridPaginationBarProps> = ({
               aria-label={translate('common.confirm')}
               onClick={submitCustomPageSize}
               // 必须阻止 mousedown 的默认焦点转移：否则内嵌输入框立刻失焦，rc-select
-              // 收到 blur 即关闭弹层并播放退场动画，按钮在松开鼠标前被滑走，click 落在
+              // 收到 blur 即收起弹层并播放退场动画，按钮在松开鼠标前被滑走，click 落在
               // body 上，onClick 永不触发（表现为「填了数字点勾没反应」）。
               // 仅 stopPropagation 无效，它拦不住默认行为。
               onMouseDown={(event) => event.preventDefault()}

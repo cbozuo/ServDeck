@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	aiservice "GoNavi-Wails/internal/ai/service"
 	"GoNavi-Wails/internal/connection"
 	"GoNavi-Wails/internal/secretstore"
 )
@@ -16,22 +15,6 @@ import (
 func TestStartSecurityUpdateCreatesBackupAndImportsSavedConfig(t *testing.T) {
 	app := NewAppWithSecretStore(newFakeAppSecretStore())
 	app.configDir = t.TempDir()
-
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":      "openai-main",
-				"type":    "openai",
-				"name":    "OpenAI",
-				"apiKey":  "sk-ai-test",
-				"baseUrl": "https://api.openai.com/v1",
-				"headers": map[string]any{
-					"Authorization": "Bearer ai-test",
-					"X-Team":        "platform",
-				},
-			},
-		},
-	})
 
 	status, err := app.StartSecurityUpdate(StartSecurityUpdateRequest{
 		SourceType: SecurityUpdateSourceTypeCurrentAppSavedConfig,
@@ -46,8 +29,8 @@ func TestStartSecurityUpdateCreatesBackupAndImportsSavedConfig(t *testing.T) {
 	if status.MigrationID == "" {
 		t.Fatal("expected migration ID to be created")
 	}
-	if status.Summary.Total != 3 || status.Summary.Updated != 3 {
-		t.Fatalf("expected summary total=3 updated=3, got %#v", status.Summary)
+	if status.Summary.Total != 2 || status.Summary.Updated != 2 {
+		t.Fatalf("expected summary total=2 updated=2, got %#v", status.Summary)
 	}
 
 	savedConnections, err := app.GetSavedConnections()
@@ -77,18 +60,6 @@ func TestStartSecurityUpdateCreatesBackupAndImportsSavedConfig(t *testing.T) {
 		t.Fatalf("expected imported proxy password, got %q", globalProxyBundle.Password)
 	}
 
-	providerStore := aiservice.NewProviderConfigStore(app.configDir, app.secretStore)
-	providerSnapshot, err := providerStore.Load()
-	if err != nil {
-		t.Fatalf("provider store Load returned error: %v", err)
-	}
-	if len(providerSnapshot.Providers) != 1 {
-		t.Fatalf("expected 1 AI provider, got %d", len(providerSnapshot.Providers))
-	}
-	if providerSnapshot.Providers[0].APIKey != "sk-ai-test" {
-		t.Fatalf("expected migrated AI provider apiKey, got %q", providerSnapshot.Providers[0].APIKey)
-	}
-
 	for _, name := range []string{
 		securityUpdateManifestFileName,
 		securityUpdateSourceCurrentAppFileName,
@@ -101,7 +72,7 @@ func TestStartSecurityUpdateCreatesBackupAndImportsSavedConfig(t *testing.T) {
 	}
 }
 
-func TestGetSecurityUpdateStatusReturnsPendingWhenOnlyAIProviderNeedsSecurityUpdate(t *testing.T) {
+func TestGetSecurityUpdateStatusIgnoresLegacyAIProviderConfig(t *testing.T) {
 	app := NewAppWithSecretStore(newFakeAppSecretStore())
 	app.configDir = t.TempDir()
 
@@ -121,53 +92,11 @@ func TestGetSecurityUpdateStatusReturnsPendingWhenOnlyAIProviderNeedsSecurityUpd
 	if err != nil {
 		t.Fatalf("GetSecurityUpdateStatus returned error: %v", err)
 	}
-	if status.OverallStatus != SecurityUpdateOverallStatusPending {
-		t.Fatalf("expected pending status, got %q", status.OverallStatus)
+	if status.OverallStatus != SecurityUpdateOverallStatusNotDetected {
+		t.Fatalf("expected not_detected status, got %q", status.OverallStatus)
 	}
-	if !status.CanStart || !status.ReminderVisible {
-		t.Fatalf("expected pending status to expose start/reminder flags, got %#v", status)
-	}
-}
-
-func TestGetSecurityUpdateStatusIncludesPendingAIProviderIssuesBeforeStart(t *testing.T) {
-	app := NewAppWithSecretStore(newFakeAppSecretStore())
-	app.configDir = t.TempDir()
-	app.SetLanguage("en-US")
-
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":      "openai-main",
-				"type":    "openai",
-				"name":    "OpenAI",
-				"apiKey":  "sk-ai-test",
-				"baseUrl": "https://api.openai.com/v1",
-			},
-		},
-	})
-
-	status, err := app.GetSecurityUpdateStatus()
-	if err != nil {
-		t.Fatalf("GetSecurityUpdateStatus returned error: %v", err)
-	}
-	if len(status.Issues) != 1 {
-		t.Fatalf("expected 1 pending issue, got %#v", status.Issues)
-	}
-	if status.Summary.Total != 1 || status.Summary.Pending != 1 {
-		t.Fatalf("expected summary total=1 pending=1, got %#v", status.Summary)
-	}
-	issue := status.Issues[0]
-	if issue.Scope != SecurityUpdateIssueScopeAIProvider {
-		t.Fatalf("expected AI provider issue scope, got %#v", issue)
-	}
-	if issue.RefID != "openai-main" || issue.Title != "OpenAI" {
-		t.Fatalf("expected provider issue to point at openai-main/OpenAI, got %#v", issue)
-	}
-	if issue.Status != SecurityUpdateItemStatusPending || issue.Action != SecurityUpdateIssueActionOpenAISettings {
-		t.Fatalf("expected pending AI settings issue, got %#v", issue)
-	}
-	if issue.Message != "AI provider configuration is still saved in the current app configuration. After the security update completes, it will be moved to the new secure storage." {
-		t.Fatalf("expected localized AI provider migration message, got %q", issue.Message)
+	if len(status.Issues) != 0 {
+		t.Fatalf("expected no issues, got %#v", status.Issues)
 	}
 }
 
@@ -178,23 +107,6 @@ func TestRetrySecurityUpdateCurrentRoundReusesMigrationIDAfterPendingIssueIsFixe
 	store := newFakeAppSecretStore()
 	app := NewAppWithSecretStore(store)
 	app.configDir = t.TempDir()
-
-	ref, err := secretstore.BuildRef("ai-provider", "openai-main")
-	if err != nil {
-		t.Fatalf("BuildRef returned error: %v", err)
-	}
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":        "openai-main",
-				"type":      "openai",
-				"name":      "OpenAI",
-				"hasSecret": true,
-				"secretRef": ref,
-				"baseUrl":   "https://api.openai.com/v1",
-			},
-		},
-	})
 
 	initial, err := app.StartSecurityUpdate(StartSecurityUpdateRequest{
 		SourceType: SecurityUpdateSourceTypeCurrentAppSavedConfig,
@@ -207,7 +119,7 @@ func TestRetrySecurityUpdateCurrentRoundReusesMigrationIDAfterPendingIssueIsFixe
 		t.Fatalf("expected completed status, got %q", initial.OverallStatus)
 	}
 
-	if err := store.Put(ref, []byte(`{"apiKey":"sk-fixed","sensitiveHeaders":{"Authorization":"Bearer fixed"}}`)); err != nil {
+	if err := store.Put("unrelated-ref", []byte(`{"apiKey":"sk-fixed"}`)); err != nil {
 		t.Fatalf("Put returned error: %v", err)
 	}
 
@@ -226,23 +138,6 @@ func TestRetrySecurityUpdateCurrentRoundDoesNotReimportBrokenLegacySourceAfterUs
 	store := newFakeAppSecretStore()
 	app := NewAppWithSecretStore(store)
 	app.configDir = t.TempDir()
-
-	ref, err := secretstore.BuildRef("ai-provider", "openai-main")
-	if err != nil {
-		t.Fatalf("BuildRef returned error: %v", err)
-	}
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":        "openai-main",
-				"type":      "openai",
-				"name":      "OpenAI",
-				"hasSecret": true,
-				"secretRef": ref,
-				"baseUrl":   "https://api.openai.com/v1",
-			},
-		},
-	})
 
 	initial, err := app.StartSecurityUpdate(StartSecurityUpdateRequest{
 		SourceType: SecurityUpdateSourceTypeCurrentAppSavedConfig,
@@ -270,7 +165,7 @@ func TestRetrySecurityUpdateCurrentRoundDoesNotReimportBrokenLegacySourceAfterUs
 		t.Fatalf("SaveConnection returned error: %v", err)
 	}
 
-	if err := store.Put(ref, []byte(`{"apiKey":"sk-fixed"}`)); err != nil {
+	if err := store.Put("unrelated-ref", []byte(`{"apiKey":"sk-fixed"}`)); err != nil {
 		t.Fatalf("Put returned error: %v", err)
 	}
 
@@ -308,18 +203,6 @@ func TestRetrySecurityUpdateCurrentRoundLocalizesConnectionIssueMessage(t *testi
 	app := NewAppWithSecretStore(newFakeAppSecretStore())
 	app.configDir = t.TempDir()
 	app.SetLanguage("en-US")
-
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":      "openai-main",
-				"type":    "openai",
-				"name":    "OpenAI",
-				"apiKey":  "sk-ai-test",
-				"baseUrl": "https://api.openai.com/v1",
-			},
-		},
-	})
 
 	completed, err := app.StartSecurityUpdate(StartSecurityUpdateRequest{
 		SourceType: SecurityUpdateSourceTypeCurrentAppSavedConfig,
@@ -372,18 +255,6 @@ func TestRetrySecurityUpdateCurrentRoundLocalizesGlobalProxyIssueText(t *testing
 	app := NewAppWithSecretStore(newFakeAppSecretStore())
 	app.configDir = t.TempDir()
 	app.SetLanguage("en-US")
-
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":      "openai-main",
-				"type":    "openai",
-				"name":    "OpenAI",
-				"apiKey":  "sk-ai-test",
-				"baseUrl": "https://api.openai.com/v1",
-			},
-		},
-	})
 
 	completed, err := app.StartSecurityUpdate(StartSecurityUpdateRequest{
 		SourceType: SecurityUpdateSourceTypeCurrentAppSavedConfig,
@@ -476,23 +347,6 @@ func TestDismissSecurityUpdateReminderKeepsCurrentRoundContext(t *testing.T) {
 	app := NewAppWithSecretStore(store)
 	app.configDir = t.TempDir()
 
-	ref, err := secretstore.BuildRef("ai-provider", "openai-main")
-	if err != nil {
-		t.Fatalf("BuildRef returned error: %v", err)
-	}
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":        "openai-main",
-				"type":      "openai",
-				"name":      "OpenAI",
-				"hasSecret": true,
-				"secretRef": ref,
-				"baseUrl":   "https://api.openai.com/v1",
-			},
-		},
-	})
-
 	initial, err := app.StartSecurityUpdate(StartSecurityUpdateRequest{
 		SourceType: SecurityUpdateSourceTypeCurrentAppSavedConfig,
 		RawPayload: buildLegacySecurityUpdatePayload(),
@@ -525,40 +379,6 @@ func TestDismissSecurityUpdateReminderKeepsCurrentRoundContext(t *testing.T) {
 	}
 	if postponed.PostponedAt != "" {
 		t.Fatalf("expected completed round to keep empty postponedAt, got %q", postponed.PostponedAt)
-	}
-}
-
-func TestDismissSecurityUpdateReminderKeepsPendingAIProviderDetailsWithoutCurrentRound(t *testing.T) {
-	app := NewAppWithSecretStore(newFakeAppSecretStore())
-	app.configDir = t.TempDir()
-
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":      "openai-main",
-				"type":    "openai",
-				"name":    "OpenAI",
-				"apiKey":  "sk-ai-test",
-				"baseUrl": "https://api.openai.com/v1",
-			},
-		},
-	})
-
-	status, err := app.DismissSecurityUpdateReminder()
-	if err != nil {
-		t.Fatalf("DismissSecurityUpdateReminder returned error: %v", err)
-	}
-	if status.OverallStatus != SecurityUpdateOverallStatusPostponed {
-		t.Fatalf("expected postponed status, got %q", status.OverallStatus)
-	}
-	if status.Summary.Total != 1 || status.Summary.Pending != 1 {
-		t.Fatalf("expected summary total=1 pending=1, got %#v", status.Summary)
-	}
-	if len(status.Issues) != 1 {
-		t.Fatalf("expected 1 pending issue, got %#v", status.Issues)
-	}
-	if status.Issues[0].RefID != "openai-main" || status.Issues[0].Action != SecurityUpdateIssueActionOpenAISettings {
-		t.Fatalf("expected postponed issue to keep AI provider repair entry, got %#v", status.Issues[0])
 	}
 }
 
@@ -674,52 +494,9 @@ func TestStartSecurityUpdateRollsBackWhenSecretStoreUnavailable(t *testing.T) {
 	}
 }
 
-func TestStartSecurityUpdateRollsBackWhenAIProviderSecretStoreUnavailable(t *testing.T) {
+func TestStartSecurityUpdateCompletesConnectionImportWithUnavailableSecretStore(t *testing.T) {
 	app := NewAppWithSecretStore(secretstore.NewUnavailableStore("blocked"))
 	app.configDir = t.TempDir()
-
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":      "openai-main",
-				"type":    "openai",
-				"name":    "OpenAI",
-				"apiKey":  "sk-ai-test",
-				"baseUrl": "https://api.openai.com/v1",
-			},
-		},
-	})
-
-	status, err := app.StartSecurityUpdate(StartSecurityUpdateRequest{
-		SourceType: SecurityUpdateSourceTypeCurrentAppSavedConfig,
-		RawPayload: "",
-	})
-	if err != nil {
-		t.Fatalf("StartSecurityUpdate returned error: %v", err)
-	}
-	if status.OverallStatus != SecurityUpdateOverallStatusCompleted {
-		t.Fatalf("expected completed status, got %q", status.OverallStatus)
-	}
-	if len(status.Issues) != 0 {
-		t.Fatalf("expected no blocking issues, got %#v", status.Issues)
-	}
-}
-
-func TestStartSecurityUpdateRollsBackPartialConnectionImportWhenLaterProviderStepFails(t *testing.T) {
-	app := NewAppWithSecretStore(secretstore.NewUnavailableStore("blocked"))
-	app.configDir = t.TempDir()
-
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":      "openai-main",
-				"type":    "openai",
-				"name":    "OpenAI",
-				"apiKey":  "sk-ai-test",
-				"baseUrl": "https://api.openai.com/v1",
-			},
-		},
-	})
 
 	payload, err := json.Marshal(map[string]any{
 		"state": map[string]any{
@@ -765,7 +542,7 @@ func TestStartSecurityUpdateRollsBackPartialConnectionImportWhenLaterProviderSte
 	}
 }
 
-func TestStartSecurityUpdateRollsBackExistingConnectionMetadataAndSecretWhenLaterProviderStepFails(t *testing.T) {
+func TestStartSecurityUpdateKeepsExistingConnectionMetadataAndSecretWhenCaptureFails(t *testing.T) {
 	store := newFakeAppSecretStore()
 	app := NewAppWithSecretStore(store)
 	app.configDir = t.TempDir()
@@ -785,7 +562,10 @@ func TestStartSecurityUpdateRollsBackExistingConnectionMetadataAndSecretWhenLate
 		t.Fatalf("SaveConnection returned error: %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(app.configDir, "ai_config.json"), []byte("{"), 0o644); err != nil {
+	// A corrupted global_proxy.json fails the rollback snapshot capture before
+	// any import mutation runs, so the existing connection metadata and its
+	// daily-secret bundle must survive untouched.
+	if err := os.WriteFile(filepath.Join(app.configDir, "global_proxy.json"), []byte("{"), 0o644); err != nil {
 		t.Fatalf("WriteFile returned error: %v", err)
 	}
 
@@ -804,6 +584,14 @@ func TestStartSecurityUpdateRollsBackExistingConnectionMetadataAndSecretWhenLate
 						"password": "new-secret",
 					},
 				},
+			},
+			"globalProxy": map[string]any{
+				"enabled":  true,
+				"type":     "http",
+				"host":     "127.0.0.1",
+				"port":     8080,
+				"user":     "ops",
+				"password": "proxy-secret",
 			},
 		},
 	})
@@ -830,18 +618,18 @@ func TestStartSecurityUpdateRollsBackExistingConnectionMetadataAndSecretWhenLate
 		t.Fatalf("expected existing connection to remain, got %#v", savedConnections)
 	}
 	if savedConnections[0].Name != "Existing" || savedConnections[0].Config.Host != "db-old.local" {
-		t.Fatalf("expected existing connection metadata to be restored, got %#v", savedConnections[0])
+		t.Fatalf("expected existing connection metadata to be preserved, got %#v", savedConnections[0])
 	}
 	resolved, err := app.resolveConnectionSecrets(savedConnections[0].Config)
 	if err != nil {
 		t.Fatalf("resolveConnectionSecrets returned error: %v", err)
 	}
 	if resolved.Password != "old-secret" {
-		t.Fatalf("expected existing connection secret to be restored, got %q", resolved.Password)
+		t.Fatalf("expected existing connection secret to be preserved, got %q", resolved.Password)
 	}
 }
 
-func TestStartSecurityUpdateRollsBackExistingGlobalProxyWhenLaterProviderStepFails(t *testing.T) {
+func TestStartSecurityUpdateKeepsExistingGlobalProxyWhenCaptureFails(t *testing.T) {
 	store := newFakeAppSecretStore()
 	app := NewAppWithSecretStore(store)
 	app.configDir = t.TempDir()
@@ -857,7 +645,9 @@ func TestStartSecurityUpdateRollsBackExistingGlobalProxyWhenLaterProviderStepFai
 		t.Fatalf("saveGlobalProxy returned error: %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(app.configDir, "ai_config.json"), []byte("{"), 0o644); err != nil {
+	// Corrupt connections.json so the rollback snapshot capture fails before
+	// any import mutation runs; the existing proxy must survive untouched.
+	if err := os.WriteFile(filepath.Join(app.configDir, "connections.json"), []byte("{"), 0o644); err != nil {
 		t.Fatalf("WriteFile returned error: %v", err)
 	}
 
@@ -893,14 +683,14 @@ func TestStartSecurityUpdateRollsBackExistingGlobalProxyWhenLaterProviderStepFai
 		t.Fatalf("loadStoredGlobalProxyView returned error: %v", err)
 	}
 	if view.Host != "proxy-old.local" || view.Port != 8080 || view.User != "ops" {
-		t.Fatalf("expected existing global proxy metadata to be restored, got %#v", view)
+		t.Fatalf("expected existing global proxy metadata to be preserved, got %#v", view)
 	}
 	bundle, err := app.loadGlobalProxySecretBundle(view)
 	if err != nil {
 		t.Fatalf("loadGlobalProxySecretBundle returned error: %v", err)
 	}
 	if bundle.Password != "old-proxy-secret" {
-		t.Fatalf("expected existing global proxy secret to be restored, got %q", bundle.Password)
+		t.Fatalf("expected existing global proxy secret to be preserved, got %q", bundle.Password)
 	}
 }
 
@@ -908,21 +698,6 @@ func TestStartSecurityUpdateRollsBackAllChangesWhenPreviewArtifactWriteFails(t *
 	store := newFakeAppSecretStore()
 	app := NewAppWithSecretStore(store)
 	app.configDir = t.TempDir()
-
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":      "openai-main",
-				"type":    "openai",
-				"name":    "OpenAI",
-				"apiKey":  "sk-ai-test",
-				"baseUrl": "https://api.openai.com/v1",
-				"headers": map[string]any{
-					"Authorization": "Bearer ai-test",
-				},
-			},
-		},
-	})
 
 	restoreWriteJSONFile := swapSecurityUpdateWriteJSONFile(func(path string, payload any) error {
 		if strings.HasSuffix(filepath.ToSlash(path), "/"+securityUpdateNormalizedPreviewFileName) {
@@ -951,18 +726,6 @@ func TestStartSecurityUpdateLocalizesSystemFailureIssue(t *testing.T) {
 	app := NewAppWithSecretStore(store)
 	app.configDir = t.TempDir()
 	app.SetLanguage("en-US")
-
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":      "openai-main",
-				"type":    "openai",
-				"name":    "OpenAI",
-				"apiKey":  "sk-ai-test",
-				"baseUrl": "https://api.openai.com/v1",
-			},
-		},
-	})
 
 	restoreWriteJSONFile := swapSecurityUpdateWriteJSONFile(func(path string, payload any) error {
 		if strings.HasSuffix(filepath.ToSlash(path), "/"+securityUpdateNormalizedPreviewFileName) {
@@ -1001,21 +764,6 @@ func TestStartSecurityUpdateRollsBackAllChangesWhenFinalResultWriteFails(t *test
 	store := newFakeAppSecretStore()
 	app := NewAppWithSecretStore(store)
 	app.configDir = t.TempDir()
-
-	writeLegacyAIProviderConfig(t, app.configDir, map[string]any{
-		"providers": []map[string]any{
-			{
-				"id":      "openai-main",
-				"type":    "openai",
-				"name":    "OpenAI",
-				"apiKey":  "sk-ai-test",
-				"baseUrl": "https://api.openai.com/v1",
-				"headers": map[string]any{
-					"Authorization": "Bearer ai-test",
-				},
-			},
-		},
-	})
 
 	resultWrites := 0
 	restoreWriteJSONFile := swapSecurityUpdateWriteJSONFile(func(path string, payload any) error {
@@ -1106,21 +854,5 @@ func assertSecurityUpdateRollbackRestoredCurrentAppState(t *testing.T, app *App,
 
 	if _, err := app.loadStoredGlobalProxyView(); !os.IsNotExist(err) {
 		t.Fatalf("expected rollback to remove imported global proxy, got err=%v", err)
-	}
-
-	inspection, err := aiservice.NewProviderConfigStore(app.configDir, app.secretStore).Inspect()
-	if err != nil {
-		t.Fatalf("Inspect returned error: %v", err)
-	}
-	if len(inspection.ProvidersNeedingMigration) != 1 || inspection.ProvidersNeedingMigration[0] != "openai-main" {
-		t.Fatalf("expected AI provider migration requirement to be restored, got %#v", inspection.ProvidersNeedingMigration)
-	}
-
-	ref, err := secretstore.BuildRef("ai-provider", "openai-main")
-	if err != nil {
-		t.Fatalf("BuildRef returned error: %v", err)
-	}
-	if _, err := store.Get(ref); !os.IsNotExist(err) {
-		t.Fatalf("expected rollback to remove migrated AI provider secret, got err=%v", err)
 	}
 }

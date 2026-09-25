@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from '../store';
 import {
   clearNativeDetachedHostEvents,
-  recordNativeDetachedVisibilityRevision,
 } from '../utils/nativeDetachedWindowHost';
 import {
   clearQueryEditorResultSession,
@@ -14,7 +13,6 @@ import {
 import { clearQueryTabDraft, getQueryTabDraft } from '../utils/sqlFileTabDrafts';
 import {
   applyNativeDetachedWindowEvent,
-  readAIHostStateRefs,
   type NativeDetachedWindowEvent,
 } from './NativeDetachedWindowController';
 import NativeDetachedWindowController from './NativeDetachedWindowController';
@@ -33,7 +31,7 @@ describe('NativeDetachedWindowController', () => {
     clearQueryEditorResultSession('query-b');
     clearQueryTabDraft('query-a');
     clearQueryTabDraft('query-b');
-    clearNativeDetachedHostEvents('ai-chat');
+    clearNativeDetachedHostEvents('query-a');
     useStore.setState({
       tabs: [buildQueryTab('query-a', 'select 1'), buildQueryTab('query-b', 'select 2')],
       activeTabId: 'query-a',
@@ -42,12 +40,6 @@ describe('NativeDetachedWindowController', () => {
         { tabId: 'query-b', x: 30, y: 30, width: 800, height: 600, zIndex: 1202 },
       ],
       detachedQueryResultWindows: [],
-      detachedAIChatWindow: null,
-      aiPanelVisible: false,
-      aiChatHistory: {},
-      aiChatSessions: [],
-      aiActiveSessionId: null,
-      aiContexts: {},
       sqlLogs: [],
     });
   });
@@ -278,55 +270,15 @@ describe('NativeDetachedWindowController', () => {
     expect(useStore.getState().sqlLogs).toEqual([]);
   });
 
-  it('syncs AI conversation state from the native AI window', () => {
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'sync',
-      payload: {
-        storeState: {
-          aiChatHistory: {
-            'session-1': [{ id: 'message-1', role: 'assistant', content: 'done', timestamp: 1 }],
-          },
-          aiChatSessions: [{ id: 'session-1', title: 'Session 1', updatedAt: 1 }],
-          aiActiveSessionId: 'session-1',
-          aiContexts: { 'conn-1:main': [{ dbName: 'main', tableName: 'users', ddl: 'create table users(id int)' }] },
-        },
-      },
-    });
-
-    expect(useStore.getState().aiChatHistory['session-1']?.[0]?.content).toBe('done');
-    expect(useStore.getState().aiChatSessions).toEqual([expect.objectContaining({ id: 'session-1' })]);
-    expect(useStore.getState().aiActiveSessionId).toBe('session-1');
-    expect(useStore.getState().aiContexts['conn-1:main']).toHaveLength(1);
-  });
-
-  it('applies only the AI context delta from the child and preserves host additions', () => {
-    const users = { dbName: 'main', tableName: 'users', ddl: 'create table users(id int)' };
-    const orders = { dbName: 'main', tableName: 'orders', ddl: 'create table orders(id int)' };
-    useStore.setState({ aiContexts: { 'conn-1:main': [users, orders] } });
-    const aiContextSourceRef = { current: { 'conn-1:main': [users] } };
-
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'sync',
-      payload: { storeState: { aiContexts: {} } },
-    }, undefined, { aiContextSourceRef });
-
-    expect(useStore.getState().aiContexts).toEqual({ 'conn-1:main': [orders] });
-    expect(aiContextSourceRef.current).toEqual({});
-  });
-
   it('routes child host events only through the main-window callback', () => {
     const onHostEvent = vi.fn();
     const event: NativeDetachedWindowEvent = {
-      id: 'ai-chat',
-      kind: 'ai-chat',
+      id: 'workbench:query-a',
+      kind: 'workbench',
       action: 'host-event',
       payload: {
         hostEvent: {
-          id: 'ai-chat:1',
+          id: 'workbench:query-a:1',
           name: 'gonavi:insert-sql',
           detail: { sql: 'select 1' },
         },
@@ -334,7 +286,7 @@ describe('NativeDetachedWindowController', () => {
     };
 
     applyNativeDetachedWindowEvent(event, undefined, { onHostEvent });
-    applyNativeDetachedWindowEvent(event, 'ai-chat', { onHostEvent });
+    applyNativeDetachedWindowEvent(event, 'workbench:query-a', { onHostEvent });
     expect(onHostEvent).toHaveBeenCalledOnce();
     expect(onHostEvent).toHaveBeenCalledWith(event.payload?.hostEvent);
   });
@@ -407,99 +359,6 @@ describe('NativeDetachedWindowController', () => {
     expect(onHostEvent).toHaveBeenCalledWith(event.payload?.hostEvent);
   });
 
-  it('toggles only the main-window AI panel for a shortcut forwarded by a result child', () => {
-    expect(useStore.getState().aiPanelVisible).toBe(false);
-
-    const event: NativeDetachedWindowEvent = {
-      id: 'query-result:query-a:r1',
-      kind: 'query-result',
-      action: 'host-event',
-      payload: {
-        ownerWindowId: 'workbench:query-a',
-        hostEvent: {
-          id: 'query-result:query-a:r1:shortcut-1',
-          name: 'gonavi:shortcut:toggle-ai-panel',
-        },
-      },
-    };
-
-    applyNativeDetachedWindowEvent(event, 'workbench:query-a');
-    expect(useStore.getState().aiPanelVisible).toBe(false);
-
-    applyNativeDetachedWindowEvent(event);
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-  });
-
-  it('delegates a forwarded AI shortcut to the guarded main-window toggle when provided', () => {
-    const onToggleAI = vi.fn();
-    const event: NativeDetachedWindowEvent = {
-      id: 'query-result:query-a:r1',
-      kind: 'query-result',
-      action: 'host-event',
-      payload: {
-        hostEvent: {
-          id: 'query-result:query-a:r1:shortcut-guarded',
-          name: 'gonavi:shortcut:toggle-ai-panel',
-        },
-      },
-    };
-
-    applyNativeDetachedWindowEvent(event, undefined, { onToggleAI });
-
-    expect(onToggleAI).toHaveBeenCalledOnce();
-    expect(useStore.getState().aiPanelVisible).toBe(false);
-  });
-
-  it('shows the main window only when the shortcut opens docked AI', () => {
-    const previousWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
-    const windowShow = vi.fn();
-    Object.defineProperty(globalThis, 'window', {
-      configurable: true,
-      value: {
-        innerHeight: 900,
-        innerWidth: 1200,
-        runtime: { WindowShow: windowShow },
-      },
-    });
-    const event: NativeDetachedWindowEvent = {
-      id: 'workbench:query-a',
-      kind: 'workbench',
-      action: 'host-event',
-      payload: {
-        hostEvent: {
-          id: 'workbench:query-a:shortcut-focus',
-          name: 'gonavi:shortcut:toggle-ai-panel',
-        },
-      },
-    };
-
-    try {
-      useStore.setState({
-        aiChatOpenMode: 'dock',
-        aiPanelVisible: false,
-        detachedAIChatWindow: null,
-      });
-      applyNativeDetachedWindowEvent(event);
-      expect(useStore.getState().aiPanelVisible).toBe(true);
-      expect(windowShow).toHaveBeenCalledOnce();
-
-      applyNativeDetachedWindowEvent(event);
-      expect(useStore.getState().aiPanelVisible).toBe(false);
-      expect(windowShow).toHaveBeenCalledOnce();
-
-      useStore.setState({ aiChatOpenMode: 'detached' });
-      applyNativeDetachedWindowEvent(event);
-      expect(useStore.getState().detachedAIChatWindow).not.toBeNull();
-      expect(windowShow).toHaveBeenCalledOnce();
-    } finally {
-      if (previousWindowDescriptor) {
-        Object.defineProperty(globalThis, 'window', previousWindowDescriptor);
-      } else {
-        Reflect.deleteProperty(globalThis, 'window');
-      }
-    }
-  });
-
   it('syncs changed appearance and shortcut options, including newly opened windows', async () => {
     const previousWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
     const eventTarget = new EventTarget();
@@ -548,7 +407,6 @@ describe('NativeDetachedWindowController', () => {
         { tabId: 'query-a', x: 10, y: 10, width: 800, height: 600, zIndex: 1201 },
       ],
       detachedQueryResultWindows: [resultWindow],
-      detachedAIChatWindow: { x: 20, y: 20, width: 440, height: 720, zIndex: 1202 },
       appearance: {
         ...useStore.getState().appearance,
         toolbarButtonColorOverrides: {},
@@ -582,13 +440,12 @@ describe('NativeDetachedWindowController', () => {
           Object.keys(request.storeState).length === 1
           && Object.prototype.hasOwnProperty.call(request.storeState, 'appearance')
         ));
-      await vi.waitFor(() => expect(appearanceOnlyRequests()).toHaveLength(3));
+      await vi.waitFor(() => expect(appearanceOnlyRequests()).toHaveLength(2));
       const appearance = useStore.getState().appearance;
       const appearanceSyncRequests = appearanceOnlyRequests();
       expect(appearanceSyncRequests.map((request) => request.id)).toEqual([
         'workbench:query-a',
         'query-result:query-a:r1',
-        'ai-chat',
       ]);
       expect(appearance.toolbarButtonColorOverrides).toEqual({
         query: { 'button-bg': '#2468ac' },
@@ -622,7 +479,6 @@ describe('NativeDetachedWindowController', () => {
       expect(shortcutSyncRequests.map((request) => request.id)).toEqual([
         'workbench:query-a',
         'query-result:query-a:r1',
-        'ai-chat',
       ]);
       for (const request of shortcutSyncRequests) {
         expect(request.storeState.shortcutOptions).toEqual(shortcutOptions);
@@ -663,19 +519,6 @@ describe('NativeDetachedWindowController', () => {
         }),
       ]));
 
-      await act(async () => {
-        useStore.setState({ detachedAIChatWindow: null });
-        await Promise.resolve();
-      });
-      manager.SyncHostState.mockClear();
-      await act(async () => {
-        useStore.setState({
-          detachedAIChatWindow: { x: 40, y: 40, width: 440, height: 720, zIndex: 1205 },
-        });
-        await Promise.resolve();
-        await Promise.resolve();
-      });
-      expect(manager.SyncHostState).not.toHaveBeenCalled();
     } finally {
       await act(async () => {
         renderer?.unmount();
@@ -686,151 +529,6 @@ describe('NativeDetachedWindowController', () => {
         Reflect.deleteProperty(globalThis, 'window');
       }
     }
-  });
-
-  it('parks the native AI child before routing settings to the main window', () => {
-    const onOpenAISettings = vi.fn();
-    useStore.setState({
-      aiPanelVisible: true,
-      detachedAIChatWindow: { x: 10, y: 10, width: 500, height: 720, zIndex: 1201 },
-    });
-
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'open-ai-settings',
-      payload: { visibilityRevision: 7 },
-    }, undefined, { onOpenAISettings });
-
-    expect(onOpenAISettings).toHaveBeenCalledOnce();
-    expect(useStore.getState().aiPanelVisible).toBe(false);
-    expect(useStore.getState().detachedAIChatWindow).not.toBeNull();
-
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'open-ai-settings',
-    }, 'ai-chat', { onOpenAISettings });
-    expect(onOpenAISettings).toHaveBeenCalledOnce();
-  });
-
-  it('routes the focused provider when a native AI child opens settings', () => {
-    const onOpenAISettings = vi.fn();
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'open-ai-settings',
-      payload: { visibilityRevision: 8, providerId: 'provider-grok' },
-    }, undefined, { onOpenAISettings });
-    expect(onOpenAISettings).toHaveBeenCalledWith('provider-grok');
-  });
-
-  it('tracks AI context changes by immutable reference without serializing the context tree', () => {
-    const aiContexts = {
-      'conn-1:main': [{ dbName: 'main', tableName: 'users', ddl: 'create table users(id int)' }],
-    };
-    useStore.setState({ aiContexts });
-
-    const refs = readAIHostStateRefs();
-
-    expect(refs.aiContexts).toBe(aiContexts);
-    expect(refs).not.toHaveProperty('aiContextsFingerprint');
-  });
-
-  it('raises the main window without restoring a maximized window before opening settings', () => {
-    const previousWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
-    const calls: string[] = [];
-    const windowUnminimise = vi.fn(() => calls.push('unminimise-window'));
-    const show = vi.fn(() => calls.push('show-app'));
-    Object.defineProperty(globalThis, 'window', {
-      configurable: true,
-      value: {
-        runtime: {
-          WindowUnminimise: windowUnminimise,
-          Show: show,
-          WindowShow: vi.fn(() => calls.push('show-window')),
-        },
-      },
-    });
-
-    try {
-      applyNativeDetachedWindowEvent({
-        id: 'ai-chat',
-        kind: 'ai-chat',
-        action: 'open-ai-settings',
-      }, undefined, {
-        onOpenAISettings: () => calls.push('open-settings'),
-      });
-
-      expect(windowUnminimise).not.toHaveBeenCalled();
-      expect(show).toHaveBeenCalledOnce();
-      expect(calls).toEqual(['show-app', 'show-window', 'open-settings']);
-    } finally {
-      if (previousWindowDescriptor) {
-        Object.defineProperty(globalThis, 'window', previousWindowDescriptor);
-      } else {
-        Reflect.deleteProperty(globalThis, 'window');
-      }
-    }
-  });
-
-  it('reattaches, closes, and crash-recovers the native AI window', () => {
-    useStore.setState({
-      aiPanelVisible: true,
-      detachedAIChatWindow: { x: 10, y: 10, width: 500, height: 720, zIndex: 1201 },
-    });
-    applyNativeDetachedWindowEvent({ id: 'ai-chat', kind: 'ai-chat', action: 'attach' });
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-    expect(useStore.getState().detachedAIChatWindow).toBeNull();
-
-    useStore.getState().detachAIChatPanel();
-    applyNativeDetachedWindowEvent({ id: 'ai-chat', kind: 'ai-chat', action: 'close' });
-    expect(useStore.getState().aiPanelVisible).toBe(false);
-    expect(useStore.getState().detachedAIChatWindow).toBeNull();
-
-    useStore.getState().detachAIChatPanel();
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'close',
-      payload: { reason: 'process-error', exited: true },
-    });
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-    expect(useStore.getState().detachedAIChatWindow).toBeNull();
-  });
-
-  it('keeps the docked AI panel visible when a child closes before detach state commits', () => {
-    useStore.setState({ aiPanelVisible: true, detachedAIChatWindow: null });
-
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'close',
-    });
-
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-    expect(useStore.getState().detachedAIChatWindow).toBeNull();
-  });
-
-  it('restores detached state when the child cancels a failed close', () => {
-    useStore.setState({ aiPanelVisible: false, detachedAIChatWindow: null });
-
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'cancel-close',
-      payload: {
-        storeState: {
-          aiChatHistory: {
-            'session-1': [{ id: 'message-1', role: 'user', content: 'keep me', timestamp: 1 }],
-          },
-        },
-      },
-    });
-
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-    expect(useStore.getState().detachedAIChatWindow).not.toBeNull();
-    expect(useStore.getState().aiChatHistory['session-1']?.[0]?.content).toBe('keep me');
   });
 
   it('restores a workbench tab removed by close-other when the child cancels close', () => {
@@ -1000,130 +698,6 @@ describe('NativeDetachedWindowController', () => {
     expect(useStore.getState().tabs.map((tab) => tab.id)).toEqual(['query-a', 'query-b']);
     expect(useStore.getState().detachedWorkbenchWindows.map((item) => item.tabId)).toEqual(['query-b']);
     expect(useStore.getState().activeTabId).toBe('query-a');
-  });
-
-  it('parks a native AI child without discarding its detached identity', () => {
-    useStore.setState({
-      aiPanelVisible: true,
-      detachedAIChatWindow: { x: 20, y: 30, width: 440, height: 720, zIndex: 1203 },
-      aiChatHistory: {
-        'session-1': [{ id: 'message-1', role: 'assistant', content: 'kept', timestamp: 1 }],
-      },
-    });
-
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'hide',
-      payload: { visibilityRevision: 3 },
-    });
-
-    expect(useStore.getState().aiPanelVisible).toBe(false);
-    expect(useStore.getState().detachedAIChatWindow).toEqual(expect.objectContaining({
-      width: 440,
-      height: 720,
-    }));
-    expect(useStore.getState().aiChatHistory['session-1'][0]?.content).toBe('kept');
-  });
-
-  it('restores main-store visibility when the native AI child is focused again', () => {
-    const detachedAIChatWindow = {
-      x: 20,
-      y: 30,
-      width: 440,
-      height: 720,
-      zIndex: 1203,
-    };
-    useStore.setState({
-      aiPanelVisible: false,
-      detachedAIChatWindow,
-    });
-
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'focus',
-      payload: { visibilityRevision: 8 },
-    });
-
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-    expect(useStore.getState().detachedAIChatWindow).toBe(detachedAIChatWindow);
-
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'hide',
-      payload: { visibilityRevision: 7 },
-    });
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-  });
-
-  it('ignores delayed AI settings events older than the latest native focus', () => {
-    const onOpenAISettings = vi.fn();
-    useStore.setState({
-      aiPanelVisible: false,
-      detachedAIChatWindow: { x: 20, y: 30, width: 440, height: 720, zIndex: 1203 },
-    });
-
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'focus',
-      payload: { visibilityRevision: 8 },
-    });
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'open-ai-settings',
-      payload: { visibilityRevision: 7 },
-    }, undefined, { onOpenAISettings });
-
-    expect(onOpenAISettings).not.toHaveBeenCalled();
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-    expect(useStore.getState().detachedAIChatWindow).not.toBeNull();
-  });
-
-  it('ignores a delayed hide event older than the latest native focus', () => {
-    useStore.setState({
-      aiPanelVisible: true,
-      detachedAIChatWindow: { x: 20, y: 30, width: 440, height: 720, zIndex: 1203 },
-    });
-    recordNativeDetachedVisibilityRevision('ai-chat', 7);
-
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'hide',
-      payload: { visibilityRevision: 6 },
-    });
-
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-    expect(useStore.getState().detachedAIChatWindow).not.toBeNull();
-
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'hide',
-      payload: { visibilityRevision: 8 },
-    });
-    expect(useStore.getState().aiPanelVisible).toBe(false);
-  });
-
-  it('drops a parked AI identity when its child process exits', () => {
-    useStore.setState({
-      aiPanelVisible: false,
-      detachedAIChatWindow: { x: 20, y: 30, width: 440, height: 720, zIndex: 1203 },
-    });
-
-    applyNativeDetachedWindowEvent({
-      id: 'ai-chat',
-      kind: 'ai-chat',
-      action: 'close',
-      payload: { reason: 'process-error', exited: true },
-    });
-
-    expect(useStore.getState().aiPanelVisible).toBe(false);
-    expect(useStore.getState().detachedAIChatWindow).toBeNull();
   });
 
   it('closes only the tab whose native window sent an explicit close action', () => {

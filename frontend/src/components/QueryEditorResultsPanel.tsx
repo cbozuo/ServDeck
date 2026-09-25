@@ -156,7 +156,7 @@ interface QueryEditorResultsPanelProps {
     onResultSort: (key: string, field: string, order: string) => void;
     onRequestResultTotalCount?: (key: string) => void;
     onCancelResultTotalCount?: (key: string) => void;
-    onDiagnoseExecutionError: () => void;
+    onDiagnoseExecutionError?: () => void;
     onLocateExecutionError?: () => void;
     onCompareResult?: (resultKey: string) => void;
     executionLifecycle?: QueryEditorExecutionLifecycleState | null;

@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"GoNavi-Wails/internal/ai"
+	"GoNavi-Wails/internal/sqlsafety"
 	"GoNavi-Wails/internal/connection"
 )
 
@@ -60,7 +60,7 @@ func TestIssue1308ReadOnlyConnectionBlocksEmbeddedWrite(t *testing.T) {
 func TestIssue1308HeadlessSafetyRequiresMutatingConsent(t *testing.T) {
 	t.Parallel()
 
-	decision := evaluateHeadlessSQLSafety(ai.PermissionReadWrite, "mysql", issue1308SQL)
+	decision := evaluateHeadlessSQLSafety(sqlsafety.PermissionReadWrite, "mysql", issue1308SQL)
 	if !decision.RequiresAllowMutating {
 		t.Fatalf("AI/MCP 路径必须要求写操作授权")
 	}
@@ -69,7 +69,7 @@ func TestIssue1308HeadlessSafetyRequiresMutatingConsent(t *testing.T) {
 	}
 	// 首关键字为 select 时若退回首关键字判定，DELETE 会被归为 SQLOpOther
 	// 而被误判为"越权"，必须由内嵌写扫描纠正为 DML。
-	if len(decision.ConfirmRequired) != 1 || decision.ConfirmRequired[0].Operation != ai.SQLOpDML {
+	if len(decision.ConfirmRequired) != 1 || decision.ConfirmRequired[0].Operation != sqlsafety.SQLOpDML {
 		t.Fatalf("内嵌写必须归类为 DML 并要求二次确认，实际 %+v", decision.ConfirmRequired)
 	}
 	if len(decision.Disallowed) != 0 {

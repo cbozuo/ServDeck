@@ -2478,7 +2478,9 @@ body[data-ui-version="v2"] .gn-conn-dense .gn-conn-mode-extra .ant-form-item {
     max-width: 100%;
     flex: 1 1 auto;
     align-items: center;
-    gap: 8px;
+    /* 组间距全部下放到各元素的 margin。容器 gap 与元素 margin 叠加会得到
+       8 / 5 / 4 / 2 四种节奏,是左侧看起来不匀的直接原因。 */
+    gap: 0;
     overflow: hidden;
 }
 
@@ -2488,8 +2490,9 @@ body[data-ui-version="v2"] .gn-conn-dense .gn-conn-mode-extra .ant-form-item {
     min-width: max-content;
     flex: 0 0 auto;
     align-items: center;
-    gap: 5px;
-    margin-right: 0;
+    gap: 6px;
+    /* 与工具组之间留 19px,分隔线居中后两侧各 9px */
+    margin-right: 19px;
     padding-right: 0;
     -webkit-app-region: no-drag;
     --wails-draggable: no-drag;
@@ -2499,10 +2502,10 @@ body[data-ui-version="v2"] .gn-conn-dense .gn-conn-mode-extra .ant-form-item {
 .gonavi-titlebar-primary-actions::after {
     content: '';
     position: absolute;
-    right: -5px;
+    right: -10px;
     top: 50%;
     width: 1px;
-    height: var(--gn-titlebar-divider-height, 14px);
+    height: var(--gn-titlebar-divider-height, 16px);
     transform: translateY(-50%);
     background: color-mix(in srgb, var(--gn-br-2, rgba(15, 23, 42, 0.12)) 88%, transparent);
     pointer-events: none;
@@ -2543,26 +2546,29 @@ body[data-ui-version="v2"] .gn-v2-titlebar-system-actions {
 
 body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn {
     display: inline-flex;
-    width: var(--gn-titlebar-button-width, 40px);
-    min-width: var(--gn-titlebar-button-width, 40px);
-    height: 100% !important;
-    min-height: 100% !important;
+    width: 30px;
+    min-width: 30px;
+    height: 30px !important;
+    min-height: 30px !important;
     padding: 0 !important;
     align-items: center;
     justify-content: center;
     border: 0;
-    border-radius: 0;
+    border-radius: 7px;
     color: var(--gn-fg-3, var(--ant-color-text-tertiary));
     box-shadow: none;
 }
 
-body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn .anticon {
-    font-size: clamp(15px, calc(var(--gn-titlebar-action-height, 30px) * 0.533), 18px);
+body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn .anticon,
+body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn svg {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
 }
 
 body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn:hover,
 body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn:focus-visible {
-    background: var(--gn-bg-hover);
+    background: var(--gn-bg-hover, rgba(15, 23, 42, 0.045));
     color: var(--gn-fg-1);
 }
 
@@ -2581,33 +2587,54 @@ body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn.is-active {
 .gonavi-titlebar-primary-action {
     display: inline-flex;
     min-width: 0;
-    height: var(--gn-titlebar-action-height, 30px);
+    height: 32px;
     padding: 0 10px;
-    border: 0.5px solid color-mix(in srgb, var(--gn-accent, var(--ant-color-primary)) 18%, transparent);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--gn-accent, var(--ant-color-primary)) 9%, var(--gn-bg-panel, #fff));
-    color: var(--gn-fg-2, var(--ant-color-text));
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--gn-fg-3, var(--ant-color-text-tertiary));
     align-items: center;
     justify-content: center;
-    gap: 0;
+    gap: 5px;
     font: inherit;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     line-height: 1;
     letter-spacing: 0;
     box-shadow: none;
     cursor: pointer;
+    white-space: nowrap;
     -webkit-app-region: no-drag;
     --wails-draggable: no-drag;
-    transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+    transition: background-color 140ms ease, color 140ms ease;
 }
 
 .gonavi-titlebar-primary-action:hover,
 .gonavi-titlebar-primary-action:focus-visible {
-    border-color: color-mix(in srgb, var(--gn-accent, var(--ant-color-primary)) 42%, transparent);
-    background: var(--gn-accent-soft, var(--ant-color-primary-bg));
-    color: var(--gn-accent, var(--ant-color-primary));
+    background: var(--gn-bg-hover, rgba(16, 24, 40, 0.06));
+    color: var(--gn-fg-1, var(--ant-color-text));
     outline: none;
+}
+
+.gonavi-titlebar-action-icon {
+    font-size: 16px;
+    display: inline-flex;
+}
+
+/* 品牌区:Logo 即收起/展开侧栏按钮;悬浮背景走 --gn-bg-hover(内联 background 恒为 transparent) */
+button[data-titlebar-brand-toggle="true"]:hover,
+button[data-titlebar-brand-toggle="true"]:focus-visible {
+    background: var(--gn-bg-hover, rgba(16, 24, 40, 0.06)) !important;
+    outline: none;
+}
+
+.gonavi-titlebar-brand-divider {
+    width: 1px;
+    /* 与组间分隔线同高同源,不再单独写死 20px */
+    height: var(--gn-titlebar-divider-height, 16px);
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--gn-br-2, rgba(15, 23, 42, 0.12)) 88%, transparent);
+    margin: 0 9px 0 10px;
 }
 
 .gn-v2-titlebar-quick-actions {
@@ -2616,7 +2643,7 @@ body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn.is-active {
     max-width: 100%;
     flex: 0 1 auto;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     padding: 0;
     border: 0;
     border-radius: 0;
@@ -2631,32 +2658,38 @@ body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn.is-active {
     display: flex;
     min-width: 0;
     align-items: center;
-    gap: 2px;
+    gap: 6px;
     overflow: hidden;
 }
 
-/* Secondary tools: ghost text buttons, lower weight than primary */
+/* Secondary tools: ghost icon+text buttons, same treatment as primary actions */
 .gn-v2-titlebar-quick-action,
 .gn-v2-titlebar-quick-more {
     display: inline-flex;
-    height: var(--gn-titlebar-action-height, 30px);
+    height: 32px;
     flex: 0 0 auto;
     align-items: center;
-    gap: 0;
-    padding: 0 9px;
+    gap: 6px;
+    padding: 0 10px;
     border: 0;
-    border-radius: 6px;
+    border-radius: 7px;
     background: transparent;
     color: var(--gn-fg-3, var(--ant-color-text-tertiary));
     cursor: pointer;
     font: inherit;
     font-size: 13px;
-    font-weight: 550;
+    font-weight: 600;
     line-height: 1;
     white-space: nowrap;
     -webkit-app-region: no-drag;
     --wails-draggable: no-drag;
     transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.gn-v2-titlebar-quick-action .anticon,
+.gn-v2-titlebar-quick-more .anticon {
+    font-size: 16px;
+    display: inline-flex;
 }
 
 .gn-v2-titlebar-quick-action:hover,
@@ -2669,9 +2702,10 @@ body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn.is-active {
     outline: none;
 }
 
+/* 图标与文字要比按钮之间更紧,但不能贴死;与主操作按钮统一 5px */
 body[data-ui-version="v2"] .gn-v2-titlebar-quick-action,
 body[data-ui-version="v2"] .gn-v2-titlebar-quick-more {
-    gap: 0;
+    gap: 5px;
     font-size: 13px;
 }
 
@@ -2770,6 +2804,7 @@ body[data-ui-version="v2"] .gn-v2-titlebar-quick-actions-slot {
 
 body[data-ui-version="v2"] .gn-v2-titlebar-about-slot {
     margin-left: 0;
+    margin-right: 8px;
     max-width: max-content;
     flex: 0 0 auto;
 }
@@ -2836,13 +2871,71 @@ body[data-ui-version="v2"][data-platform='windows'] .titlebar-window-controls {
     margin-left: 0;
 }
 
-.titlebar-window-controls > .ant-btn.ant-btn-text {
+/* 选择器必须带 body[data-ui-version="v2"] .gn-v2-titlebar 前缀。
+   v2-theme.css 的 .ant-btn 与 .ant-btn-text:hover 两条泛化规则同为 !important,
+   且 v2-theme.css 在 App.css 之后加载;只写 .titlebar-window-controls 的话,
+   特异性与泛化规则同分,同分由后者胜出,悬浮时整块 40x40 会被涂色,
+   与内缩的 ::before 叠成两层底色。 */
+body[data-ui-version="v2"] .gn-v2-titlebar .titlebar-window-controls > .ant-btn.ant-btn-text {
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+    /* 本体恒透明,底色只由内缩小方块负责 */
+    background: transparent !important;
+    /* v2-theme 泛化 .ant-btn 的 height: 30px !important 会把三键压成 40x30,
+       内缩方块随之变成圆角长条,所以这里必须显式锁回 40x40 */
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    position: relative;
+    overflow: hidden;
 }
 
-body[data-ui-version="v2"] .gn-v2-titlebar .titlebar-window-controls > .ant-btn.ant-btn-text,
+/* 方案 B:悬浮底色内缩成 30x30 圆角 7 的方块(与设置按钮同款),不铺满 40x40,
+   方块因此不会顶到窗口圆角外侧。底块交给 ::before,按钮本体恒为透明,
+   取色统一走 --gn-bg-hover,与同栏其他按钮同源并能跟随窗口透明度。 */
+.titlebar-window-controls > .ant-btn.ant-btn-text::before {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border-radius: 7px;
+    background: transparent;
+    transition: background-color 140ms ease;
+}
+
+.titlebar-window-controls > .ant-btn.ant-btn-text:hover,
+.titlebar-window-controls > .ant-btn.ant-btn-text:focus-visible,
+.titlebar-window-controls > .ant-btn.ant-btn-text:active {
+    color: var(--gn-fg-1) !important;
+}
+
+.titlebar-window-controls > .ant-btn.ant-btn-text:hover::before,
+.titlebar-window-controls > .ant-btn.ant-btn-text:focus-visible::before,
+.titlebar-window-controls > .ant-btn.ant-btn-text:active::before {
+    background: var(--gn-bg-hover, rgba(15, 23, 42, 0.045));
+}
+
+body[data-theme='dark'] .titlebar-window-controls > .ant-btn.ant-btn-text:hover,
+body[data-theme='dark'] .titlebar-window-controls > .ant-btn.ant-btn-text:focus-visible,
+body[data-theme='dark'] .titlebar-window-controls > .ant-btn.ant-btn-text:active {
+    color: #fff !important;
+}
+
+/* 关闭键:红色底块同样内缩 30x30 圆角 7;Windows 惯例红不跟随主题。 */
+.titlebar-window-controls > .ant-btn.ant-btn-text.titlebar-close-btn:hover::before,
+.titlebar-window-controls > .ant-btn.ant-btn-text.titlebar-close-btn:focus-visible::before,
+.titlebar-window-controls > .ant-btn.ant-btn-text.titlebar-close-btn:active::before {
+    background: #e81123;
+}
+
+.titlebar-window-controls > .titlebar-close-btn.ant-btn-text:focus-visible,
+.titlebar-window-controls > .titlebar-close-btn.ant-btn-text:active {
+    color: #fff !important;
+}
+
+/* 方案 B:三键为 40x40 方块(高度由内联样式给出),不再整高;悬浮块因此为正方形 */
 body[data-ui-version="v2"] .gn-v2-titlebar .titlebar-web-logout-btn {
     height: 100% !important;
     min-height: 100% !important;
@@ -2851,36 +2944,22 @@ body[data-ui-version="v2"] .gn-v2-titlebar .titlebar-web-logout-btn {
 
 .titlebar-window-controls .titlebar-window-control-btn .anticon,
 .titlebar-window-controls .titlebar-window-control-btn svg {
-    width: 12px;
-    height: 12px;
-    font-size: 12px;
+    position: relative;
+    z-index: 1;
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
     display: block;
 }
 
+/* 还原图标的后板已改成不与前板重叠的开放路径,前板不再承担遮挡职责。
+   填充一旦存在,就会在悬浮底色上盖出一个浅色小方块,所以固定 none。 */
 .titlebar-window-controls .titlebar-window-control-restore-front {
-    fill: var(--gn-bg-panel-2, var(--ant-color-bg-container, #ffffff));
-}
-
-body[data-ui-version="v2"] .gn-v2-titlebar .titlebar-window-controls .titlebar-window-control-restore-front {
-    fill: var(--gn-bg-panel-2, #ffffff);
-}
-
-.titlebar-window-controls > .ant-btn.ant-btn-text:hover .titlebar-window-control-restore-front,
-.titlebar-window-controls > .ant-btn.ant-btn-text:focus-visible .titlebar-window-control-restore-front {
-    fill: color-mix(in srgb, var(--ant-color-fill-secondary, rgba(0, 0, 0, 0.06)) 100%, transparent);
-}
-
-body[data-ui-version="v2"] .gn-v2-titlebar .titlebar-window-controls > .ant-btn.ant-btn-text:hover .titlebar-window-control-restore-front,
-body[data-ui-version="v2"] .gn-v2-titlebar .titlebar-window-controls > .ant-btn.ant-btn-text:focus-visible .titlebar-window-control-restore-front {
-    fill: color-mix(in srgb, var(--gn-bg-panel-2, #ffffff) 88%, var(--ant-color-text, #000) 12%);
-}
-
-.titlebar-window-controls > .titlebar-close-btn.ant-btn-text:hover .titlebar-window-control-restore-front {
-    fill: #ff4d4f;
+    fill: none;
 }
 
 .titlebar-window-controls > .titlebar-close-btn.ant-btn-text:hover {
-    background-color: #ff4d4f !important;
+    /* 红色由内缩 30x30 圆角伪元素负责,按钮本体透明 */
     color: #fff !important;
 }
 

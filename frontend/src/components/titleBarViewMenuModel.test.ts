@@ -16,7 +16,6 @@ const toggleEntry = (entries: TitleBarViewMenuEntry[], key: string) => {
 
 const buildInput = (overrides: Partial<Parameters<typeof buildTitleBarViewMenuEntries>[0]> = {}) => {
   const actions = {
-    toggleAI: vi.fn(),
     openSettings: vi.fn(),
     closeSettings: vi.fn(),
     expandSidebar: vi.fn(),
@@ -25,21 +24,19 @@ const buildInput = (overrides: Partial<Parameters<typeof buildTitleBarViewMenuEn
     toggleFullscreen: vi.fn(),
   };
   const entries = buildTitleBarViewMenuEntries({
-    aiPanelVisible: false,
     settingsOpen: false,
     sidebarCollapsed: false,
     sqlLogOpen: true,
     sqlLogAvailable: true,
     fullscreen: false,
     labels: {
-      aiPanel: 'AI',
       settingsCenter: 'Settings',
       sidebar: 'Explorer',
       sqlLog: 'SQL Log',
       sqlLogNeedsQuery: 'Open a query tab first',
       fullscreen: 'Full Screen',
     },
-    shortcuts: { aiPanel: '⌘J', sqlLog: '⌃H' },
+    shortcuts: { sqlLog: '⌃H' },
     actions,
     ...overrides,
   });
@@ -49,7 +46,6 @@ const buildInput = (overrides: Partial<Parameters<typeof buildTitleBarViewMenuEn
 describe('buildTitleBarViewMenuEntries', () => {
   it('checks the surfaces that are actually visible', () => {
     const { entries } = buildInput({
-      aiPanelVisible: true,
       settingsOpen: true,
       sidebarCollapsed: true,
       sqlLogOpen: true,
@@ -62,7 +58,6 @@ describe('buildTitleBarViewMenuEntries', () => {
     );
 
     expect(checked).toEqual({
-      'view-ai-panel': true,
       'view-settings-center': true,
       'view-sidebar': false,
       'view-sql-log': true,

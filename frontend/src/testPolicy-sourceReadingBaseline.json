@@ -10,7 +10,6 @@
   "components/Sidebar.locate-toolbar.test.tsx",
   "components/TableExportWorkbench.test.tsx",
   "components/TitleBarPrimaryActions.test.tsx",
-  "components/ai/AIMCPServerFormPanel.test.tsx",
   "i18n/catalog.test.ts",
   "utils/overlayZIndex.test.ts"
 ]

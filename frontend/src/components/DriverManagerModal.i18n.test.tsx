@@ -679,7 +679,7 @@ describe('DriverManagerModal i18n', () => {
         fallbackReachable: true,
         usingFallback: true,
       }),
-      'The GoNavi mirror is unavailable, but the GitHub fallback is available. Driver installation can continue.',
+      'The ServDeck mirror is unavailable, but the GitHub fallback is available. Driver installation can continue.',
       'Driver download network is available. You can install drivers directly.',
     ],
     [
@@ -889,7 +889,7 @@ describe('DriverManagerModal i18n', () => {
     });
 
     const content = textContent(renderer!.toJSON());
-    expect(content).toContain('GoNavi mirror connectivity: unreachable, 321ms, HTTP 403');
+    expect(content).toContain('ServDeck mirror connectivity: unreachable, 321ms, HTTP 403');
     expect(content).toContain('GitHub driver release connectivity: reachable, 456ms');
     expect(content).not.toContain('原始镜像名称');
     expect(content).not.toContain('原始 GitHub 名称');

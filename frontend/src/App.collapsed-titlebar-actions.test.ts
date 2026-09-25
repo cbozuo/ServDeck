@@ -263,7 +263,7 @@ describe('collapsed V2 sidebar actions', () => {
     const enlarged = resolveTitleBarLayout(1, true, 1.8);
 
     expect(enlarged.height).toBeGreaterThan(normal.height);
-    expect(enlarged.height - enlarged.emptyWorkbenchTopOffset).toBe(36);
+    expect(enlarged.height - enlarged.emptyWorkbenchTopOffset).toBe(48);
   });
 
   it.each([0.8, 0.9, 0.95, 1, 1.1, 1.25])(

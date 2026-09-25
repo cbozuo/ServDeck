@@ -40,15 +40,6 @@ const (
 	defaultCloudBackupRestoreConfirmationTokenTTL = 10 * time.Minute
 )
 
-// NewCloudBackupChangeHandler returns a callback for services that persist
-// files included in the cloud backup payload.
-func NewCloudBackupChangeHandler(a *App) func() {
-	if a == nil {
-		return nil
-	}
-	return a.markCloudBackupDirty
-}
-
 type cloudBackupSecrets struct {
 	WebDAVUsername     string `json:"webdavUsername,omitempty"`
 	WebDAVPassword     string `json:"webdavPassword,omitempty"`

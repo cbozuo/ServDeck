@@ -15,7 +15,6 @@ import (
 	"testing/fstest"
 	"time"
 
-	aiservice "GoNavi-Wails/internal/ai/service"
 	appcore "GoNavi-Wails/internal/app"
 )
 
@@ -426,7 +425,7 @@ func TestManagerSyncHostStateRetainsNewestRevisionAndOnlyEmitsToChildren(t *test
 	}
 }
 
-func TestManagerRoutesCommandsAndAIStreamsToOnlyTheirTargetWindow(t *testing.T) {
+func TestManagerRoutesCommandsToOnlyTheirTargetWindow(t *testing.T) {
 	manager := newHTTPTestManager(t)
 	manager.windows["workbench:query-a"] = &windowEntry{
 		info: WindowInfo{ID: "workbench:query-a", Kind: "workbench"},
@@ -439,14 +438,10 @@ func TestManagerRoutesCommandsAndAIStreamsToOnlyTheirTargetWindow(t *testing.T) 
 		args     []any
 	}
 	reliable := make(chan emittedEvent, 2)
-	bestEffort := make(chan emittedEvent, 2)
 	broadcast := make(chan emittedEvent, 2)
 	mainEvents := make(chan emittedEvent, 2)
 	manager.emitToChild = func(targetID string, name string, args ...any) {
 		reliable <- emittedEvent{targetID: targetID, name: name, args: args}
-	}
-	manager.emitToChildBestEffort = func(targetID string, name string, args ...any) {
-		bestEffort <- emittedEvent{targetID: targetID, name: name, args: args}
 	}
 	manager.emitToChildren = func(name string, args ...any) {
 		broadcast <- emittedEvent{name: name, args: args}
@@ -477,23 +472,12 @@ func TestManagerRoutesCommandsAndAIStreamsToOnlyTheirTargetWindow(t *testing.T) 
 		t.Fatalf("close command = %#v", command)
 	}
 
-	manager.emit("ai:run:event", map[string]any{"runId": "run-1", "sequence": 1, "kind": "model_delta"})
-	stream := <-bestEffort
-	if stream.targetID != "ai-chat" || stream.name != "ai:run:event" {
-		t.Fatalf("AI run event = %#v", stream)
-	}
-	if main := <-mainEvents; main.name != "ai:run:event" {
-		t.Fatalf("main AI run event = %#v", main)
-	}
-	select {
-	case leaked := <-broadcast:
-		t.Fatalf("AI run event was broadcast to every child: %#v", leaked)
-	default:
-	}
-
 	manager.emit("sqlfile:progress", map[string]any{"current": 1})
 	if normal := <-broadcast; normal.name != "sqlfile:progress" {
 		t.Fatalf("normal backend event = %#v", normal)
+	}
+	if main := <-mainEvents; main.name != "sqlfile:progress" {
+		t.Fatalf("main backend event = %#v", main)
 	}
 }
 
@@ -1766,7 +1750,7 @@ func newHTTPTestManager(t *testing.T) *Manager {
 	assets := fstest.MapFS{
 		"frontend/dist/index.html": &fstest.MapFile{Data: []byte("<html><head></head><body></body></html>")},
 	}
-	manager, err := NewManager(fs.FS(assets), appcore.NewWebApp(), aiservice.NewService())
+	manager, err := NewManager(fs.FS(assets), appcore.NewWebApp())
 	if err != nil {
 		t.Fatalf("NewManager returned error: %v", err)
 	}

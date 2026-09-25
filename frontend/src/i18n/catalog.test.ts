@@ -56,12 +56,6 @@ const readAppSource = (): string =>
 const readQueryEditorHelpersSource = (): string =>
   readFileSync(new URL("../components/queryEditor/QueryEditorHelpers.ts", import.meta.url), "utf8");
 
-const readQueryEditorAiContextSource = (): string =>
-  readFileSync(new URL("../components/queryEditor/queryEditorAiContext.ts", import.meta.url), "utf8");
-
-const readQueryEditorAiSqlInsertSource = (): string =>
-  readFileSync(new URL("../components/queryEditor/queryEditorAiSqlInsert.ts", import.meta.url), "utf8");
-
 const readQueryEditorResultsPanelSource = (): string =>
   readFileSync(new URL("../components/QueryEditorResultsPanel.tsx", import.meta.url), "utf8");
 
@@ -308,7 +302,6 @@ describe("i18n catalog", () => {
       "app.security_update.stage.checking_saved_config",
       "app.security_update.stage.updating_secure_storage",
       "app.security_update.stage.verifying_result",
-      "app.sidebar.ai_assistant",
       "app.sidebar.collapse",
       "app.sidebar.expand",
       "app.sidebar.resize_width",
@@ -320,11 +313,6 @@ describe("i18n catalog", () => {
       "app.window_zoom.message.reset_success",
       "app.window_zoom.message.reset_success_fallback",
       "app.window_zoom.message.windows_only",
-      "app.ai_panel.action.close",
-      "app.ai_panel.action.reload",
-      "app.ai_panel.aria.close",
-      "app.ai_panel.error.description",
-      "app.ai_panel.error.title",
       "app.about.title",
       "app.about.field.update_status",
       "common.back_to_previous",
@@ -440,16 +428,10 @@ describe("i18n catalog", () => {
       "app.shortcuts.action.saveQueryAs.label",
       "app.shortcuts.action.selectCurrentStatement.description",
       "app.shortcuts.action.selectCurrentStatement.label",
-      "app.shortcuts.action.sendAIChatMessage.description",
-      "app.shortcuts.action.sendAIChatMessage.label",
-      "app.shortcuts.action.triggerSqlAiCompletion.description",
-      "app.shortcuts.action.triggerSqlAiCompletion.label",
       "app.shortcuts.action.switchToNextTab.description",
       "app.shortcuts.action.switchToNextTab.label",
       "app.shortcuts.action.switchToPreviousTab.description",
       "app.shortcuts.action.switchToPreviousTab.label",
-      "app.shortcuts.action.toggleAIPanel.description",
-      "app.shortcuts.action.toggleAIPanel.label",
       "app.shortcuts.action.toggleLogPanel.description",
       "app.shortcuts.action.toggleLogPanel.label",
       "app.shortcuts.action.toggleMacFullscreen.description",
@@ -913,14 +895,7 @@ describe("i18n catalog", () => {
     const formatCatchSource = sliceBetween(
       source,
       "} catch (e) {",
-      "const handleAIAction = (action: 'generate' | 'explain' | 'optimize' | 'schema') => {",
-    );
-    // AI 注入 SQL 的实现已从 QueryEditor.tsx 抽到 queryEditorAiSqlInsert.ts，
-    // 锚点必须跟着落到新文件，否则切片会静默失配。
-    const insertSqlEffectSource = sliceBetween(
-      readQueryEditorAiSqlInsertSource(),
-      "export const createAiSqlInsertHandler",
-      "export const useAiSqlInsertToTabListener",
+      "  const handleFormatRef = useRef(handleFormat);",
     );
 
     for (const language of SUPPORTED_LANGUAGES) {
@@ -931,10 +906,6 @@ describe("i18n catalog", () => {
     }
 
     assertSourceDoesNotInlineCatalogValues(formatCatchSource, ["query_editor.message.format_failed"]);
-    assertSourceDoesNotInlineCatalogValues(insertSqlEffectSource, [
-      "query_editor.message.insert_success",
-      "query_editor.message.append_success",
-    ]);
   });
 
   it("keeps QueryEditor local editor interaction toasts in catalogs instead of source literals", () => {
@@ -1654,32 +1625,6 @@ describe("i18n catalog", () => {
     assertSourceDoesNotInlineCatalogValues(helpersSource, [allColumnsHintKey]);
   });
 
-  it("keeps QueryEditor AI context menu labels in catalogs instead of source literals", () => {
-    const actionLabelKeys = [
-      "query_editor.action.ai_generate_sql_menu",
-      "query_editor.action.ai_explain_sql_menu",
-      "query_editor.action.ai_optimize_sql_menu",
-    ] as const;
-    const source = readQueryEditorSource();
-    const aiActionsSource = sliceBetween(
-      source,
-      "  const buildQueryEditorAiContextMenuActions = useCallback(() => ([",
-      "  const disposeQueryEditorAiContextMenuActions = useCallback(() => {",
-    );
-
-    for (const language of SUPPORTED_LANGUAGES) {
-      for (const key of actionLabelKeys) {
-        expect(catalogs[language]).toHaveProperty(key);
-        expect(catalogs[language][key]).toBeTruthy();
-      }
-    }
-
-    for (const key of actionLabelKeys) {
-    }
-
-    assertSourceDoesNotInlineCatalogValues(aiActionsSource, actionLabelKeys);
-  });
-
   it("keeps QueryEditor SQL snippet picker copy in catalogs instead of source literals", () => {
     const snippetPickerKeys = [
       "query_editor.action.insert_sql_snippet",
@@ -1715,150 +1660,6 @@ describe("i18n catalog", () => {
     assertSourceDoesNotInlineCatalogValues(source, snippetPickerLiteralGuardKeys);
   });
 
-  it("keeps QueryEditor AI prompt context in catalogs instead of source literals", () => {
-    const aiContextKeys = [
-      "query_editor.ai_prompt.default_source",
-      "query_editor.ai_prompt.default_database",
-      "query_editor.ai_prompt.default_version",
-      "query_editor.ai_prompt.context",
-    ] as const;
-    const aiContextSource = sliceBetween(
-      readQueryEditorAiContextSource(),
-      "export const buildQueryEditorAiContextPrompt = (",
-      "  return translate('query_editor.ai_prompt.context', {",
-    );
-
-    for (const language of SUPPORTED_LANGUAGES) {
-      for (const key of aiContextKeys) {
-        expect(catalogs[language]).toHaveProperty(key);
-        expect(catalogs[language][key]).toBeTruthy();
-      }
-      expect(getPlaceholders(catalogs[language]["query_editor.ai_prompt.context"])).toEqual([
-        "database",
-        "name",
-        "type",
-        "version",
-      ]);
-    }
-
-    assertSourceDoesNotInlineCatalogValues(aiContextSource, [
-      "query_editor.ai_prompt.default_version",
-      "query_editor.ai_prompt.context",
-    ]);
-  });
-
-  it("keeps QueryEditor AI context menu prompts in catalogs instead of source literals", () => {
-    const promptKeys = [
-      "query_editor.ai_prompt.generate",
-      "query_editor.ai_prompt.explain",
-      "query_editor.ai_prompt.optimize",
-    ] as const;
-    const source = readQueryEditorSource();
-    const aiActionsSource = sliceBetween(
-      source,
-      "  const buildQueryEditorAiContextMenuActions = useCallback(() => ([",
-      "  const disposeQueryEditorAiContextMenuActions = useCallback(() => {",
-    );
-
-    for (const language of SUPPORTED_LANGUAGES) {
-      for (const key of promptKeys) {
-        expect(catalogs[language]).toHaveProperty(key);
-        expect(catalogs[language][key]).toBeTruthy();
-      }
-    }
-
-    for (const key of promptKeys) {
-    }
-
-    assertSourceDoesNotInlineCatalogValues(aiActionsSource, promptKeys);
-  });
-
-  it("keeps QueryEditor slash command definitions in catalogs instead of source literals", () => {
-    const slashKeys = [
-      "query_editor.slash_command.query.label",
-      "query_editor.slash_command.query.description",
-      "query_editor.slash_command.query.prompt",
-      "query_editor.slash_command.sql.label",
-      "query_editor.slash_command.sql.description",
-      "query_editor.slash_command.sql.prompt",
-      "query_editor.slash_command.schema.label",
-      "query_editor.slash_command.schema.description",
-      "query_editor.slash_command.schema.prompt",
-      "query_editor.slash_command.index.label",
-      "query_editor.slash_command.index.description",
-      "query_editor.slash_command.index.prompt",
-      "query_editor.slash_command.diff.label",
-      "query_editor.slash_command.diff.description",
-      "query_editor.slash_command.diff.prompt",
-      "query_editor.slash_command.mock.label",
-      "query_editor.slash_command.mock.description",
-      "query_editor.slash_command.mock.prompt",
-      "query_editor.slash_command.explain.label",
-      "query_editor.slash_command.explain.description",
-      "query_editor.slash_command.explain.prompt",
-      "query_editor.slash_command.optimize.label",
-      "query_editor.slash_command.optimize.description",
-      "query_editor.slash_command.optimize.prompt",
-    ] as const;
-    const source = readQueryEditorSource();
-    const slashDefinitionsSource = sliceBetween(
-      source,
-      "  const buildQueryEditorSlashCommandDefs = useCallback(() => ([",
-      "  const refreshQueryEditorSlashCommandDefs = useCallback(() => {",
-    );
-
-    for (const language of SUPPORTED_LANGUAGES) {
-      for (const key of slashKeys) {
-        expect(catalogs[language]).toHaveProperty(key);
-        expect(catalogs[language][key]).toBeTruthy();
-      }
-    }
-
-    for (const key of slashKeys) {
-    }
-
-    assertSourceDoesNotInlineCatalogValues(slashDefinitionsSource, slashKeys);
-  });
-
-  it("keeps QueryEditor toolbar and diagnose AI prompts in catalogs instead of source literals", () => {
-    const toolbarPromptKeys = [
-      "query_editor.ai_prompt.generate",
-      "query_editor.ai_prompt.explain",
-      "query_editor.ai_prompt.optimize",
-      "query_editor.ai_prompt.schema",
-    ] as const;
-    const diagnosePromptKeys = [
-      "query_editor.ai_prompt.diagnose",
-    ] as const;
-    const source = readQueryEditorSource();
-    const toolbarPromptSource = sliceBetween(
-      source,
-      "  const handleAIAction = (action: 'generate' | 'explain' | 'optimize' | 'schema') => {",
-      "  const formatSettingsMenu: MenuProps['items'] = [",
-    );
-    const diagnosePromptSource = sliceBetween(
-      source,
-      "  const handleDiagnoseExecutionError = () => {",
-      "  const sqlEditorTransactionToolbar = (",
-    );
-    const toolbarAndDiagnoseSource = `${toolbarPromptSource}\n${diagnosePromptSource}`;
-
-    for (const language of SUPPORTED_LANGUAGES) {
-      for (const key of [...toolbarPromptKeys, ...diagnosePromptKeys]) {
-        expect(catalogs[language]).toHaveProperty(key);
-        expect(catalogs[language][key]).toBeTruthy();
-      }
-    }
-
-    for (const key of toolbarPromptKeys) {
-    }
-
-    assertSourceDoesNotInlineCatalogValues(toolbarAndDiagnoseSource, [
-      ...toolbarPromptKeys,
-      ...diagnosePromptKeys,
-    ]);
-  });
-
   it("keeps QueryEditor Monaco action labels in catalogs instead of source literals", () => {
     const actionLabelKeys = [
       "app.shortcuts.action.duplicateCurrentLine.label",
@@ -1881,7 +1682,7 @@ describe("i18n catalog", () => {
       sliceBetween(
         source,
         "  const registerInsertSqlSnippetContextMenuAction = useCallback((editor: any) => {",
-        "  // SQL 诊断 / 慢 SQL 历史的快捷键监听（必须在 binding 声明之后）",
+        "  const registerShowObjectInfoAction = useCallback(() => {",
       ),
       sliceBetween(
         source,
@@ -1901,17 +1702,17 @@ describe("i18n catalog", () => {
       sliceBetween(
         source,
         "      const binding = duplicateCurrentLineShortcutBinding;",
-        "  }, [activeShortcutPlatform, duplicateCurrentLineShortcutBinding, handleDuplicateCurrentLine, languagePreference]);",
+        "  }, [duplicateCurrentLineShortcutBinding, handleDuplicateCurrentLine, isActive]);",
       ),
       sliceBetween(
         source,
         "      const binding = saveQueryShortcutBinding;",
-        "  }, [activeShortcutPlatform, languagePreference, saveQueryShortcutBinding]);",
+        "  }, [isActive, saveQueryShortcutBinding, handleQuickSave]);",
       ),
       sliceBetween(
         source,
         "      const binding = saveQueryAsShortcutBinding;",
-        "  }, [activeShortcutPlatform, currentSavedQuery, languagePreference, saveQueryAsShortcutBinding, tab.filePath]);",
+        "  }, [currentSavedQuery, handleSaveQueryAs, isActive, saveQueryAsShortcutBinding, tab.filePath]);",
       ),
     ].join("\n");
 

@@ -295,7 +295,7 @@ func TestTestJVMConnectionLocalizesAgentConnectionRefusedInEnglish(t *testing.T)
 	if !strings.Contains(res.Message, "Agent connection failed: the target Agent management port is not listening, or the address is unreachable.") {
 		t.Fatalf("expected English agent summary, got %q", res.Message)
 	}
-	if !strings.Contains(res.Message, "Suggestion: Confirm the Java service started GoNavi Agent with `-javaagent`") {
+	if !strings.Contains(res.Message, "Suggestion: Confirm the Java service started ServDeck Agent with `-javaagent`") {
 		t.Fatalf("expected English actionable suggestion, got %q", res.Message)
 	}
 	if !strings.Contains(res.Message, `Technical detail: agent probe request failed: Get "http://127.0.0.1:19090/gonavi/agent/jvm": dial tcp 127.0.0.1:19090: connect: connection refused`) {

@@ -1,6 +1,5 @@
 import { t as translate } from '../../i18n';
 import { QUERY_EDITOR_HOVER_DELAY_MS } from './QueryEditorHelpers';
-import { buildQueryEditorAiInlineSuggestOptions } from './QueryEditorAiAssist';
 
 export const QUERY_EDITOR_TABLE_SUGGESTION_ROW_HEIGHT = 36;
 export const QUERY_EDITOR_FIND_WIDGET_VISIBLE_CLASS = 'is-find-widget-visible';
@@ -64,7 +63,6 @@ export const buildQueryEditorMonacoOptions = (
     wordBasedSuggestions: 'off' as const,
     occurrencesHighlight: 'off' as const,
     suggestLineHeight: QUERY_EDITOR_TABLE_SUGGESTION_ROW_HEIGHT,
-    inlineSuggest: buildQueryEditorAiInlineSuggestOptions(),
     ...(isObjectEditQueryTab
         ? {
             lineNumbersMinChars: 4,

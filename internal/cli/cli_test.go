@@ -9,11 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	appcore "GoNavi-Wails/internal/app"
 	"GoNavi-Wails/internal/connection"
-	"GoNavi-Wails/internal/mcpserver"
 	"GoNavi-Wails/internal/sqlaudit"
 )
 
@@ -139,29 +137,6 @@ func TestRunVersionRejectsExtraArguments(t *testing.T) {
 	}
 	if stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code":"usage"`) {
 		t.Fatalf("version extra output mismatch: stdout=%q stderr=%q", stdout.String(), stderr.String())
-	}
-}
-
-func TestRunAgentPreservesMissingLifecycleContext(t *testing.T) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	code := Run(nil, []string{"agent", "run", "--prompt", "hello"}, &stdout, &stderr)
-	if code != ExitExecution {
-		t.Fatalf("Run(nil, agent run) = %d, want execution failure; stderr=%s", code, stderr.String())
-	}
-	if !strings.Contains(stderr.String(), "agent run harness root context is required") {
-		t.Fatalf("missing lifecycle-context diagnostic: %s", stderr.String())
-	}
-}
-
-func TestRunAgentHelpStillWorksWithoutLifecycleContext(t *testing.T) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	if code := Run(nil, []string{"agent", "run", "--help"}, &stdout, &stderr); code != ExitSuccess {
-		t.Fatalf("Run(nil, agent run --help) = %d, stderr=%s", code, stderr.String())
-	}
-	if !strings.Contains(stdout.String(), "Usage: gonavi agent run") {
-		t.Fatalf("agent help output missing usage: %s", stdout.String())
 	}
 }
 
@@ -740,59 +715,6 @@ func TestRunAuditExportRejectsUnsupportedFormatBeforeBackendCall(t *testing.T) {
 	if !strings.Contains(stderr, `"code":"usage"`) {
 		t.Fatalf("unsupported audit format was not reported as usage error: %s", stderr)
 	}
-}
-
-func TestRunMCPMapsInvocationTerminationToCancelledExit(t *testing.T) {
-	t.Run("stdio cancellation error", func(t *testing.T) {
-		previousStdio := runMCPStdioServer
-		t.Cleanup(func() { runMCPStdioServer = previousStdio })
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-		runMCPStdioServer = func(received context.Context) error {
-			if received != ctx {
-				t.Fatal("stdio runner received a different invocation context")
-			}
-			return received.Err()
-		}
-
-		var stdout bytes.Buffer
-		var stderr bytes.Buffer
-		if code := runMCP(ctx, []string{"stdio"}, &stdout, &stderr); code != ExitCancelled || !strings.Contains(stderr.String(), `"code":"cancelled"`) {
-			t.Fatalf("stdio cancellation exit=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
-		}
-	})
-
-	t.Run("http graceful deadline shutdown", func(t *testing.T) {
-		previousHTTP := runMCPHTTPServer
-		t.Cleanup(func() { runMCPHTTPServer = previousHTTP })
-		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
-		defer cancel()
-		runMCPHTTPServer = func(received context.Context, _ mcpserver.HTTPServerOptions) error {
-			if received != ctx {
-				t.Fatal("http runner received a different invocation context")
-			}
-			// The real HTTP server treats a context-triggered graceful shutdown as
-			// a nil server error, which must still map to ExitCancelled.
-			return nil
-		}
-
-		var stdout bytes.Buffer
-		var stderr bytes.Buffer
-		if code := runMCP(ctx, []string{"http", "--token", "test-token"}, &stdout, &stderr); code != ExitCancelled || !strings.Contains(stderr.String(), `"code":"cancelled"`) {
-			t.Fatalf("http deadline exit=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
-		}
-	})
-
-	t.Run("ordinary server failure remains execution failure", func(t *testing.T) {
-		previousStdio := runMCPStdioServer
-		t.Cleanup(func() { runMCPStdioServer = previousStdio })
-		runMCPStdioServer = func(context.Context) error { return errors.New("MCP transport failed") }
-		var stdout bytes.Buffer
-		var stderr bytes.Buffer
-		if code := runMCP(context.Background(), nil, &stdout, &stderr); code != ExitExecution || !strings.Contains(stderr.String(), `"code":"mcp_failed"`) {
-			t.Fatalf("MCP failure exit=%d stdout=%s stderr=%s", code, stdout.String(), stderr.String())
-		}
-	})
 }
 
 type failingWriter struct {

@@ -20,7 +20,6 @@ const readSource = (path: string): string => readFileSync(
   fileURLToPath(new globalThis.URL(path, import.meta.url)),
   'utf8',
 );
-const floatingAIChatSource = readSource('../components/FloatingAIChatWindow.tsx');
 const floatingWorkbenchSource = readSource('../components/FloatingWorkbenchWindows.tsx');
 const floatingQueryResultSource = readSource('../components/FloatingQueryResultWindows.tsx');
 const dataGridShellSource = readSource('../components/DataGridShell.tsx');
@@ -118,7 +117,6 @@ describe('application overlay z-index policy', () => {
 
   it('keeps every in-WebView floating window above root dialogs with usable portaled popups', () => {
     for (const source of [
-      floatingAIChatSource,
       floatingWorkbenchSource,
       floatingQueryResultSource,
     ]) {

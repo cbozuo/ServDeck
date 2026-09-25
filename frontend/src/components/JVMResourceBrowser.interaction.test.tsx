@@ -56,7 +56,6 @@ vi.mock("./MonacoEditor", () => ({
 vi.mock("@ant-design/icons", () => ({
   FileSearchOutlined: () => <span />,
   ReloadOutlined: () => <span />,
-  RobotOutlined: () => <span />,
 }));
 
 vi.mock("antd", () => {
@@ -159,18 +158,6 @@ const waitForEffects = async () => {
   });
 };
 
-const emitJVMApplyAIPlan = async (detail: any) => {
-  const eventListeners = (window.addEventListener as any).mock.calls.filter(
-    ([eventName]: [string]) => eventName === "gonavi:jvm-apply-ai-plan",
-  );
-  const handler = eventListeners[eventListeners.length - 1]?.[1] as
-    | EventListener
-    | undefined;
-  expect(handler).toBeTruthy();
-  await act(async () => {
-    handler!(new CustomEvent("gonavi:jvm-apply-ai-plan", { detail }));
-  });
-};
 
 const renderWithI18n = (
   tab: typeof writableTab,
@@ -305,7 +292,6 @@ describe("JVMResourceBrowser interactions", () => {
     expect(text).toContain("Writable connection");
     expect(findButton(renderer!, "Refresh")).toBeTruthy();
     expect(findButton(renderer!, "Audit log")).toBeTruthy();
-    expect(findButton(renderer!, "Generate AI plan")).toBeTruthy();
     expect(text).toContain("Resource snapshot");
     expect(text).toContain("Resource ID");
     expect(text).toContain("Resource type");
@@ -318,8 +304,6 @@ describe("JVMResourceBrowser interactions", () => {
     expect(text).toContain("Resource path");
     expect(text).toContain("Target resource");
     expect(text).toContain("Resource version");
-    expect(text).toContain("Draft source");
-    expect(text).toContain("Manual edit");
     expect(text).toContain("Supported resource actions");
     expect(text).toContain("Payload fields: value (required), ttlSeconds");
     expect(text).toContain("Action");
@@ -350,7 +334,6 @@ describe("JVMResourceBrowser interactions", () => {
       ),
     ).toBe(true);
     expect(findButton(renderer!, "Preview change")).toBeTruthy();
-    expect(findButton(renderer!, "Ask AI for a plan")).toBeTruthy();
 
     backendApp.JVMGetValue.mockResolvedValueOnce({ success: true, data: null });
     await act(async () => {
@@ -497,165 +480,6 @@ describe("JVMResourceBrowser interactions", () => {
     );
   });
 
-  it("localizes AI-plan import and fill chrome while preserving raw resource ids", async () => {
-    setCurrentLanguage("en-US");
-
-    const rawResourceId = "jmx:/attribute/app/Mode-RAW-42";
-    const tab = {
-      ...writableTab,
-      resourcePath: rawResourceId,
-    };
-    const planContext = {
-      targetTabId: tab.id,
-      connectionId: tab.connectionId,
-      providerMode: tab.providerMode,
-      resourcePath: tab.resourcePath,
-    };
-    const validPlan = {
-      targetType: "attribute",
-      selector: {
-        resourcePath: rawResourceId,
-      },
-      action: "set",
-      payload: {
-        format: "json",
-        value: { value: "warm" },
-      },
-      reason: "Keep raw id visible",
-    };
-
-    let renderer: ReactTestRenderer;
-    await act(async () => {
-      renderer = create(<JVMResourceBrowser tab={tab} />);
-    });
-    await waitForEffects();
-
-    await emitJVMApplyAIPlan({ plan: validPlan });
-    expect(textContent(renderer!.root)).toContain(
-      "The AI plan is missing its source context. Regenerate it from the target JVM resource page before applying it.",
-    );
-
-    await emitJVMApplyAIPlan({
-      plan: validPlan,
-      ...planContext,
-      connectionId: "conn-other",
-    });
-    expect(textContent(renderer!.root)).toContain(
-      "The current JVM tab does not match the source context of the AI plan, so automatic application was rejected.",
-    );
-
-    const fallbackPlan = {
-      ...validPlan,
-      selector: {
-        resourcePath: {
-          toString: () => {
-            throw null;
-          },
-        },
-      },
-    };
-    await emitJVMApplyAIPlan({
-      plan: fallbackPlan,
-      ...planContext,
-    });
-    expect(textContent(renderer!.root)).toContain(
-      "The AI plan cannot be converted into a JVM preview draft right now.",
-    );
-
-    const rawErrorPlan = {
-      ...validPlan,
-      selector: {
-        resourcePath: {
-          toString: () => {
-            throw new Error("raw plan detail");
-          },
-        },
-      },
-    };
-    await emitJVMApplyAIPlan({
-      plan: rawErrorPlan,
-      ...planContext,
-    });
-    expect(textContent(renderer!.root)).toContain(
-      "The AI plan cannot be converted into a JVM preview draft right now.",
-    );
-    expect(textContent(renderer!.root)).not.toContain("raw plan detail");
-
-    await emitJVMApplyAIPlan({
-      plan: validPlan,
-      ...planContext,
-    });
-    const text = textContent(renderer!.root);
-    expect(text).toContain(
-      `The draft was filled from the AI plan for ${rawResourceId}. Preview the change before confirming the write.`,
-    );
-    expect(text).toContain(rawResourceId);
-  });
-
-  it("updates AI-plan listener translations after locale changes", async () => {
-    setCurrentLanguage("en-US");
-
-    const rawResourceId = "jmx:/attribute/app/Mode-RAW-42";
-    const tab = {
-      ...writableTab,
-      resourcePath: rawResourceId,
-    };
-    const planContext = {
-      targetTabId: tab.id,
-      connectionId: tab.connectionId,
-      providerMode: tab.providerMode,
-      resourcePath: tab.resourcePath,
-    };
-    const validPlan = {
-      targetType: "attribute",
-      selector: {
-        resourcePath: rawResourceId,
-      },
-      action: "set",
-      payload: {
-        format: "json",
-        value: { value: "warm" },
-      },
-      reason: "Keep raw id visible",
-    };
-
-    let renderer: ReactTestRenderer;
-    await act(async () => {
-      renderer = create(renderWithI18n(tab, "en-US"));
-    });
-    await waitForEffects();
-    const firstAIPlanHandler = (window.addEventListener as any).mock.calls.find(
-      ([eventName]: [string]) => eventName === "gonavi:jvm-apply-ai-plan",
-    )?.[1];
-    expect(firstAIPlanHandler).toBeTruthy();
-
-    setCurrentLanguage("zh-CN");
-    await act(async () => {
-      renderer!.update(renderWithI18n(tab, "zh-CN"));
-    });
-    await waitForEffects();
-    expect(window.removeEventListener).toHaveBeenCalledWith(
-      "gonavi:jvm-apply-ai-plan",
-      firstAIPlanHandler,
-    );
-
-    await emitJVMApplyAIPlan({ plan: validPlan });
-    expect(textContent(renderer!.root)).toContain(
-      translate("jvm_resource.error.ai_plan_missing_context"),
-    );
-
-    await emitJVMApplyAIPlan({
-      plan: validPlan,
-      ...planContext,
-    });
-    const text = textContent(renderer!.root);
-    expect(text).toContain(
-      translate("jvm_resource.message.ai_plan_draft_filled", {
-        resourceId: rawResourceId,
-      }),
-    );
-    expect(text).toContain(rawResourceId);
-  });
 
   it("localizes draft preview and apply fallbacks while preserving raw backend messages", async () => {
     setCurrentLanguage("en-US");

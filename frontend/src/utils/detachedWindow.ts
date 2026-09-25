@@ -66,38 +66,11 @@ export type DetachedQueryResultWindow = DetachedWindowBounds & {
 
 export type DetachedWindowCoordinateSpace = 'viewport' | 'screen';
 
-/** AI 聊天独立浮动窗（单例，会话态；尺寸/位置记忆另存） */
-export type DetachedAIChatWindow = DetachedWindowBounds & {
-  coordinateSpace?: DetachedWindowCoordinateSpace;
-};
-
-/** 独立窗上次尺寸与位置（持久化，再次打开时复用） */
-export type AIChatDetachedBoundsMemory = Pick<
-  DetachedWindowBounds,
-  'x' | 'y' | 'width' | 'height'
-> & { coordinateSpace?: DetachedWindowCoordinateSpace };
-
-export const toAIChatDetachedBoundsMemory = (
-  bounds: Pick<DetachedWindowBounds, 'x' | 'y' | 'width' | 'height'> & {
-    coordinateSpace?: DetachedWindowCoordinateSpace;
-  },
-): AIChatDetachedBoundsMemory => ({
-  x: bounds.x,
-  y: bounds.y,
-  width: bounds.width,
-  height: bounds.height,
-  ...(bounds.coordinateSpace ? { coordinateSpace: bounds.coordinateSpace } : {}),
-});
-
 export const DETACH_TAB_DRAG_Y_THRESHOLD = 56;
 export const DEFAULT_DETACHED_WINDOW_WIDTH = 960;
 export const DEFAULT_DETACHED_WINDOW_HEIGHT = 640;
 export const DEFAULT_DETACHED_WINDOW_MIN_WIDTH = 480;
 export const DEFAULT_DETACHED_WINDOW_MIN_HEIGHT = 320;
-export const DEFAULT_DETACHED_AI_CHAT_WIDTH = 440;
-export const DEFAULT_DETACHED_AI_CHAT_HEIGHT = 720;
-export const DEFAULT_DETACHED_AI_CHAT_MIN_WIDTH = 360;
-export const DEFAULT_DETACHED_AI_CHAT_MIN_HEIGHT = 420;
 export const DETACHED_WINDOW_VIEWPORT_PADDING = 16;
 
 export const clamp = (value: number, min: number, max: number): number =>
@@ -130,13 +103,12 @@ const getViewportSize = () => {
 export const createDefaultDetachedBounds = (
   windows: Array<{ zIndex?: number }>,
   preferred?: Partial<Pick<DetachedWindowBounds, 'x' | 'y' | 'width' | 'height'>>,
-  sizePreset: 'workbench' | 'ai-chat' = 'workbench',
 ): DetachedWindowBounds => {
   const viewport = getViewportSize();
-  const defaultWidth = sizePreset === 'ai-chat' ? DEFAULT_DETACHED_AI_CHAT_WIDTH : DEFAULT_DETACHED_WINDOW_WIDTH;
-  const defaultHeight = sizePreset === 'ai-chat' ? DEFAULT_DETACHED_AI_CHAT_HEIGHT : DEFAULT_DETACHED_WINDOW_HEIGHT;
-  const minWidth = sizePreset === 'ai-chat' ? DEFAULT_DETACHED_AI_CHAT_MIN_WIDTH : DEFAULT_DETACHED_WINDOW_MIN_WIDTH;
-  const minHeight = sizePreset === 'ai-chat' ? DEFAULT_DETACHED_AI_CHAT_MIN_HEIGHT : DEFAULT_DETACHED_WINDOW_MIN_HEIGHT;
+  const defaultWidth = DEFAULT_DETACHED_WINDOW_WIDTH;
+  const defaultHeight = DEFAULT_DETACHED_WINDOW_HEIGHT;
+  const minWidth = DEFAULT_DETACHED_WINDOW_MIN_WIDTH;
+  const minHeight = DEFAULT_DETACHED_WINDOW_MIN_HEIGHT;
   const width = clamp(
     Number(preferred?.width) || defaultWidth,
     minWidth,

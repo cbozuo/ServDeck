@@ -10,7 +10,6 @@ import type { SupportedLanguage } from "./types";
 // runtime; guard like the cookie writer below so a node-environment render
 // (react-test-renderer) syncs nothing instead of throwing.
 const appApi = () => (typeof window === "undefined" ? undefined : (window as any)?.go?.app?.App);
-const aiApi = () => (typeof window === "undefined" ? undefined : (window as any)?.go?.aiservice?.Service);
 const WEB_AUTH_LANGUAGE_COOKIE_NAME = "gonavi_web_lang";
 let lastSyncedLanguage: SupportedLanguage | null = null;
 let desiredLanguage: SupportedLanguage | null = null;
@@ -54,10 +53,6 @@ export async function syncLanguageRuntime(language: SupportedLanguage): Promise<
       const app = appApi();
       if (typeof app?.SetLanguage === "function") {
         tasks.push(app.SetLanguage(targetLanguage));
-      }
-      const ai = aiApi();
-      if (typeof ai?.AISetLanguage === "function") {
-        tasks.push(ai.AISetLanguage(targetLanguage));
       }
 
       const results = await Promise.allSettled(tasks);

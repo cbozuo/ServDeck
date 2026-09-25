@@ -105,7 +105,6 @@ export const DataSyncRunHistory: React.FC<{
   checkpointResetEnabled: boolean;
   onResetCheckpoint: () => void;
   onGenerateRepairSql?: () => void;
-  onAskAiAboutDiffs?: () => void;
   onSyncDiffs?: () => void;
 }> = ({
   runs,
@@ -140,7 +139,6 @@ export const DataSyncRunHistory: React.FC<{
   checkpointResetEnabled,
   onResetCheckpoint,
   onGenerateRepairSql,
-  onAskAiAboutDiffs,
   onSyncDiffs,
 }) => {
   const isCompareWorkbench = family === 'compare';
@@ -445,16 +443,6 @@ export const DataSyncRunHistory: React.FC<{
               onClick={onGenerateRepairSql}
             >
               {t('compare.actions.repair_sql')}
-            </button>
-          ) : null}
-          {onAskAiAboutDiffs ? (
-            <button
-              type="button"
-              className="gn-data-sync-button"
-              data-compare-action="ai-sql"
-              onClick={onAskAiAboutDiffs}
-            >
-              {t('compare.actions.ai_sql')}
             </button>
           ) : null}
           {onSyncDiffs ? (

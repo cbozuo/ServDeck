@@ -15,7 +15,6 @@ import (
 	"testing/fstest"
 	"time"
 
-	aiservice "GoNavi-Wails/internal/ai/service"
 	appcore "GoNavi-Wails/internal/app"
 	httpserverlimits "GoNavi-Wails/internal/httpserver"
 )
@@ -214,7 +213,7 @@ func TestValidateContextHandlersRejectsSignatureMismatch(t *testing.T) {
 
 func TestIssue1098RequiredContextHandlerSetIsExact(t *testing.T) {
 	application := appcore.NewWebApp()
-	invoker, err := newMethodInvoker(application, aiservice.NewService())
+	invoker, err := newMethodInvoker(application)
 	if err != nil {
 		t.Fatalf("newMethodInvoker returned error: %v", err)
 	}
@@ -488,7 +487,7 @@ func TestSharedRuntimeInjectsRequestedBridgeWithoutBrowserAuthentication(t *test
 	assets := fstest.MapFS{
 		"frontend/dist/index.html": &fstest.MapFile{Data: []byte(`<html><head><script src="/wails/runtime.js"></script><title>GoNavi</title><script type="module" src="/assets/index.js"></script></head><body><div id="root"></div></body></html>`)},
 	}
-	shared, err := NewSharedRuntime(fs.FS(assets), appcore.NewWebApp(), aiservice.NewService(), SharedRuntimeOptions{
+	shared, err := NewSharedRuntime(fs.FS(assets), appcore.NewWebApp(), SharedRuntimeOptions{
 		RuntimeBridgePath:   "/__gonavi/detached-runtime.js",
 		RuntimeBridgeScript: "window.detachedRuntime = true;",
 	})
@@ -554,7 +553,7 @@ func TestSharedRuntimeServesIndexFromProductionZipRoot(t *testing.T) {
 	assets := fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte(`<html><body>production zip</body></html>`)},
 	}
-	shared, err := NewSharedRuntime(fs.FS(assets), appcore.NewWebApp(), aiservice.NewService(), SharedRuntimeOptions{
+	shared, err := NewSharedRuntime(fs.FS(assets), appcore.NewWebApp(), SharedRuntimeOptions{
 		RuntimeBridgePath:   "/__gonavi/detached-runtime.js",
 		RuntimeBridgeScript: "window.detachedRuntime = true;",
 	})

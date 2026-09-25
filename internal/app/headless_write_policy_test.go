@@ -2,28 +2,28 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"GoNavi-Wails/internal/ai"
-	aiservice "GoNavi-Wails/internal/ai/service"
 	"GoNavi-Wails/internal/connection"
 	"GoNavi-Wails/internal/db"
 	"GoNavi-Wails/internal/sqlaudit"
+	"GoNavi-Wails/internal/sqlsafety"
 )
 
-func saveHeadlessSafetyLevel(t *testing.T, runtime *HeadlessRuntime, level ai.SQLPermissionLevel) {
+func saveHeadlessSafetyLevel(t *testing.T, runtime *HeadlessRuntime, level sqlsafety.SQLPermissionLevel) {
 	t.Helper()
-	store := aiservice.NewProviderConfigStore(runtime.app.configDir, nil)
-	if err := store.Save(aiservice.ProviderConfigStoreSnapshot{
-		Providers:    []ai.ProviderConfig{},
-		SafetyLevel:  level,
-		ContextLevel: ai.ContextSchemaOnly,
-	}); err != nil {
-		t.Fatalf("save AI safety level: %v", err)
+	payload, err := json.Marshal(map[string]string{"safetyLevel": string(level)})
+	if err != nil {
+		t.Fatalf("marshal SQL safety level: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(runtime.app.configDir, "ai_config.json"), payload, 0o644); err != nil {
+		t.Fatalf("save SQL safety level: %v", err)
 	}
 }
 
@@ -42,20 +42,20 @@ func installHeadlessTestDatabase(t *testing.T, database db.Database) {
 func TestHeadlessQueryUsesSharedAISafetyAndConnectionProtections(t *testing.T) {
 	tests := []struct {
 		name       string
-		level      ai.SQLPermissionLevel
+		level      sqlsafety.SQLPermissionLevel
 		config     connection.ConnectionConfig
 		sql        string
 		allow      bool
 		wantOK     bool
 		wantReason string
 	}{
-		{name: "readonly blocks DML despite acknowledgement", level: ai.PermissionReadOnly, sql: "UPDATE demo SET value = 1", allow: true, wantReason: "AI safety"},
-		{name: "readwrite allows DML with acknowledgement", level: ai.PermissionReadWrite, sql: "UPDATE demo SET value = 1", allow: true, wantOK: true},
-		{name: "readwrite blocks DDL", level: ai.PermissionReadWrite, sql: "CREATE TABLE demo(id INT)", allow: true, wantReason: "AI safety"},
-		{name: "full still requires acknowledgement", level: ai.PermissionFull, sql: "DELETE FROM demo", wantReason: "allow-write"},
-		{name: "data protection blocks DML", level: ai.PermissionFull, config: connection.ConnectionConfig{Protection: connection.ConnectionProtectionConfig{RestrictDataEdit: true}}, sql: "UPDATE demo SET value = 1", allow: true, wantReason: "not allowed"},
-		{name: "structure protection blocks DDL", level: ai.PermissionFull, config: connection.ConnectionConfig{Protection: connection.ConnectionProtectionConfig{RestrictStructureEdit: true}}, sql: "CREATE TABLE demo(id INT)", allow: true, wantReason: "not allowed"},
-		{name: "script protection blocks DML", level: ai.PermissionFull, config: connection.ConnectionConfig{Protection: connection.ConnectionProtectionConfig{RestrictScriptExecution: true}}, sql: "UPDATE demo SET value = 1", allow: true, wantReason: "not allowed"},
+		{name: "readonly blocks DML despite acknowledgement", level: sqlsafety.PermissionReadOnly, sql: "UPDATE demo SET value = 1", allow: true, wantReason: "AI safety"},
+		{name: "readwrite allows DML with acknowledgement", level: sqlsafety.PermissionReadWrite, sql: "UPDATE demo SET value = 1", allow: true, wantOK: true},
+		{name: "readwrite blocks DDL", level: sqlsafety.PermissionReadWrite, sql: "CREATE TABLE demo(id INT)", allow: true, wantReason: "AI safety"},
+		{name: "full still requires acknowledgement", level: sqlsafety.PermissionFull, sql: "DELETE FROM demo", wantReason: "allow-write"},
+		{name: "data protection blocks DML", level: sqlsafety.PermissionFull, config: connection.ConnectionConfig{Protection: connection.ConnectionProtectionConfig{RestrictDataEdit: true}}, sql: "UPDATE demo SET value = 1", allow: true, wantReason: "not allowed"},
+		{name: "structure protection blocks DDL", level: sqlsafety.PermissionFull, config: connection.ConnectionConfig{Protection: connection.ConnectionProtectionConfig{RestrictStructureEdit: true}}, sql: "CREATE TABLE demo(id INT)", allow: true, wantReason: "not allowed"},
+		{name: "script protection blocks DML", level: sqlsafety.PermissionFull, config: connection.ConnectionConfig{Protection: connection.ConnectionProtectionConfig{RestrictScriptExecution: true}}, sql: "UPDATE demo SET value = 1", allow: true, wantReason: "not allowed"},
 	}
 
 	for _, test := range tests {
@@ -99,7 +99,7 @@ func TestMCPAuthorizedExecutionRechecksLatestConnectionProtection(t *testing.T) 
 		t.Fatalf("NewHeadlessRuntime: %v", err)
 	}
 	defer runtime.Close()
-	saveHeadlessSafetyLevel(t, runtime, ai.PermissionFull)
+	saveHeadlessSafetyLevel(t, runtime, sqlsafety.PermissionFull)
 
 	initial, err := runtime.SaveConnection(connection.SavedConnectionInput{
 		ID:   "mcp-toctou",
@@ -155,7 +155,7 @@ func TestHeadlessSingleTransactionPreflightsBeforeOpeningDatabase(t *testing.T) 
 		t.Fatalf("NewHeadlessRuntime: %v", err)
 	}
 	defer runtime.Close()
-	saveHeadlessSafetyLevel(t, runtime, ai.PermissionFull)
+	saveHeadlessSafetyLevel(t, runtime, sqlsafety.PermissionFull)
 	filePath := t.TempDir() + "/migration.sql"
 	if err := os.WriteFile(filePath, []byte("INSERT INTO demo(id) VALUES (1);\nCREATE TABLE later(id INT);\n"), 0o600); err != nil {
 		t.Fatalf("write SQL file: %v", err)
@@ -193,7 +193,7 @@ func TestHeadlessOffModePreflightsSafetyBeforeOpeningDatabase(t *testing.T) {
 		t.Fatalf("NewHeadlessRuntime: %v", err)
 	}
 	defer runtime.Close()
-	saveHeadlessSafetyLevel(t, runtime, ai.PermissionReadWrite)
+	saveHeadlessSafetyLevel(t, runtime, sqlsafety.PermissionReadWrite)
 	filePath := t.TempDir() + "/migration.sql"
 	if err := os.WriteFile(filePath, []byte("INSERT INTO demo(id) VALUES (1);\nCREATE TABLE later(id INT);\n"), 0o600); err != nil {
 		t.Fatalf("write SQL file: %v", err)
@@ -258,7 +258,7 @@ func TestHeadlessSQLFileRetainsCLIAuditSource(t *testing.T) {
 		t.Fatalf("NewHeadlessRuntime: %v", err)
 	}
 	defer runtime.Close()
-	saveHeadlessSafetyLevel(t, runtime, ai.PermissionReadWrite)
+	saveHeadlessSafetyLevel(t, runtime, sqlsafety.PermissionReadWrite)
 	filePath := t.TempDir() + "/migration.sql"
 	if err := os.WriteFile(filePath, []byte("INSERT INTO demo(id) VALUES (1);\n"), 0o600); err != nil {
 		t.Fatalf("write SQL file: %v", err)

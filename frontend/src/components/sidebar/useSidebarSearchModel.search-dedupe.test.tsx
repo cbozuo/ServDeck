@@ -91,7 +91,6 @@ describe('useSidebarSearchModel search filtering', () => {
           divider: '#eee',
         },
         darkMode: false,
-        setAIPanelVisible: () => undefined,
         extractObjectName: (name) => name,
       });
       return null;
@@ -184,7 +183,6 @@ describe('useSidebarSearchModel search filtering', () => {
           divider: '#eee',
         },
         darkMode: false,
-        setAIPanelVisible: () => undefined,
         extractObjectName: (name) => name,
       });
       return null;
@@ -272,7 +270,6 @@ describe('useSidebarSearchModel search filtering', () => {
           divider: '#eee',
         },
         darkMode: false,
-        setAIPanelVisible: () => undefined,
         extractObjectName: (name) => name,
       });
       return null;
@@ -380,7 +377,6 @@ describe('useSidebarSearchModel search filtering', () => {
             divider: '#eee',
           },
           darkMode: false,
-          setAIPanelVisible: () => undefined,
           extractObjectName: (name) => name,
         });
         return null;

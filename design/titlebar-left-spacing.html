@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ServDeck 标题栏左侧间距 — 数值对照</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+    background: #eef0f3; color: #101828; padding: 28px 32px 90px;
+  }
+  h1 { font-size: 19px; font-weight: 700; margin-bottom: 5px; }
+  .sub { font-size: 12.5px; color: #667085; margin-bottom: 24px; line-height: 1.75; max-width: 1000px; }
+  .sub code { font-family: Consolas, monospace; background: #e4e7ec; padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
+
+  .light { --gn-bg-titlebar: rgb(250 250 248); --gn-bg-hover: rgba(15,23,42,.045);
+           --gn-fg-1:#101828; --gn-fg-2:#344054; --gn-fg-3:#667085; --gn-divider: rgba(15,23,42,.12); }
+  .dark  { --gn-bg-titlebar: rgb(27 31 39); --gn-bg-hover: rgba(255,255,255,.05);
+           --gn-fg-1:#f2f4f7; --gn-fg-2:#cdd2d9; --gn-fg-3:#b6bcc6; --gn-divider: rgba(255,255,255,.14); }
+
+  .section { margin-bottom: 30px; }
+  .section-title { font-size: 14.5px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+  .badge.cur { background: #f2f4f7; color: #475467; }
+  .badge.rec { background: #dcf5e7; color: #157347; }
+  .badge.alt { background: #eaf1fb; color: #175cd3; }
+  .section-hint { font-size: 12px; color: #98a2b3; margin-bottom: 10px; }
+
+  .frame { border: 1px solid #d8dce3; border-radius: 9px; overflow: hidden; box-shadow: 0 4px 14px rgba(16,24,40,.07); }
+
+  /* ── 标题栏骨架:所有间距都由 CSS 变量驱动,数值即真实值 ── */
+  .tb {
+    height: 48px; display: flex; align-items: center;
+    background: var(--gn-bg-titlebar); user-select: none;
+    padding-left: var(--tb-pad-left); overflow: hidden;
+  }
+  .tb-row8 { gap: 8px; }               /* 现状:leading gap 8 */
+
+  .brand {
+    width: 34px; height: 34px; border-radius: 7px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--gn-fg-3); cursor: pointer;
+  }
+  .brand:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .brand svg { width: 20px; height: 20px; }
+
+  .vline { width: 1px; height: var(--tb-div-h); background: var(--gn-divider); flex-shrink: 0; }
+
+  .group { display: flex; align-items: center; gap: var(--tb-gap-in); flex-shrink: 0; }
+  .group-tool { gap: var(--tb-gap-in); }
+
+  .act {
+    height: 32px; flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: var(--tb-gap-ic);
+    padding: 0 10px; border: 0; border-radius: 7px; background: transparent;
+    font: inherit; font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap;
+    color: var(--gn-fg-2); cursor: pointer;
+    transition: background-color .14s ease, color .14s ease;
+  }
+  .act:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .act svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* 现状:动作↔工具之间的分隔线是 ::after 绝对定位在 8px flex 间隙里 */
+  .between { position: relative; }
+  .between::after {
+    content: ""; position: absolute; right: -5px; top: 50%;
+    width: 1px; height: var(--tb-div-h); transform: translateY(-50%);
+    background: var(--gn-divider);
+  }
+
+  /* 标注尺 */
+  .ruler { display: flex; align-items: flex-end; height: 22px; margin-top: 1px; font-size: 10px; color: #98a2b3; }
+  .ruler i { display: block; height: 6px; border-left: 1px solid #b9c0cb; border-right: 1px solid #b9c0cb; }
+  .ruler span { padding: 0 3px; white-space: nowrap; }
+  .mk { display: inline-block; height: 6px; border-left: 1px solid #b9c0cb; }
+  .mk.dim { border-color: #d92d20; }
+
+  .anno { display: flex; gap: 18px; flex-wrap: wrap; padding: 10px 4px 0; }
+  .anno .pt { font-size: 12px; color: #475467; display: flex; gap: 6px; align-items: flex-start; max-width: 330px; line-height: 1.6; }
+  .anno .n { width: 15px; height: 15px; border-radius: 50%; background: #157347; color: #fff;
+             font-size: 9.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+             flex-shrink: 0; margin-top: 1px; }
+  .anno.bad .n { background: #d92d20; }
+  .anno.bad .pt { color: #b42318; }
+  .anno .pt b { color: #101828; }
+
+  table { border-collapse: collapse; width: 100%; max-width: 940px; font-size: 12.5px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid #e4e7ec; vertical-align: top; }
+  th { font-weight: 700; color: #475467; background: #f9fafb; }
+  td code { font-family: Consolas, monospace; font-size: 11.5px; background: #eef0f3; padding: 1px 4px; border-radius: 3px; }
+  td.now { color: #b42318; font-weight: 600; }
+  td.rec { color: #157347; font-weight: 700; }
+  .ratio { font-variant-numeric: tabular-nums; }
+  .note { font-size: 12px; color: #667085; line-height: 1.7; margin: 10px 4px 0; max-width: 940px; }
+  .note b { color: #101828; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="servyGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0.083" stop-color="#540E82"/><stop offset="0.25" stop-color="#4F2887"/>
+      <stop offset="0.417" stop-color="#4C4990"/><stop offset="0.583" stop-color="#456C9D"/>
+      <stop offset="0.75" stop-color="#398DAB"/><stop offset="0.917" stop-color="#24AEB9"/>
+    </linearGradient>
+    <symbol id="logo" viewBox="0 0 1024 1024"><path fill="url(#servyGrad)" fill-rule="evenodd" d="M466.50,76.00 520.00,75.50 579.00,82.50 643.00,99.50 695.00,121.50 740.00,147.50 783.00,179.50 821.50,216.00 843.50,242.00 852.50,257.00 853.50,337.00 850.50,344.00 846.00,348.50 836.00,352.50 732.00,352.50 724.00,348.50 703.50,322.00 670.00,290.50 632.00,265.50 598.00,249.50 556.00,236.50 510.00,230.50 479.00,230.50 436.00,236.50 414.00,242.50 379.00,255.50 349.00,271.50 320.00,291.50 283.50,326.00 265.50,348.00 249.50,372.00 233.50,403.00 220.50,442.00 213.50,474.00 210.50,519.00 214.50,561.00 223.50,598.00 236.50,631.00 253.50,663.00 284.50,703.00 318.00,734.50 347.00,754.50 386.00,773.50 426.00,786.50 467.00,793.50 516.00,793.50 569.00,785.50 573.00,786.50 580.00,791.50 660.00,870.50 682.50,893.00 685.50,899.00 685.50,906.00 681.00,910.50 640.00,927.50 577.00,943.50 519.00,950.50 470.00,950.50 431.00,946.50 394.00,939.50 342.00,924.50 301.00,907.50 262.00,885.50 231.00,864.50 198.00,837.50 156.50,795.00 134.50,767.00 109.50,727.00 92.50,694.00 80.50,665.00 67.50,623.00 57.50,570.00 54.50,534.00 54.50,491.00 56.50,482.00 57.50,456.00 66.50,409.00 80.50,363.00 92.50,333.00 112.50,294.00 133.50,262.00 159.50,229.00 199.00,188.50 223.00,168.50 268.00,137.50 310.00,115.50 341.00,102.50 383.00,89.50 431.00,79.50 466.50,76.00ZM448.50,433.00 936.00,432.50 951.00,438.50 962.50,450.00 968.50,465.00 968.50,560.00 961.50,574.00 954.00,581.50 935.00,590.50 452.00,590.50 441.00,587.50 432.00,582.50 421.50,571.00 416.50,557.00 416.50,463.00 422.50,450.00 431.00,440.50 439.00,435.50 448.50,433.00ZM652.50,672.00 839.00,671.50 843.00,673.50 851.50,684.00 851.50,721.00 853.50,729.00 947.50,824.00 952.50,836.00 953.50,848.00 946.50,866.00 877.00,933.50 861.00,938.50 848.00,937.50 840.00,933.50 832.00,927.50 630.50,724.00 624.50,709.00 626.50,695.00 636.00,680.50 641.00,676.50 652.50,672.00Z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3.4v9.2M3.4 8h9.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-plug" viewBox="0 0 16 16"><path d="M6 2.4v3.1M10 2.4v3.1M4.6 5.5h6.8v3a3.4 3.4 0 0 1-6.8 0v-3ZM8 11.9V14" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 16 16"><path d="M1.9 4.7c0-.8.6-1.4 1.4-1.4h2.9l1.4 1.7h5c.8 0 1.4.6 1.4 1.4v5c0 .8-.6 1.4-1.4 1.4H3.3c-.8 0-1.4-.6-1.4-1.4V4.7Z" stroke="currentColor" stroke-width="1.3" fill="none"/></symbol>
+    <symbol id="i-flow" viewBox="0 0 16 16"><rect x="1.9" y="2.5" width="4.7" height="3.7" rx="1.1" stroke="currentColor" stroke-width="1.3" fill="none"/><rect x="9.4" y="9.8" width="4.7" height="3.7" rx="1.1" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M4.25 6.2v3.5a2 2 0 0 0 2 2h3.15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-db" viewBox="0 0 16 16"><ellipse cx="8" cy="3.9" rx="5.2" ry="2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M2.8 3.9v8.2c0 1.1 2.3 2 5.2 2s5.2-.9 5.2-2V3.9M2.8 8c0 1.1 2.3 2 5.2 2s5.2-.9 5.2-2" stroke="currentColor" stroke-width="1.3" fill="none"/></symbol>
+    <symbol id="i-driver" viewBox="0 0 16 16"><rect x="2" y="2.6" width="12" height="6.8" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M4.6 12.4h6.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M4.7 5.4h.01M7.1 5.4h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<h1>ServDeck 标题栏左侧间距 — 数值对照</h1>
+<div class="sub">
+  三行的骨架完全一致，只有间距变量不同。数值取自 <code>App.css</code>（<code>.gonavi-titlebar-leading</code> 与 <code>.gn-v2-titlebar-quick-*</code> 容器）与 <code>utils/titleBarLayout.ts</code>（<code>dividerHeight = 14</code>）。<br>
+  下方每一行下面标了「文字到文字」的真实距离，这是眼睛判断分组松紧的依据。
+</div>
+
+<!-- ============ 现状 ============ -->
+<div class="section">
+  <div class="section-title">现状 <span class="badge cur">4 种 gap · 2 种分隔线</span></div>
+  <div class="section-hint">已按此方案落地。动作组内 25px、工具组内 22px，组间 28px，比例 1.12 与 1.27。按钮内「图标↔文字」两类还不一致：动作按钮 6px，工具按钮被一条 v2 覆盖压成 0px。</div>
+  <div class="frame"><div class="tb tb-row8 light"
+       style="--tb-pad-left:16px; --tb-div-h:14px;">
+    <button class="brand"><svg><use href="#logo"/></svg></button>
+    <div class="vline" style="margin:0 10px 0 12px; height:20px"></div>
+    <div class="group between" style="--tb-gap-in:5px">
+      <button class="act" style="--tb-gap-ic:6px"><svg><use href="#i-plus"/></svg>新建查询</button>
+      <button class="act" style="--tb-gap-ic:6px"><svg><use href="#i-plug"/></svg>新建连接</button>
+      <button class="act" style="--tb-gap-ic:6px"><svg><use href="#i-folder"/></svg>管理分组</button>
+    </div>
+    <div class="group" style="--tb-gap-in:2px">
+      <button class="act" style="--tb-gap-ic:0"><svg><use href="#i-flow"/></svg>数据工作流</button>
+      <button class="act" style="--tb-gap-ic:0"><svg><use href="#i-db"/></svg>SQL 工具</button>
+      <button class="act" style="--tb-gap-ic:0"><svg><use href="#i-driver"/></svg>驱动管理</button>
+    </div>
+  </div></div>
+  <div class="anno bad">
+    <span class="pt"><span class="n">!</span>品牌分隔线两侧 20 / 18px，动作↔工具分隔线两侧只有 5 / 3px，相差近四倍，且线不在间隙正中</span>
+    <span class="pt"><span class="n">!</span>两条分隔线高度不同，一条 20px 一条 14px</span>
+    <span class="pt"><span class="n">!</span>按钮内「图标↔文字」两类不一致：动作按钮 6px，工具按钮 0px（被 v2 覆盖压掉），同一排出现两种绑定强度</span>
+    <span class="pt"><span class="n">!</span>工具组内部另有 4px / 2px 两级，同一排里出现第三种节奏</span>
+  </div>
+</div>
+
+<!-- ============ 方案 A ============ -->
+<div class="section">
+  <div class="section-title">方案 A — 4px 基准 <span class="badge rec">推荐 · 已落地</span></div>
+  <div class="section-hint">组内 26px，组间 39px，比例 1.5。图标↔文字两类统一收紧到 5px，按钮间距统一 6px，绑定关系恢复正确。</div>
+  <div class="frame"><div class="tb light"
+       style="--tb-pad-left:16px; --tb-div-h:16px; --tb-gap-in:6px; --tb-gap-ic:5px;">
+    <button class="brand"><svg><use href="#logo"/></svg></button>
+    <div class="vline" style="margin:0 9px 0 10px; height:16px"></div>
+    <div class="group">
+      <button class="act"><svg><use href="#i-plus"/></svg>新建查询</button>
+      <button class="act"><svg><use href="#i-plug"/></svg>新建连接</button>
+      <button class="act"><svg><use href="#i-folder"/></svg>管理分组</button>
+    </div>
+    <div class="vline" style="margin:0 9px; height:16px"></div>
+    <div class="group">
+      <button class="act"><svg><use href="#i-flow"/></svg>数据工作流</button>
+      <button class="act"><svg><use href="#i-db"/></svg>SQL 工具</button>
+      <button class="act"><svg><use href="#i-driver"/></svg>驱动管理</button>
+    </div>
+  </div></div>
+  <div class="anno">
+    <span class="pt"><span class="n">1</span>按钮间距 <b>6px</b>，图标↔文字 <b>5px</b>，两类按钮统一。内部小于外部，图标和文字才是一个整体</span>
+    <span class="pt"><span class="n">2</span>全部容器 gap 统一为 6px，工具组不再分 4px / 2px 两级</span>
+    <span class="pt"><span class="n">3</span>分隔线改成真的 <b>1×16px 元素</b>，两侧各 9px。两条线同高、居中，不再用 <code>::after</code> 的 <code>right:-5px</code> 偏心定位</span>
+    <span class="pt"><span class="n">4</span>组内 26px 对组间 39px，比例 1.5，分组靠留白就能读出来，细线只是确认</span>
+    <span class="pt"><span class="n">5</span>品牌区分隔线由 20px 收到与组间同高，两侧 20/18 收到 10/9</span>
+    <span class="pt"><span class="n">6</span>左内边距实测 <code>getMacNativeTitlebarPaddingLeft(1, false)</code> = <b>16px</b>，维持不动</span>
+  </div>
+
+  <div class="frame" style="margin-top:12px"><div class="tb dark"
+       style="--tb-pad-left:16px; --tb-div-h:16px; --tb-gap-in:6px; --tb-gap-ic:5px;">
+    <button class="brand"><svg><use href="#logo"/></svg></button>
+    <div class="vline" style="margin:0 9px 0 10px; height:16px"></div>
+    <div class="group">
+      <button class="act"><svg><use href="#i-plus"/></svg>新建查询</button>
+      <button class="act"><svg><use href="#i-plug"/></svg>新建连接</button>
+      <button class="act"><svg><use href="#i-folder"/></svg>管理分组</button>
+    </div>
+    <div class="vline" style="margin:0 9px; height:16px"></div>
+    <div class="group">
+      <button class="act"><svg><use href="#i-flow"/></svg>数据工作流</button>
+      <button class="act"><svg><use href="#i-db"/></svg>SQL 工具</button>
+      <button class="act"><svg><use href="#i-driver"/></svg>驱动管理</button>
+    </div>
+  </div></div>
+  <div class="note">暗色同一套数值，分隔线走 <code>--gn-divider</code>，自动翻转。</div>
+</div>
+
+<!-- ============ 方案 B ============ -->
+<div class="section">
+  <div class="section-title">方案 B — 6px 基准 <span class="badge alt">更舒展</span></div>
+  <div class="section-hint">组内 28px，组间 45px，比例 1.6。留白更足，但整条工具栏会宽出约 20px。</div>
+  <div class="frame"><div class="tb light"
+       style="--tb-pad-left:12px; --tb-div-h:18px; --tb-gap-in:8px; --tb-gap-ic:6px;">
+    <button class="brand"><svg><use href="#logo"/></svg></button>
+    <div class="vline" style="margin:0 12px 0 12px; height:18px"></div>
+    <div class="group">
+      <button class="act"><svg><use href="#i-plus"/></svg>新建查询</button>
+      <button class="act"><svg><use href="#i-plug"/></svg>新建连接</button>
+      <button class="act"><svg><use href="#i-folder"/></svg>管理分组</button>
+    </div>
+    <div class="vline" style="margin:0 12px; height:18px"></div>
+    <div class="group">
+      <button class="act"><svg><use href="#i-flow"/></svg>数据工作流</button>
+      <button class="act"><svg><use href="#i-db"/></svg>SQL 工具</button>
+      <button class="act"><svg><use href="#i-driver"/></svg>驱动管理</button>
+    </div>
+  </div></div>
+  <div class="anno">
+    <span class="pt"><span class="n">1</span>按钮间距 <b>8px</b>，图标到文字保持 6px，分组感最强</span>
+    <span class="pt"><span class="n">2</span>分隔线 1×18px，两侧各 12px</span>
+    <span class="pt"><span class="n">3</span>代价：横向多占约 20px，窗口窄的时候更早触发降级</span>
+  </div>
+  <div class="note">若后续按「标题栏布局方案 v2」把工具入口降为纯图标，方案 B 的舒展留白才有空间发挥。当前六个全文字按钮下，方案 A 性价比更高。</div>
+</div>
+
+<!-- ============ 规格 ============ -->
+<div class="section">
+  <div class="section-title">数值对照表</div>
+  <table>
+    <tr>
+      <th style="width:230px">变量</th><th style="width:150px">现状</th>
+      <th style="width:140px">方案 A（推荐）</th><th>说明</th>
+    </tr>
+    <tr><td>按钮内 图标↔文字</td><td class="now">动作 6px / 工具 0px</td><td class="rec">5px</td><td>两类必须一致，且要小于按钮间距，否则图标与文字被拆散</td></tr>
+    <tr><td>按钮之间 gap</td><td class="now">5 / 4 / 2px 三种</td><td class="rec">6px</td><td>统一一个值，取消工具组的二级 gap</td></tr>
+    <tr><td>分隔线两侧</td><td class="now">20·18px / 5·3px</td><td class="rec">9 · 9px</td><td>居中对称；不再用 <code>::after</code> 的 <code>right:-5px</code></td></tr>
+    <tr><td>分隔线高度</td><td class="now">20px / 14px 两种</td><td class="rec">16px</td><td>两条线同高，已把 <code>dividerBaseHeight</code> 由 14 改为 16</td></tr>
+    <tr><td>Logo → 分隔线</td><td class="now">8 + 12 = 20px</td><td class="rec">10px</td><td>Logo 悬浮块本身左右各留 7px，视觉会更宽一点</td></tr>
+    <tr><td>分隔线 → 首按钮</td><td class="now">10 + 8 = 18px</td><td class="rec">9px</td><td>按钮自带 10px 内边距，合计视觉 19px</td></tr>
+    <tr><td>标题栏左内边距</td><td class="now">16px</td><td class="rec">16px 不动</td><td>实测 <code>getMacNativeTitlebarPaddingLeft(1, false)</code> = 16，不是在稿里曾误写的 11</td></tr>
+    <tr><td class="ratio">组内文字↔文字</td><td class="now ratio">25px / 22px</td><td class="rec ratio">26px</td><td>= 10 + gap + 10；现状动作组与工具组不一致</td></tr>
+    <tr><td class="ratio">组间文字↔文字</td><td class="now ratio">28px</td><td class="rec ratio">39px</td><td>= 10 + 9 + 1 + 9 + 10</td></tr>
+    <tr><td class="ratio">组间 / 组内</td><td class="now ratio">1.12</td><td class="rec ratio">1.50</td><td class="ratio">低于 1.3 时分组只能靠分隔线撑</td></tr>
+    <tr><td class="ratio">左侧总宽变化</td><td class="now ratio">—</td><td class="rec ratio">+14px</td><td class="ratio">品牌区 -19、动作组 -1、组间 +11、工具组 +23</td></tr>
+  </table>
+  <div class="note">
+    右侧 <code>关于 → 齿轮 → 三键</code> 此前怀疑齿轮贴住三键，复查后不成立：齿轮的 <code>margin-right: 4px</code>
+    与 <code>.gn-v2-titlebar-right</code> 的 <code>gap: 6px</code> 叠加，实际间距 10px，无需调整。
+  </div>
+</div>
+
+</body>
+</html>

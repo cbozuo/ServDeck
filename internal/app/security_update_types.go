@@ -23,7 +23,6 @@ type SecurityUpdateIssueScope string
 const (
 	SecurityUpdateIssueScopeConnection  SecurityUpdateIssueScope = "connection"
 	SecurityUpdateIssueScopeGlobalProxy SecurityUpdateIssueScope = "global_proxy"
-	SecurityUpdateIssueScopeAIProvider  SecurityUpdateIssueScope = "ai_provider"
 	SecurityUpdateIssueScopeSystem      SecurityUpdateIssueScope = "system"
 )
 

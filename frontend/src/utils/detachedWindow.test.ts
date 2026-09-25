@@ -11,7 +11,6 @@ import {
   shouldDetachAfterNativePointerCancel,
   shouldDetachTabByDrag,
   shouldDetachAtScreenPoint,
-  toAIChatDetachedBoundsMemory,
 } from './detachedWindow';
 import {
   APP_DETACHED_WINDOW_Z_INDEX_BASE,
@@ -129,26 +128,4 @@ describe('detachedWindow helpers', () => {
     }, host)).toBe(false);
   });
 
-  it('snapshots AI chat detached bounds for size memory', () => {
-    expect(
-      toAIChatDetachedBoundsMemory({
-        x: 12,
-        y: 34,
-        width: 480,
-        height: 560,
-      }),
-    ).toEqual({ x: 12, y: 34, width: 480, height: 560 });
-  });
-
-  it('reuses preferred size when building AI chat floating bounds', () => {
-    const bounds = createDefaultDetachedBounds(
-      [],
-      { width: 520, height: 560, x: 40, y: 60 },
-      'ai-chat',
-    );
-    expect(bounds.width).toBe(520);
-    expect(bounds.height).toBe(560);
-    expect(bounds.x).toBe(40);
-    expect(bounds.y).toBe(60);
-  });
 });

@@ -93,7 +93,6 @@ type UseSidebarV2ActionHandlersArgs = {
   openCreateStarRocksRollup: (node: any) => void;
   handleExport: (node: any, options: { format: string; xlsxMaxRowsPerSheet?: number }) => Promise<void>;
   openExportDialog: (node: any) => Promise<void>;
-  injectTablePromptToAI: (node: any, promptKind: 'explain' | 'query') => Promise<void>;
   handleTableDataDangerAction: (node: any, action: 'truncate' | 'clear') => Promise<void>;
   handleDeleteTable: (node: any) => void;
   openCreateSchemaModal: (node: any) => void;
@@ -168,7 +167,6 @@ export const useSidebarV2ActionHandlers = ({
   openCreateStarRocksRollup,
   handleExport,
   openExportDialog,
-  injectTablePromptToAI,
   handleTableDataDangerAction,
   handleDeleteTable,
   openCreateSchemaModal,
@@ -264,12 +262,6 @@ export const useSidebarV2ActionHandlers = ({
         return;
       case 'batch-tables':
         openBatchTableWorkbench(node);
-        return;
-      case 'ai-explain':
-        void injectTablePromptToAI(node, 'explain');
-        return;
-      case 'ai-generate-query':
-        void injectTablePromptToAI(node, 'query');
         return;
       case 'truncate-table':
         void handleTableDataDangerAction(node, 'truncate');

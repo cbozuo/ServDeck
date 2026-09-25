@@ -55,7 +55,7 @@ describe("JVMMonitoringDashboard", () => {
     expect(markup).toContain("Start monitoring");
     expect(markup).toContain("Continuous monitoring has not started yet");
     expect(markup).toContain(
-      "After you click &quot;Start monitoring&quot;, GoNavi keeps sampling results for this connection in the current session; switching tabs does not stop sampling.",
+      "After you click &quot;Start monitoring&quot;, ServDeck keeps sampling results for this connection in the current session; switching tabs does not stop sampling.",
     );
     expect(markup).toContain("Heap memory");
     expect(markup).toContain("No heap memory samples yet.");

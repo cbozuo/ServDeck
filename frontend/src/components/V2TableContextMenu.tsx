@@ -62,8 +62,6 @@ export type V2TableContextMenuActionKey =
   | 'refresh-stats'
   | 'export-data'
   | 'batch-tables'
-  | 'ai-explain'
-  | 'ai-generate-query'
   | 'truncate-table'
   | 'clear-table'
   | 'drop-table';
@@ -272,12 +270,6 @@ export const V2TableContextMenuView: React.FC<{
             icon: <AppstoreOutlined />,
             title: t('sidebar.action.batch_tables'),
           }] : []),
-        ])}
-
-        <div className="gn-v2-context-menu-divider" />
-        {renderItems([
-          { action: 'ai-explain', icon: <ThunderboltOutlined />, title: t('sidebar.v2_table_menu.ai_explain_table'), tone: 'ai', featured: true },
-          { action: 'ai-generate-query', icon: <ConsoleSqlOutlined />, title: t('sidebar.v2_table_menu.ai_generate_query'), tone: 'ai' },
         ])}
 
         <div className="gn-v2-context-menu-divider" />

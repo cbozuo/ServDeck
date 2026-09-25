@@ -17,8 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"GoNavi-Wails/internal/ai/runharness"
-	aiservice "GoNavi-Wails/internal/ai/service"
 	appcore "GoNavi-Wails/internal/app"
 	"GoNavi-Wails/internal/uievents"
 	"GoNavi-Wails/internal/webserver"
@@ -92,18 +90,17 @@ type Manager struct {
 	emitToWails           func(context.Context, string, ...any)
 	emitToChildren        func(string, ...any)
 	emitToChild           func(string, string, ...any)
-	emitToChildBestEffort func(string, string, ...any)
 }
 
 // NewManager prepares a detached-window manager around the already-created
 // desktop backend instances. InitializeLifecycle starts its random loopback
 // listener after Wails provides the runtime context.
-func NewManager(assetFS fs.FS, app *appcore.App, ai *aiservice.Service) (*Manager, error) {
+func NewManager(assetFS fs.FS, app *appcore.App) (*Manager, error) {
 	token, err := newBridgeToken()
 	if err != nil {
 		return nil, fmt.Errorf("create detached-window token failed: %w", err)
 	}
-	shared, err := webserver.NewSharedRuntime(assetFS, app, ai, webserver.SharedRuntimeOptions{
+	shared, err := webserver.NewSharedRuntime(assetFS, app, webserver.SharedRuntimeOptions{
 		RuntimeBridgePath:   RuntimePath,
 		RuntimeBridgeScript: detachedRuntimeBridgeScript(),
 	})
@@ -129,7 +126,6 @@ func NewManager(assetFS fs.FS, app *appcore.App, ai *aiservice.Service) (*Manage
 		},
 		emitToChildren:        shared.Emit,
 		emitToChild:           shared.EmitTo,
-		emitToChildBestEffort: shared.EmitToBestEffort,
 	}
 	installDetachedDockMenu()
 	return manager, nil
@@ -216,23 +212,10 @@ func (m *Manager) emit(name string, args ...any) {
 	ctx := m.runtimeCtx
 	emitToWails := m.emitToWails
 	emitToChildren := m.emitToChildren
-	emitToChildBestEffort := m.emitToChildBestEffort
 	shared := m.shared
 	m.mu.RUnlock()
 	if ctx != nil && emitToWails != nil {
 		emitToWails(ctx, name, args...)
-	}
-	if name == runharness.EventName {
-		// Run events are durably sequenced before publication. A detached chat
-		// window can replay any dropped best-effort notification through
-		// AIReadAgentRun, so the bridge must not preserve the old stream-specific
-		// reliability and chunk-coalescing behavior.
-		if emitToChildBestEffort != nil {
-			emitToChildBestEffort("ai-chat", name, args...)
-		} else if shared != nil {
-			shared.EmitToBestEffort("ai-chat", name, args...)
-		}
-		return
 	}
 	if emitToChildren != nil {
 		emitToChildren(name, args...)

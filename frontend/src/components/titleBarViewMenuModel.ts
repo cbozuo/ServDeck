@@ -21,14 +21,12 @@ export const isTitleBarViewMenuToggle = (
 ): entry is TitleBarViewMenuToggle => entry.kind === 'toggle';
 
 export interface TitleBarViewMenuModelInput {
-  aiPanelVisible: boolean;
   settingsOpen: boolean;
   sidebarCollapsed: boolean;
   sqlLogOpen: boolean;
   sqlLogAvailable: boolean;
   fullscreen: boolean;
   labels: {
-    aiPanel: string;
     settingsCenter: string;
     sidebar: string;
     sqlLog: string;
@@ -36,11 +34,9 @@ export interface TitleBarViewMenuModelInput {
     fullscreen: string;
   };
   shortcuts: {
-    aiPanel?: string;
     sqlLog?: string;
   };
   actions: {
-    toggleAI: () => void;
     openSettings: () => void;
     closeSettings: () => void;
     expandSidebar: () => void;
@@ -56,14 +52,6 @@ export function buildTitleBarViewMenuEntries(
 ): TitleBarViewMenuEntry[] {
   const { actions, labels, shortcuts } = input;
   return [
-    {
-      kind: 'toggle',
-      key: 'view-ai-panel',
-      label: labels.aiPanel,
-      shortcut: shortcuts.aiPanel,
-      checked: input.aiPanelVisible,
-      onClick: actions.toggleAI,
-    },
     {
       kind: 'toggle',
       key: 'view-settings-center',

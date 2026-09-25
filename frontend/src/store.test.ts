@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SIDEBAR_RESIZE_MAX_WIDTH } from './utils/sidebarLayout';
-import type { AIChatMessage } from './types';
 import {
   buildLegacyTableAccessCountKey,
   buildTableAccessCountKey,
@@ -2750,114 +2749,6 @@ describe('store appearance persistence', () => {
     );
   });
 
-  it('uses localized AI session fallback titles for non-user first messages', async () => {
-    vi.useFakeTimers();
-    try {
-      const i18n = await import('./i18n');
-      i18n.setCurrentLanguage('ja-JP');
-      const { useStore } = await importStore();
-
-      useStore.getState().addAIChatMessage('assistant-first', {
-        id: 'message-1',
-        role: 'assistant',
-        content: '',
-        timestamp: 1,
-      });
-
-      expect(useStore.getState().aiChatSessions[0]?.title).toBe(
-        i18n.t('ai_chat.panel.session.default_title'),
-      );
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('keeps streaming-only AI message patches from reordering the session list', async () => {
-    vi.useFakeTimers();
-    try {
-      const { useStore } = await importStore();
-      useStore.setState({
-        aiChatSessions: [
-          { id: 'session-other', title: 'other', updatedAt: 20 },
-          { id: 'session-stream', title: 'stream', updatedAt: 10 },
-        ],
-        aiChatHistory: {
-          'session-stream': [
-            {
-              id: 'assistant-1',
-              role: 'assistant',
-              phase: 'connecting',
-              content: '',
-              timestamp: 1,
-              loading: true,
-            },
-          ],
-        },
-      });
-
-      const sessionsBeforeStreamingPatch = useStore.getState().aiChatSessions;
-      useStore.getState().updateAIChatMessage('session-stream', 'assistant-1', {
-        thinking: 'planning',
-        phase: 'thinking',
-      });
-
-      expect(useStore.getState().aiChatSessions).toBe(sessionsBeforeStreamingPatch);
-      expect(useStore.getState().aiChatSessions.map((session) => session.id)).toEqual([
-        'session-other',
-        'session-stream',
-      ]);
-
-      useStore.getState().updateAIChatMessage('session-stream', 'assistant-1', {
-        loading: false,
-        phase: 'idle',
-      });
-
-      expect(useStore.getState().aiChatSessions.map((session) => session.id)).toEqual([
-        'session-stream',
-        'session-other',
-      ]);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('finds the newest streaming message without scanning the full session history', async () => {
-    vi.useFakeTimers();
-    try {
-      const { useStore } = await importStore();
-      let messageIdReads = 0;
-      const messages = Array.from({ length: 500 }, (_, index): AIChatMessage => ({
-        id: `message-${index}`,
-        role: index % 2 === 0 ? 'user' : 'assistant',
-        content: `content-${index}`,
-        timestamp: index,
-      })).map((message) => new Proxy(message, {
-        get(target, property, receiver) {
-          if (property === 'id') {
-            messageIdReads += 1;
-          }
-          return Reflect.get(target, property, receiver);
-        },
-      }));
-      useStore.setState({
-        aiChatHistory: { 'session-stream': messages },
-      });
-      messageIdReads = 0;
-
-      useStore.getState().updateAIChatMessage('session-stream', 'message-499', {
-        content: 'content-499-next-token',
-      });
-
-      expect(messageIdReads).toBeLessThanOrEqual(2);
-      expect(useStore.getState().aiChatHistory['session-stream'][499]?.content).toBe(
-        'content-499-next-token',
-      );
-      expect(useStore.getState().aiChatHistory['session-stream'][0]).toBe(messages[0]);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
   it('persists open query tab drafts and restores them after reload', async () => {
     const { useStore } = await importStore();
 
@@ -3105,93 +2996,6 @@ describe('store appearance persistence', () => {
     const restored = useStore.getState().attachQueryResultWindow('query-result:tab-1:rs-1');
     expect(restored?.result.key).toBe('rs-1');
     expect(useStore.getState().detachedQueryResultWindows).toEqual([]);
-  });
-
-  it('detaches AI chat panel into a floating window and docks it back', async () => {
-    const { useStore } = await importStore();
-
-    useStore.getState().setAIPanelVisible(true);
-    useStore.getState().detachAIChatPanel({ x: 40, y: 50, width: 420, height: 640 });
-    expect(useStore.getState().isAIChatDetached()).toBe(true);
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-    const detached = useStore.getState().detachedAIChatWindow;
-    expect(detached).toBeTruthy();
-    expect(detached?.width).toBe(420);
-    expect(detached?.height).toBe(640);
-    expect(detached?.x).toBeGreaterThanOrEqual(16);
-    expect(detached?.y).toBeGreaterThanOrEqual(16);
-    expect(detached?.zIndex).toBeGreaterThan(0);
-
-    // 使用可落入默认/无 DOM 视口上限的尺寸，避免 createDefaultDetachedBounds clamp 干扰断言
-    useStore.getState().updateDetachedAIChatBounds({ width: 500, height: 560 });
-    expect(useStore.getState().detachedAIChatWindow?.width).toBe(500);
-    expect(useStore.getState().detachedAIChatWindow?.height).toBe(560);
-    expect(useStore.getState().aiChatDetachedBoundsMemory?.width).toBe(500);
-    expect(useStore.getState().aiChatDetachedBoundsMemory?.height).toBe(560);
-
-    useStore.getState().attachAIChatPanel();
-    expect(useStore.getState().isAIChatDetached()).toBe(false);
-    expect(useStore.getState().detachedAIChatWindow).toBeNull();
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-    // 还原侧栏后仍保留上次尺寸记忆
-    expect(useStore.getState().aiChatDetachedBoundsMemory?.width).toBe(500);
-    expect(useStore.getState().aiChatDetachedBoundsMemory?.height).toBe(560);
-
-    // 再次弹出应复用记忆尺寸
-    useStore.getState().detachAIChatPanel();
-    expect(useStore.getState().detachedAIChatWindow?.width).toBe(500);
-    expect(useStore.getState().detachedAIChatWindow?.height).toBe(560);
-
-    useStore.getState().setAIPanelVisible(false);
-    expect(useStore.getState().detachedAIChatWindow).toEqual(expect.objectContaining({
-      width: 500,
-      height: 560,
-    }));
-    expect(useStore.getState().isAIChatDetached()).toBe(true);
-    expect(useStore.getState().aiPanelVisible).toBe(false);
-    expect(useStore.getState().aiChatDetachedBoundsMemory?.width).toBe(500);
-
-    useStore.getState().setAIChatOpenMode('detached');
-    useStore.getState().setAIPanelVisible(true);
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-    expect(useStore.getState().detachedAIChatWindow).toEqual(expect.objectContaining({
-      width: 500,
-      height: 560,
-    }));
-  });
-
-  it('opens AI chat according to the configured default open mode', async () => {
-    const { useStore } = await importStore();
-
-    expect(useStore.getState().aiChatOpenMode).toBe('dock');
-    useStore.getState().setAIPanelVisible(true);
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-    expect(useStore.getState().detachedAIChatWindow).toBeNull();
-
-    useStore.getState().setAIPanelVisible(false);
-    useStore.getState().setAIChatOpenMode('detached');
-    expect(useStore.getState().aiChatOpenMode).toBe('detached');
-
-    useStore.getState().setAIPanelVisible(true);
-    expect(useStore.getState().aiPanelVisible).toBe(true);
-    expect(useStore.getState().isAIChatDetached()).toBe(true);
-    expect(useStore.getState().detachedAIChatWindow).toBeTruthy();
-
-    // 手动还原到侧栏不改变默认打开偏好
-    useStore.getState().attachAIChatPanel();
-    expect(useStore.getState().isAIChatDetached()).toBe(false);
-    expect(useStore.getState().aiChatOpenMode).toBe('detached');
-
-    // 再次从入口打开仍按默认偏好弹出独立窗
-    useStore.getState().setAIPanelVisible(false);
-    useStore.getState().toggleAIPanel();
-    expect(useStore.getState().isAIChatDetached()).toBe(true);
-
-    useStore.getState().setAIChatOpenMode('dock');
-    useStore.getState().setAIPanelVisible(false);
-    useStore.getState().setAIPanelVisible(true);
-    expect(useStore.getState().detachedAIChatWindow).toBeNull();
-    expect(useStore.getState().aiPanelVisible).toBe(true);
   });
 
   it('returns to the source tab after closing an object edit tab opened from a hyperlink', async () => {
@@ -3885,37 +3689,6 @@ describe('store appearance persistence', () => {
     expect(sqlLogs[0]?.message?.length).toBe(1024);
   });
 
-  it('defaults AI chat send shortcut to Enter in shared shortcut options', async () => {
-    const { useStore } = await importStore();
-
-    expect(useStore.getState().shortcutOptions.sendAIChatMessage).toEqual({
-      mac: { combo: 'Enter', enabled: true },
-      windows: { combo: 'Enter', enabled: true },
-    });
-  });
-
-  it('persists recorded AI chat send shortcut and restores it after reload', async () => {
-    const { useStore } = await importStore();
-
-    useStore.getState().updateShortcut('sendAIChatMessage', {
-      combo: 'Meta+Enter',
-      enabled: true,
-    }, 'mac');
-
-    const persisted = JSON.parse(storage.getItem('lite-db-storage') || '{}');
-    expect(persisted.state.shortcutOptions.sendAIChatMessage).toEqual({
-      mac: { combo: 'Meta+Enter', enabled: true },
-      windows: { combo: 'Enter', enabled: true },
-    });
-
-    vi.resetModules();
-    const reloaded = await importStore();
-    expect(reloaded.useStore.getState().shortcutOptions.sendAIChatMessage).toEqual({
-      mac: { combo: 'Meta+Enter', enabled: true },
-      windows: { combo: 'Enter', enabled: true },
-    });
-  });
-
   it('persists save query as shortcut with platform defaults', async () => {
     const { useStore } = await importStore();
 
@@ -3956,10 +3729,10 @@ describe('store appearance persistence', () => {
     expect(reloaded.useStore.getState().startupFullscreen).toBe(true);
   });
 
-  it('defaults auto-check for updates to true and persists explicit disable', async () => {
+  it('defaults auto-check for updates to disabled and persists explicit values', async () => {
     const { useStore } = await importStore();
 
-    expect(useStore.getState().autoCheckForUpdates).toBe(true);
+    expect(useStore.getState().autoCheckForUpdates).toBe(false);
 
     useStore.getState().setAutoCheckForUpdates(false);
 
@@ -3971,7 +3744,9 @@ describe('store appearance persistence', () => {
     expect(reloaded.useStore.getState().autoCheckForUpdates).toBe(false);
 
     storage.setItem('lite-db-storage', JSON.stringify({
-      state: {},
+      state: {
+        autoCheckForUpdates: true,
+      },
       version: 17,
     }));
     vi.resetModules();
@@ -4024,27 +3799,6 @@ describe('store appearance persistence', () => {
 
     reloaded.useStore.getState().setWindowBounds({ width: 1400, height: 900, x: 80, y: 40, dpi: Number.NaN });
     expect(reloaded.useStore.getState().windowBounds).toEqual({ width: 1400, height: 900, x: 80, y: 40 });
-  });
-
-  it('falls back to Enter when persisted AI chat send shortcut is invalid', async () => {
-    storage.setItem('lite-db-storage', JSON.stringify({
-      state: {
-        shortcutOptions: {
-          sendAIChatMessage: {
-            combo: 'A',
-            enabled: true,
-          },
-        },
-      },
-      version: 8,
-    }));
-
-    const { useStore } = await importStore();
-
-    expect(useStore.getState().shortcutOptions.sendAIChatMessage).toEqual({
-      mac: { combo: 'Enter', enabled: true },
-      windows: { combo: 'Enter', enabled: true },
-    });
   });
 
   it('migrates legacy sidebar search defaults to K only before storage version 18', async () => {
@@ -4104,82 +3858,6 @@ describe('store appearance persistence', () => {
     expect(persisted.state.shortcutOptions.focusSidebarSearch).toEqual({
       mac: { combo: 'Meta+K', enabled: true },
       windows: { combo: 'Ctrl+K', enabled: true },
-    });
-  });
-
-  it('does not overwrite recorded AI chat send shortcut during startup config refresh', async () => {
-    const { useStore } = await importStore();
-    useStore.getState().updateShortcut('sendAIChatMessage', {
-      combo: 'Ctrl+Enter',
-      enabled: true,
-    }, 'windows');
-
-    useStore.getState().replaceConnections([]);
-
-    const persisted = JSON.parse(storage.getItem('lite-db-storage') || '{}');
-    expect(persisted.state.shortcutOptions.sendAIChatMessage).toEqual({
-      mac: { combo: 'Enter', enabled: true },
-      windows: { combo: 'Ctrl+Enter', enabled: true },
-    });
-  });
-
-  it('keeps persisted AI chat send shortcut when startup refresh runs before shortcut hydration catches up', async () => {
-    const { useStore } = await importStore();
-    const shortcutOptions = useStore.getState().shortcutOptions;
-    storage.setItem('lite-db-storage', JSON.stringify({
-      state: {
-        shortcutOptions: {
-          ...shortcutOptions,
-          sendAIChatMessage: {
-            mac: { combo: 'Meta+Enter', enabled: true },
-            windows: { combo: 'Ctrl+Enter', enabled: true },
-          },
-        },
-      },
-      version: 8,
-    }));
-    useStore.setState({
-      shortcutOptions: {
-        ...shortcutOptions,
-        sendAIChatMessage: {
-          mac: { combo: 'Enter', enabled: true },
-          windows: { combo: 'Enter', enabled: true },
-        },
-      },
-    });
-
-    useStore.getState().replaceConnections([]);
-
-    const persisted = JSON.parse(storage.getItem('lite-db-storage') || '{}');
-    expect(persisted.state.shortcutOptions.sendAIChatMessage).toEqual({
-      mac: { combo: 'Meta+Enter', enabled: true },
-      windows: { combo: 'Ctrl+Enter', enabled: true },
-    });
-  });
-
-  it('does not let a stale default shortcut state overwrite an explicitly recorded AI chat shortcut', async () => {
-    const { useStore } = await importStore();
-    const shortcutOptions = useStore.getState().shortcutOptions;
-
-    useStore.getState().updateShortcut('sendAIChatMessage', {
-      combo: 'Meta+Enter',
-      enabled: true,
-    }, 'mac');
-    useStore.setState({
-      shortcutOptions: {
-        ...shortcutOptions,
-        sendAIChatMessage: {
-          mac: { combo: 'Enter', enabled: true },
-          windows: { combo: 'Enter', enabled: true },
-        },
-      },
-    });
-    useStore.getState().replaceGlobalProxy({});
-
-    const persisted = JSON.parse(storage.getItem('lite-db-storage') || '{}');
-    expect(persisted.state.shortcutOptions.sendAIChatMessage).toEqual({
-      mac: { combo: 'Meta+Enter', enabled: true },
-      windows: { combo: 'Enter', enabled: true },
     });
   });
 
@@ -4271,7 +3949,10 @@ describe('store persistence hot path', () => {
     const projections = Array.from({ length: 1_000 }, (_, index) =>
       partialize({
         ...state,
-        aiPanelVisible: index % 2 === 0,
+        detachedWorkbenchWindows:
+          index % 2 === 0
+            ? []
+            : [{ tabId: 'transient', x: 0, y: 0, width: 10, height: 10, zIndex: 1 }],
         jvmDiagnosticOutputs: {
           [`diagnostic-${index}`]: [],
         },
@@ -4292,7 +3973,7 @@ describe('store persistence hot path', () => {
     const initial = partialize(state) as Partial<typeof state>;
     const transientOnly = partialize({
       ...state,
-      aiPanelVisible: !state.aiPanelVisible,
+      detachedWorkbenchWindows: [{ tabId: 'transient', x: 0, y: 0, width: 10, height: 10, zIndex: 1 }],
     }) as Partial<typeof state>;
     const changedTheme = partialize({
       ...state,

@@ -204,7 +204,7 @@ func TestImportConnectionsPayloadNavicatNCXUsesCurrentLanguageForNoSupportedConn
 	}
 
 	got := err.Error()
-	want := "No valid GoNavi-supported connection configuration was found in Navicat NCX"
+	want := "No valid ServDeck-supported connection configuration was found in Navicat NCX"
 	if got != want {
 		t.Fatalf("expected English no-connections error %q, got %q", want, got)
 	}

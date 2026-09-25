@@ -32,7 +32,6 @@ describe('query editor monaco layout', () => {
         expect(visible).toMatchObject({
             automaticLayout: true,
             wordWrap: 'on',
-            inlineSuggest: expect.objectContaining({ enabled: true }),
         });
     });
 

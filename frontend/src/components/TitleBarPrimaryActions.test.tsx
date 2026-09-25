@@ -20,33 +20,32 @@ vi.mock('@ant-design/icons', () => {
   return {
     ConsoleSqlOutlined: Icon,
     PlusOutlined: Icon,
+    ApiOutlined: Icon,
+    FolderOutlined: Icon,
     SettingOutlined: Icon,
   };
 });
 
 describe('TitleBarPrimaryActions', () => {
-  it('keeps the original shared capsule treatment for every primary action', () => {
+  it('keeps the shared ghost treatment for every primary action', () => {
     const match = appCss.match(/\.gonavi-titlebar-primary-action\s*\{(?<body>[^}]*)\}/s);
-    expect(match?.groups?.body).toContain('height: var(--gn-titlebar-action-height, 30px);');
-    expect(match?.groups?.body).toContain('border: 0.5px solid color-mix');
-    expect(match?.groups?.body).toContain('border-radius: 8px;');
+    expect(match?.groups?.body).toContain('height: 32px;');
+    expect(match?.groups?.body).toContain('border: 0;');
+    expect(match?.groups?.body).toContain('border-radius: 7px;');
     expect(match?.groups?.body).toContain('font-weight: 600;');
-    expect(match?.groups?.body).toContain('background: color-mix');
-    expect(match?.groups?.body).toContain('font-size: 12px;');
+    expect(match?.groups?.body).toContain('background: transparent');
+    expect(match?.groups?.body).toContain('font-size: 13px;');
     expect(match?.groups?.body).toContain('-webkit-app-region: no-drag;');
+    expect(match?.groups?.body).toContain('gap: 5px;');
     expect(appCss).not.toContain('.gonavi-titlebar-primary-action[data-titlebar-action-kind=');
     expect(appCss).not.toMatch(
       /\[(?:data-gonavi-new-query-action|data-gonavi-create-connection-action|data-gonavi-connection-group-management-action)[^\]]*\]/,
     );
-    const v2Overrides = Array.from(appCss.matchAll(
-      /(?<selector>[^{}]*body\[data-ui-version="v2"\][^{}]*)\{(?<body>[^{}]*)\}/g,
-    )).filter((rule) => /\.gonavi-titlebar-primary-action(?=[\s,:.#>\[+~]|$)/.test(rule.groups?.selector ?? ''));
-    expect(v2Overrides.map((rule) => rule.groups?.body ?? '').join('\n')).not.toMatch(
-      /(?:border:\s*0(?:[;\s]|$)|background:\s*transparent)/,
-    );
     expect(appCss).not.toMatch(/body\[data-ui-version="v2"\] \.gonavi-titlebar-primary-actions::after\s*\{[^}]*display:\s*none;/s);
-    expect(appSource).toContain('<span>GoNavi</span>');
-    expect(appSource).not.toContain('<span className="gn-v2-titlebar-brand"');
+    expect(appSource).toContain('data-titlebar-brand-toggle="true"');
+    expect(appSource).toContain('brand/servdeck-icon.svg');
+    expect(appSource).not.toContain('<span>ServDeck</span>');
+    expect(appSource).toContain('gonavi-titlebar-brand-divider');
   });
 
   it('keeps the custom window controls borderless under the v2 button theme', () => {
@@ -63,7 +62,7 @@ describe('TitleBarPrimaryActions', () => {
       /\.titlebar-window-controls > \.titlebar-close-btn\.ant-btn-text:hover\s*\{(?<body>[^}]*)\}/s,
     );
     expect(closeHoverMatch, 'Missing close-button hover override').not.toBeNull();
-    expect(closeHoverMatch?.groups?.body).toContain('background-color: #ff4d4f !important;');
+    expect(closeHoverMatch?.groups?.body).not.toContain('background'); // 红色由内缩 ::before 伪元素负责
     expect(closeHoverMatch?.groups?.body).toContain('color: #fff !important;');
     expect(appCss).toContain('body[data-ui-version="v2"] .gn-v2-titlebar .titlebar-window-controls > .ant-btn.ant-btn-text');
     expect(appCss).toContain('height: 100% !important;');
@@ -160,7 +159,7 @@ describe('TitleBarPrimaryActions', () => {
         newConnectionShortcut={resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'mac')}
         onNewQuery={onNewQuery}
         onNewConnection={onNewConnection}
-        connectionGroupLabel="管理连接分组"
+        connectionGroupLabel="管理分组"
         onConnectionGroupManagement={onConnectionGroupManagement}
       />,
     );
@@ -168,7 +167,7 @@ describe('TitleBarPrimaryActions', () => {
     const actions = renderer.root.findByProps({ 'data-titlebar-primary-actions': 'true' });
     const buttons = actions.findAllByType('button');
     expect(actions.props['data-no-titlebar-toggle']).toBe('true');
-    expect(buttons.map((button) => button.props['aria-label'])).toEqual(['新建查询', '新建连接', '管理连接分组']);
+    expect(buttons.map((button) => button.props['aria-label'])).toEqual(['新建查询', '新建连接', '管理分组']);
     expect(buttons.map((button) => button.props.className)).toEqual([
       'gonavi-titlebar-primary-action',
       'gonavi-titlebar-primary-action',
@@ -180,7 +179,11 @@ describe('TitleBarPrimaryActions', () => {
       '新建连接 · ⌘⇧N',
       undefined,
     ]);
-    expect(buttons.map((button) => button.children[button.children.length - 1])).toEqual(['新建查询', '新建连接', '管理连接分组']);
+    const spanLabels = buttons.map((button) => {
+        const spans = button.findAllByType('span');
+        return spans[spans.length - 1]?.props?.children;
+    });
+    expect(spanLabels).toEqual(['新建查询', '新建连接', '管理分组']);
 
     buttons[0].props.onClick();
     buttons[1].props.onClick();
@@ -210,26 +213,26 @@ describe('TitleBarPrimaryActions', () => {
     ]);
   });
 
-  it('renders every primary titlebar action as text only', () => {
+  it('renders an icon and a text span for every primary titlebar action', () => {
     const renderer = create(
       <TitleBarPrimaryActions
         newQueryLabel="消息工作台"
         newConnectionLabel="新建连接"
         onNewQuery={vi.fn()}
         onNewConnection={vi.fn()}
-        connectionGroupLabel="管理连接分组"
+        connectionGroupLabel="管理分组"
         onConnectionGroupManagement={vi.fn()}
       />,
     );
 
     const buttons = renderer.root.findAllByType('button');
     expect(buttons).toHaveLength(3);
-    expect(buttons.flatMap((button) => button.findAllByProps({ 'data-icon': 'true' }))).toHaveLength(0);
-    expect(buttons.map((button) => button.children)).toEqual([
-      ['消息工作台'],
-      ['新建连接'],
-      ['管理连接分组'],
-    ]);
+    expect(buttons.flatMap((button) => button.findAllByProps({ 'data-icon': 'true' }))).toHaveLength(3);
+    const spanLabels = buttons.map((button) => {
+        const spans = button.findAllByType('span').filter((span) => typeof span.props?.children === 'string');
+        return spans[spans.length - 1]?.props?.children;
+    });
+    expect(spanLabels).toEqual(['消息工作台', '新建连接', '管理分组']);
   });
 
   it('uses current platform custom bindings and hides disabled shortcuts', () => {

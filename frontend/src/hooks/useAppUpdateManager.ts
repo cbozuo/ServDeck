@@ -295,10 +295,6 @@ export const useAppUpdateManager = ({
   updateCenterBridgeRef,
   onManualCheckHasUpdateRef,
 }: UseAppUpdateManagerOptions) => {
-  const autoCheckForUpdates = useStore((state) => state.autoCheckForUpdates);
-  const autoCheckForUpdatesIntervalMinutes = useStore(
-    (state) => state.autoCheckForUpdatesIntervalMinutes,
-  );
   const updateCheckInFlightRef = useRef(false);
   const updateCheckCompletionRef = useRef<Promise<void> | null>(null);
   const updateDownloadInFlightRef = useRef(false);
@@ -319,7 +315,6 @@ export const useAppUpdateManager = ({
   const updateDownloadedVersionRef = useRef<string | null>(null);
   const updateInstallTriggeredVersionRef = useRef<string | null>(null);
   const updateDownloadMetaRef = useRef<UpdateDownloadResultData | null>(null);
-  const updateNotifiedVersionRef = useRef<string | null>(null);
   const updateMutedVersionRef = useRef<string | null>(null);
   const isUpdateCenterOpen = useCallback(() => {
     return Boolean(updateCenterBridgeRef?.current?.isOpen?.());
@@ -1070,10 +1065,6 @@ export const useAppUpdateManager = ({
       if (silent && aboutOpen) {
         setAboutUpdateStatus(statusText);
       }
-      if (silent && !aboutOpen && updateMutedVersionRef.current !== infoKey && updateNotifiedVersionRef.current !== infoKey) {
-        updateNotifiedVersionRef.current = infoKey;
-        // 启动/后台检查发现更新时保持静默,不再自动打开设置中心「关于」页。
-      }
     } else if (!silent) {
       setUpdateDownloadProgress((prev) => {
         if (prev.status === 'start' || prev.status === 'downloading') {
@@ -1230,22 +1221,7 @@ export const useAppUpdateManager = ({
     void loadUpdateChannel();
   }, [loadUpdateChannel]);
 
-  useEffect(() => {
-    if (!autoCheckForUpdates) {
-      return;
-    }
-    const intervalMs = Math.max(1, autoCheckForUpdatesIntervalMinutes) * 60 * 1000;
-    const startupTimer = window.setTimeout(() => {
-      void checkForUpdates(true);
-    }, 2000);
-    const interval = window.setInterval(() => {
-      void checkForUpdates(true);
-    }, intervalMs);
-    return () => {
-      window.clearTimeout(startupTimer);
-      window.clearInterval(interval);
-    };
-  }, [autoCheckForUpdates, autoCheckForUpdatesIntervalMinutes, checkForUpdates]);
+  // 自动检查更新已移除:不再启动首查、不再按间隔轮询,仅保留手动「检查更新」入口。
 
   useEffect(() => {
     let offDownloadProgress: any = null;

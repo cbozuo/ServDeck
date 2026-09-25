@@ -1,13 +1,15 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
-	"GoNavi-Wails/internal/ai"
-	aiservice "GoNavi-Wails/internal/ai/service"
 	"GoNavi-Wails/internal/connection"
 	"GoNavi-Wails/internal/logger"
+	"GoNavi-Wails/internal/sqlsafety"
 )
 
 // HeadlessSQLSafetyStatement identifies one statement considered by the
@@ -16,14 +18,14 @@ import (
 type HeadlessSQLSafetyStatement struct {
 	Index     int
 	Keyword   string
-	Operation ai.SQLOperationType
+	Operation sqlsafety.SQLOperationType
 }
 
 // HeadlessSQLSafetyDecision is the shared AI-safety decision used by headless
 // callers. AllowMutating is an acknowledgement only; it cannot override a
 // disallowed operation.
 type HeadlessSQLSafetyDecision struct {
-	SafetyLevel           ai.SQLPermissionLevel
+	SafetyLevel           sqlsafety.SQLPermissionLevel
 	Inspection            SQLInspection
 	RequiresAllowMutating bool
 	Disallowed            []HeadlessSQLSafetyStatement
@@ -43,18 +45,35 @@ func (err *HeadlessSQLPolicyError) Error() string {
 	return err.Message
 }
 
-// GetSQLSafetyLevel reads the current shared AI safety setting for this data
-// root. A missing or unreadable configuration fails closed to read-only.
-func (runtime *HeadlessRuntime) GetSQLSafetyLevel() ai.SQLPermissionLevel {
+// GetSQLSafetyLevel reads the current SQL safety setting for this data root.
+// A missing or unreadable configuration fails closed to read-only.
+func (runtime *HeadlessRuntime) GetSQLSafetyLevel() sqlsafety.SQLPermissionLevel {
 	if runtime == nil || runtime.app == nil {
-		return ai.PermissionReadOnly
+		return sqlsafety.PermissionReadOnly
 	}
-	inspection, err := aiservice.NewProviderConfigStore(runtime.app.configDir, nil).Inspect()
+	return readLegacySQLSafetyLevel(runtime.app.configDir)
+}
+
+// readLegacySQLSafetyLevel reads the legacy "safetyLevel" field from
+// ai_config.json without pulling in the removed AI service. Any parse error or
+// unknown value fails closed to read-only.
+func readLegacySQLSafetyLevel(configDir string) sqlsafety.SQLPermissionLevel {
+	type legacyAIConfig struct {
+		SafetyLevel string `json:"safetyLevel"`
+	}
+	payload, err := os.ReadFile(filepath.Join(configDir, "ai_config.json"))
 	if err != nil {
-		logger.Warnf("headless SQL safety configuration unavailable; using readonly policy: %v", err)
-		return ai.PermissionReadOnly
+		if !os.IsNotExist(err) {
+			logger.Warnf("headless SQL safety configuration unavailable; using readonly policy: %v", err)
+		}
+		return sqlsafety.PermissionReadOnly
 	}
-	return normalizeHeadlessSQLSafetyLevel(inspection.Snapshot.SafetyLevel)
+	var config legacyAIConfig
+	if err := json.Unmarshal(payload, &config); err != nil {
+		logger.Warnf("headless SQL safety configuration unreadable; using readonly policy: %v", err)
+		return sqlsafety.PermissionReadOnly
+	}
+	return normalizeHeadlessSQLSafetyLevel(sqlsafety.SQLPermissionLevel(strings.TrimSpace(config.SafetyLevel)))
 }
 
 // EvaluateSQLSafety classifies every statement with the same safety levels
@@ -64,7 +83,7 @@ func (runtime *HeadlessRuntime) EvaluateSQLSafety(config connection.ConnectionCo
 	return evaluateHeadlessSQLSafety(runtime.GetSQLSafetyLevel(), resolveDDLDBType(config), sql)
 }
 
-func evaluateHeadlessSQLSafety(level ai.SQLPermissionLevel, dbType string, sql string) HeadlessSQLSafetyDecision {
+func evaluateHeadlessSQLSafety(level sqlsafety.SQLPermissionLevel, dbType string, sql string) HeadlessSQLSafetyDecision {
 	level = normalizeHeadlessSQLSafetyLevel(level)
 	decision := HeadlessSQLSafetyDecision{
 		SafetyLevel: level,
@@ -100,7 +119,7 @@ func evaluateHeadlessSQLSafety(level ai.SQLPermissionLevel, dbType string, sql s
 			decision.Disallowed = append(decision.Disallowed, safetyStatement)
 			continue
 		}
-		if safetyStatement.Operation != ai.SQLOpQuery {
+		if safetyStatement.Operation != sqlsafety.SQLOpQuery {
 			decision.RequiresAllowMutating = true
 			decision.ConfirmRequired = append(decision.ConfirmRequired, safetyStatement)
 		}
@@ -109,9 +128,9 @@ func evaluateHeadlessSQLSafety(level ai.SQLPermissionLevel, dbType string, sql s
 	return decision
 }
 
-func classifyHeadlessSQLOperation(dbType, statement string, inspection SQLStatementInspection) ai.SQLOperationType {
+func classifyHeadlessSQLOperation(dbType, statement string, inspection SQLStatementInspection) sqlsafety.SQLOperationType {
 	if inspection.ReadOnly {
-		return ai.SQLOpQuery
+		return sqlsafety.SQLOpQuery
 	}
 	// 首关键字为读、但语句体内缺分号嵌入了写语句时（issue #1308），
 	// sqlDataOperationInfo 仍会返回 select，必须改由内嵌写扫描给出真实关键字，
@@ -121,35 +140,35 @@ func classifyHeadlessSQLOperation(dbType, statement string, inspection SQLStatem
 		keyword = embedded
 	}
 	if isBatchableWriteSQLStatement(dbType, statement) || isSQLDataWriteKeyword(keyword) {
-		return ai.SQLOpDML
+		return sqlsafety.SQLOpDML
 	}
 	switch keyword {
 	case "create", "alter", "drop", "truncate", "rename":
-		return ai.SQLOpDDL
+		return sqlsafety.SQLOpDDL
 	default:
-		return ai.SQLOpOther
+		return sqlsafety.SQLOpOther
 	}
 }
 
-func normalizeHeadlessSQLSafetyLevel(level ai.SQLPermissionLevel) ai.SQLPermissionLevel {
+func normalizeHeadlessSQLSafetyLevel(level sqlsafety.SQLPermissionLevel) sqlsafety.SQLPermissionLevel {
 	switch level {
-	case ai.PermissionReadOnly, ai.PermissionReadWrite, ai.PermissionFull:
+	case sqlsafety.PermissionReadOnly, sqlsafety.PermissionReadWrite, sqlsafety.PermissionFull:
 		return level
 	default:
-		return ai.PermissionReadOnly
+		return sqlsafety.PermissionReadOnly
 	}
 }
 
-func isHeadlessSQLOperationAllowed(level ai.SQLPermissionLevel, operation ai.SQLOperationType) bool {
+func isHeadlessSQLOperationAllowed(level sqlsafety.SQLPermissionLevel, operation sqlsafety.SQLOperationType) bool {
 	switch normalizeHeadlessSQLSafetyLevel(level) {
-	case ai.PermissionReadOnly:
-		return operation == ai.SQLOpQuery
-	case ai.PermissionReadWrite:
-		return operation == ai.SQLOpQuery || operation == ai.SQLOpDML
-	case ai.PermissionFull:
+	case sqlsafety.PermissionReadOnly:
+		return operation == sqlsafety.SQLOpQuery
+	case sqlsafety.PermissionReadWrite:
+		return operation == sqlsafety.SQLOpQuery || operation == sqlsafety.SQLOpDML
+	case sqlsafety.PermissionFull:
 		return true
 	default:
-		return operation == ai.SQLOpQuery
+		return operation == sqlsafety.SQLOpQuery
 	}
 }
 
@@ -163,7 +182,7 @@ func (runtime *HeadlessRuntime) authorizeHeadlessSQL(config connection.Connectio
 	)
 }
 
-func (runtime *HeadlessRuntime) authorizeHeadlessSQLAtSafetyLevel(config connection.ConnectionConfig, sql string, allowMutating bool, requireDataImportProtection bool, level ai.SQLPermissionLevel) error {
+func (runtime *HeadlessRuntime) authorizeHeadlessSQLAtSafetyLevel(config connection.ConnectionConfig, sql string, allowMutating bool, requireDataImportProtection bool, level sqlsafety.SQLPermissionLevel) error {
 	if runtime == nil || runtime.app == nil {
 		return &HeadlessSQLPolicyError{Message: "headless runtime is unavailable"}
 	}
@@ -214,15 +233,15 @@ func (a *App) authorizeHeadlessConnectionProtections(config connection.Connectio
 	}
 	for _, statement := range decision.ConfirmRequired {
 		switch statement.Operation {
-		case ai.SQLOpDML:
+		case sqlsafety.SQLOpDML:
 			if err := ensureConnectionAllowsActionWithText(config, connectionProtectionDataEdit, "connection.backend.action.apply_result_changes", a.appText); err != nil {
 				return &HeadlessSQLPolicyError{Message: err.Error()}
 			}
-		case ai.SQLOpDDL:
+		case sqlsafety.SQLOpDDL:
 			if err := ensureConnectionAllowsActionWithText(config, connectionProtectionStructureEdit, "connection.backend.action.import_data", a.appText); err != nil {
 				return &HeadlessSQLPolicyError{Message: err.Error()}
 			}
-		case ai.SQLOpOther:
+		case sqlsafety.SQLOpOther:
 			// An unclassified statement can affect either data or structure.
 			for _, protection := range []connectionProtectionKey{connectionProtectionDataEdit, connectionProtectionStructureEdit} {
 				if err := ensureConnectionAllowsActionWithText(config, protection, "connection.backend.action.import_data", a.appText); err != nil {
@@ -238,7 +257,7 @@ func (a *App) authorizeHeadlessConnectionProtections(config connection.Connectio
 // protections as the standalone CLI. MCP performs its own shared AI-safety and
 // allowMutating checks before calling this method.
 func (a *App) AuthorizeMCPConnectionSQL(config connection.ConnectionConfig, sql string) error {
-	decision := evaluateHeadlessSQLSafety(ai.PermissionFull, resolveDDLDBType(config), sql)
+	decision := evaluateHeadlessSQLSafety(sqlsafety.PermissionFull, resolveDDLDBType(config), sql)
 	if decision.Inspection.StatementCount == 0 || decision.Inspection.ReadOnly {
 		return nil
 	}

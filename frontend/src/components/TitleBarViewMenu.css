@@ -4,7 +4,8 @@
   flex: 0 0 auto;
   align-items: center;
   height: 22px;
-  margin: 0;
+  /* 标题栏左侧容器 gap 已归零,与工具组之间的间距由这里给出 */
+  margin: 0 0 0 8px;
   padding: 0 8px;
   border: 0;
   border-radius: 4px;

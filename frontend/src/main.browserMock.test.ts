@@ -164,23 +164,6 @@ describe('main browser mock', () => {
     });
   });
 
-  it('normalizes result masking with Unicode case-fold and full-mask precedence', async () => {
-    await importMain();
-    const service = (globalThis as any).window.go.aiservice.Service;
-
-    await service.AISaveResultMaskingSettings({
-      enabled: true,
-      fullMaskFields: [' Σ ', 'ς'],
-      partialMaskFields: ['σ', 'email', 'EMAIL'],
-    });
-
-    await expect(service.AIGetResultMaskingSettings()).resolves.toEqual({
-      enabled: true,
-      fullMaskFields: ['Σ'],
-      partialMaskFields: ['email'],
-    });
-  });
-
   it('uses the real distinct immutable brand assets in browser and Playwright harnesses', async () => {
     const app = await importMain();
 
@@ -288,31 +271,6 @@ describe('main browser mock', () => {
     }));
   });
 
-  it('localizes browser mock MCP HTTP server status messages', async () => {
-    vi.stubGlobal('navigator', {
-      languages: ['en-US'],
-      language: 'en-US',
-    });
-
-    await importMain();
-    const { t } = await import('./i18n');
-    const service = (globalThis as any).window.go.aiservice.Service;
-
-    await expect(service.AIGetMCPHTTPServerStatus()).resolves.toEqual(expect.objectContaining({
-      enabled: false,
-      message: t('app.browser_mock.mcp_http.not_running'),
-    }));
-    await expect(service.AIStartMCPHTTPServer({ addr: '127.0.0.1:8765', path: '/mcp', schemaOnly: false })).resolves.toEqual(expect.objectContaining({
-      enabled: true,
-      schemaOnly: false,
-      message: t('app.browser_mock.mcp_http.started'),
-    }));
-    await expect(service.AIStopMCPHTTPServer()).resolves.toEqual(expect.objectContaining({
-      enabled: false,
-      message: t('app.browser_mock.mcp_http.stopped'),
-    }));
-  });
-
   it('localizes browser mock data root update messages', async () => {
     vi.stubGlobal('navigator', {
       languages: ['en-US'],
@@ -398,142 +356,6 @@ describe('main browser mock', () => {
         path: 'C:/mock/.gonavi/saved_queries/browser-mock-reveal-query.sql',
       }),
     }));
-  });
-
-  it('localizes browser mock MCP server test messages', async () => {
-    vi.stubGlobal('navigator', {
-      languages: ['en-US'],
-      language: 'en-US',
-    });
-
-    await importMain();
-    const { t } = await import('./i18n');
-    const service = (globalThis as any).window.go.aiservice.Service;
-
-    await expect(service.AITestMCPServer({ command: 'node' })).resolves.toEqual(expect.objectContaining({
-      success: true,
-      message: t('app.browser_mock.mcp_server.test_success'),
-    }));
-    await expect(service.AITestMCPServer({ command: '   ' })).resolves.toEqual(expect.objectContaining({
-      success: false,
-      message: t('app.browser_mock.mcp_server.command_required'),
-    }));
-  });
-
-  it('localizes browser mock MCP tool call unavailable content', async () => {
-    vi.stubGlobal('navigator', {
-      languages: ['en-US'],
-      language: 'en-US',
-    });
-
-    await importMain();
-    const { t } = await import('./i18n');
-    const service = (globalThis as any).window.go.aiservice.Service;
-
-    await expect(service.AICallMCPTool('demo.tool', '{"x":1}')).resolves.toEqual(expect.objectContaining({
-      alias: 'demo.tool',
-      originalName: 'demo.tool',
-      content: t('app.browser_mock.mcp_tool.unavailable'),
-      isError: true,
-    }));
-  });
-
-  it('reports provider test previews as unavailable in browser mock mode', async () => {
-    vi.stubGlobal('navigator', {
-      languages: ['en-US'],
-      language: 'en-US',
-    });
-
-    await importMain();
-    const { t } = await import('./i18n');
-    const service = (globalThis as any).window.go.aiservice.Service;
-
-    await expect(service.AITestProvider({ apiKey: 'sk-demo' })).resolves.toEqual(expect.objectContaining({
-      success: false,
-      checkKind: 'none',
-      modelVerified: false,
-      message: t('ai_settings.message.preview_check_unavailable'),
-    }));
-  });
-
-  it('localizes browser mock MCP client status and blocks writes for undetected local clients', async () => {
-    vi.stubGlobal('navigator', {
-      languages: ['en-US'],
-      language: 'en-US',
-    });
-
-    await importMain();
-    const { t } = await import('./i18n');
-    const service = (globalThis as any).window.go.aiservice.Service;
-
-    await expect(service.AIGetMCPClientInstallStatuses()).resolves.toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        client: 'claude-code',
-        message: t('app.browser_mock.mcp_client.claude_code.not_detected'),
-      }),
-      expect.objectContaining({
-        client: 'codex',
-        message: t('app.browser_mock.mcp_client.codex.path_mismatch'),
-      }),
-      expect.objectContaining({
-        client: 'opencode',
-        message: t('app.browser_mock.mcp_client.opencode.not_detected'),
-      }),
-      expect.objectContaining({
-        client: 'cursor',
-        message: t('ai_chat.mcp_client.install.summary.missing', { label: 'Cursor' }),
-      }),
-      expect.objectContaining({
-        client: 'zcode',
-        message: t('ai_chat.mcp_client.install.summary.missing', { label: 'ZCode' }),
-      }),
-      expect.objectContaining({
-        client: 'deepseek-harness',
-        message: t('ai_chat.mcp_client.install.summary.missing', { label: 'DeepSeek Harness' }),
-      }),
-      expect.objectContaining({
-        client: 'kimi',
-        message: t('ai_chat.mcp_client.install.summary.missing', { label: 'Kimi Code' }),
-      }),
-      expect.objectContaining({
-        client: 'grok-build',
-        message: t('ai_chat.mcp_client.install.summary.missing', { label: 'Grok Build' }),
-      }),
-    ]));
-
-    await expect(service.AIInstallClaudeCodeMCP()).rejects.toThrow(t('ai.service.mcp_client.local_client_not_detected', {
-      label: 'Claude Code',
-      command: 'claude',
-    }));
-    await expect(service.AIInstallCodexMCP()).resolves.toEqual(expect.objectContaining({
-      client: 'codex',
-      message: t('app.browser_mock.mcp_client.codex.installed'),
-    }));
-    await expect(service.AIInstallOpenCodeMCP()).rejects.toThrow(t('ai.service.mcp_client.local_client_not_detected', {
-      label: 'OpenCode',
-      command: 'opencode',
-    }));
-    for (const [method, label, command] of [
-      ['AIInstallCursorMCP', 'Cursor', 'cursor'],
-      ['AIInstallZCodeMCP', 'ZCode', 'zcode'],
-      ['AIInstallDeepSeekHarnessMCP', 'DeepSeek Harness', 'dsh'],
-      ['AIInstallKimiMCP', 'Kimi Code', 'kimi'],
-      ['AIInstallGrokBuildMCP', 'Grok Build', 'grok'],
-    ]) {
-      await expect(service[method]()).rejects.toThrow(t('ai.service.mcp_client.local_client_not_detected', { label, command }));
-    }
-    await expect(service.AIGetMCPClientInstallStatuses()).resolves.toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        client: 'codex',
-        installed: true,
-        message: t('app.browser_mock.mcp_client.codex.installed'),
-      }),
-      expect.objectContaining({
-        client: 'deepseek-harness',
-        installed: false,
-        clientDetected: false,
-      }),
-    ]));
   });
 
   it('waits for store hydration before syncing an explicit persisted language over a different system language', async () => {

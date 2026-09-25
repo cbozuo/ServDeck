@@ -159,16 +159,9 @@ describe('settings center tool entries', () => {
     expect(appSource).not.toContain("t('common.back_to_settings')");
     expect(appSource).toContain("key: `theme-${section.value}`");
     expect(appSource).toContain('renderThemeSettingsContent({ hideSectionTabs: true })');
-    expect(appSource).toContain('AI_SETTINGS_NAV_ITEMS.map');
-    expect(appSource).toContain("key: `ai-${item.key}`");
-    expect(appSource).toContain("key: 'ai-providers-connected'");
     expect(appSource).toContain("key: 'data-root-application'");
-    expect(appSource).toContain("key: 'data-root-agent'");
     expect(appSource).toContain("key: 'data-root-saved-queries'");
-    expect(appSource).toContain("handleOpenToolCenterPane('config', 'data-root-agent')");
     expect(appSource).toContain("handleOpenToolCenterPane('config', 'data-root-saved-queries')");
-    expect(appSource).toContain('onProvidersViewChange={setAiSettingsProviderView}');
-    expect(appSource).toContain('onCloseHost={handleCancelSettingsCenterPane}');
     expect(appSource).toContain("handleOpenToolCenterPane('workspace', 'drivers')");
     expect(appSource).toContain("activeSettingsCenterPane.key === 'drivers'");
     expect(appSource).not.toMatch(/handleCancelSettingsCenterPane\(\);\s*handleOpenDriverManagerWorkbench\(\);/);
@@ -183,11 +176,8 @@ describe('settings center tool entries', () => {
     expect(appSource).not.toContain("handleOpenDataSyncWorkbench('dataCompare')");
     expect(appSource).not.toContain('LazyDataSyncWorkbench');
     expect(appSource).not.toMatch(/handleCancelSettingsCenterPane\(\);\s*addTab\(buildDataSyncWorkbenchTab/);
-    expect(appSource).toContain('hideSidebar');
-    expect(appSource).toContain('section={aiSettingsSection}');
     expect(appSource).toContain("title: t('app.settings.entry.about.title')");
     expect(appSource).toMatch(/key: 'about' as const,[\s\S]*?items: \[\],/);
-    expect(appSource).toContain('className="gonavi-about-link-grid"');
     expect(appSource).toContain("className=\"gonavi-about-identity\"");
     expect(appSource).not.toMatch(/className="gonavi-about-identity"[\s\S]*?<TagOutlined \/>[\s\S]*?aboutDisplayVersion/);
     expect(appSource).not.toMatch(/className="gonavi-about-identity"[\s\S]*?UpCircleOutlined/);
@@ -201,8 +191,8 @@ describe('settings center tool entries', () => {
     expect(appSource).not.toContain('https://api.hualong.online/');
     expect(appSource).not.toContain('gonavi-about-project-entry-logo');
     expect(appCss).not.toContain('.gonavi-about-project-entry-logo');
-    expect(appSource).toContain('className="gonavi-about-download-source"');
-    expect(appCss).toMatch(/\.gonavi-about-link-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+    // 关于页重构后镜像切换入口只保留在 Driver Manager / 设置中心,About 页不再承载。
+    expect(appSource).not.toContain('className="gonavi-about-download-source"');
     expect(appSource).not.toContain('apismart');
     expect(appSource).not.toContain("gridTemplateColumns: 'minmax(0, 1.15fr) minmax(260px, 0.85fr)'");
     expect(appCss).toContain('grid-template-columns: 220px minmax(0, 1fr) !important;');
@@ -237,17 +227,15 @@ describe('settings center tool entries', () => {
     );
   });
 
-  it('switches mirrors in place from About and Driver Manager without navigating settings', () => {
-    const aboutStart = appSource.indexOf('className="gonavi-about-download-source"');
-    const aboutEnd = appSource.indexOf('</section>', aboutStart);
-    const aboutSource = appSource.slice(aboutStart, aboutEnd);
+  it('switches mirrors in place from the Driver Manager without navigating settings', () => {
+    // 关于页重构后,镜像切换入口收敛到 Driver Manager(workbench / modal / drivers pane)。
     const driverPaneStart = appSource.indexOf("activeSettingsCenterPane.key === 'drivers'");
     const driverPaneEnd = appSource.indexOf("activeSettingsCenterPane.key === 'snippet-settings'", driverPaneStart);
     const driverPaneSource = appSource.slice(driverPaneStart, driverPaneEnd);
 
-    expect(aboutSource).toContain('getNextDownloadSource(downloadSource)');
-    expect(aboutSource).toContain('handleDownloadSourceChange');
-    expect(aboutSource).not.toContain('handleOpenDownloadSourceSettings');
+    expect(appSource).not.toContain('className="gonavi-about-download-source"');
+    expect(appSource).not.toContain('handleOpenDownloadSourceSettings');
+    expect(driverPaneStart).toBeGreaterThanOrEqual(0);
     expect(driverPaneSource).toContain('onSwitchDownloadSource');
     expect(driverPaneSource).not.toContain("handleOpenSettingsCenterPane('services', 'download-source')");
     expect(driverWorkbenchSource).toContain('handleSwitchDownloadSource');

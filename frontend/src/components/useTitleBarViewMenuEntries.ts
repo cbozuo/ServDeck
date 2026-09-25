@@ -22,11 +22,9 @@ import {
 export interface TitleBarViewMenuController {
   isMacRuntime: boolean;
   activeTabType?: string;
-  aiPanelVisible: boolean;
   fullscreen: boolean;
   settingsOpen: boolean;
   sidebarCollapsed: boolean;
-  onToggleAI: () => void;
   onOpenSettings: () => void;
   onCloseSettings: () => void;
   onExpandSidebar: () => void;
@@ -36,7 +34,7 @@ export interface TitleBarViewMenuController {
 const shortcutLabel = (
   shortcutOptions: Parameters<typeof resolveShortcutBinding>[0],
   isMacRuntime: boolean,
-  action: 'toggleAIPanel' | 'toggleLogPanel',
+  action: 'toggleLogPanel',
 ): string | undefined => {
   const platform = getShortcutPlatform(isMacRuntime);
   const binding = resolveShortcutBinding(shortcutOptions, action, platform);
@@ -53,14 +51,12 @@ export function useTitleBarViewMenuEntries(
   const shortcutOptions = useStore((state) => state.shortcutOptions);
   const {
     activeTabType,
-    aiPanelVisible,
     fullscreen,
     isMacRuntime,
     onCloseSettings,
     onCollapseSidebar,
     onExpandSidebar,
     onOpenSettings,
-    onToggleAI,
     settingsOpen,
     sidebarCollapsed,
   } = input;
@@ -80,7 +76,6 @@ export function useTitleBarViewMenuEntries(
       collapseSidebar: onCollapseSidebar,
       expandSidebar: onExpandSidebar,
       openSettings: onOpenSettings,
-      toggleAI: onToggleAI,
       toggleFullscreen,
       toggleSqlLog: () => {
         // 先让菜单在这一帧收起，下一拍再打开结果区，避免点击被整页重绘卡住。
@@ -89,10 +84,8 @@ export function useTitleBarViewMenuEntries(
         }, 0);
       },
     },
-    aiPanelVisible,
     fullscreen,
     labels: {
-      aiPanel: t('app.view_menu.ai_panel'),
       fullscreen: t('app.view_menu.fullscreen'),
       settingsCenter: t('app.view_menu.settings_center'),
       sidebar: t('app.view_menu.sidebar'),
@@ -101,7 +94,6 @@ export function useTitleBarViewMenuEntries(
     },
     settingsOpen,
     shortcuts: {
-      aiPanel: shortcutLabel(shortcutOptions, isMacRuntime, 'toggleAIPanel'),
       sqlLog: shortcutLabel(shortcutOptions, isMacRuntime, 'toggleLogPanel'),
     },
     sidebarCollapsed,
@@ -109,14 +101,12 @@ export function useTitleBarViewMenuEntries(
     sqlLogOpen: false,
   }), [
     activeTabType,
-    aiPanelVisible,
     fullscreen,
     isMacRuntime,
     onCloseSettings,
     onCollapseSidebar,
     onExpandSidebar,
     onOpenSettings,
-    onToggleAI,
     settingsOpen,
     shortcutOptions,
     sidebarCollapsed,

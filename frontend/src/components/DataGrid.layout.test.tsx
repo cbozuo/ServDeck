@@ -735,9 +735,6 @@ describe('DataGrid layout', () => {
       'data_grid.toolbar.import',
       'data_grid.toolbar.export',
       'data_grid.toolbar.copy',
-      'data_grid.toolbar.ai_insight',
-      'data_grid.toolbar.ai_insight_short',
-      'data_grid.toolbar.ai_insight_tooltip',
       'data_grid.toolbar.cancel_count',
       'data_grid.toolbar.cancel_count_tooltip',
       'data_grid.toolbar.count_total',
@@ -1458,7 +1455,6 @@ describe('DataGrid layout', () => {
     expect(markup).toContain('gn-v2-data-grid-toolbar-title');
     expect(markup).toContain('gn-v2-toolbar-divider');
     expect(markup).toContain('gn-v2-commit-button');
-    expect(markup).toContain('gn-v2-ai-insight-button');
     expect(markup).toContain('gn-v2-data-grid-toolbar-action');
     expect(markup).toContain('gn-v2-smart-filter-panel');
     expect(markup).toContain('gn-v2-data-grid-table-shell');
@@ -1466,7 +1462,6 @@ describe('DataGrid layout', () => {
     expect(markup).toContain('· main');
     expect(markup).toContain('提交事务');
     expect(markup).toContain('手动提交');
-    expect(markup).toContain('AI 洞察');
 
     const getButtonBody = (label: string) => {
       const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1485,7 +1480,6 @@ describe('DataGrid layout', () => {
       '手动提交',
       '导入',
       '导出',
-      'AI 洞察',
     ].forEach((label) => {
       expect(getButtonBody(label)).not.toContain(label);
     });
@@ -1625,10 +1619,6 @@ describe('DataGrid layout', () => {
       css.indexOf('body[data-ui-version="v2"] .gn-v2-data-grid .gn-v2-commit-button {'),
       css.indexOf('body[data-ui-version="v2"] .gn-v2-data-grid .gn-v2-commit-button .gn-v2-toolbar-kbd {'),
     );
-    const insightCss = css.slice(
-      css.indexOf('body[data-ui-version="v2"] .gn-v2-data-grid .gn-v2-ai-insight-button {'),
-      css.indexOf('body[data-ui-version="v2"] .gn-v2-data-grid .gn-v2-ai-insight-button .gn-v2-toolbar-kbd {'),
-    );
 
     expect(buttonStateCss).toContain(
       'color: var(--gn-client-result-toolbar-button-fg, var(--gn-result-toolbar-button-fg, var(--gn-danger))) !important;',
@@ -1654,19 +1644,6 @@ describe('DataGrid layout', () => {
     );
     expect(commitCss).toContain(
       'background: var(--gn-client-result-toolbar-primary-disabled-bg, var(--gn-result-toolbar-primary-disabled-bg, var(--gn-bg-active))) !important;',
-    );
-
-    expect(insightCss).toContain(
-      'background: var(--gn-client-result-toolbar-button-bg, var(--gn-result-toolbar-button-bg, var(--gn-info-soft))) !important;',
-    );
-    expect(insightCss).toContain(
-      'color: var(--gn-client-result-toolbar-button-fg, var(--gn-result-toolbar-button-fg, var(--gn-info))) !important;',
-    );
-    expect(insightCss).toContain(
-      'background: var(--gn-client-result-toolbar-button-hover-bg, var(--gn-result-toolbar-button-hover-bg, color-mix(in srgb, var(--gn-info-soft)',
-    );
-    expect(insightCss).toContain(
-      'background: var(--gn-client-result-toolbar-button-active-bg, var(--gn-result-toolbar-button-active-bg, color-mix(in srgb, var(--gn-info-soft)',
     );
   });
 

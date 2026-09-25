@@ -56,7 +56,7 @@ func TestRenderAuthPageUsesLocalizedCopyAndSolidColors(t *testing.T) {
 
 	for _, fragment := range []string{
 		`lang="zh-CN"`,
-		"初始化 GoNavi Web",
+		"初始化 ServDeck Web",
 		"发行方",
 		"账户",
 		"至少 6 位",

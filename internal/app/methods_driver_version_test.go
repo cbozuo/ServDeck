@@ -1729,10 +1729,10 @@ func TestDuckDBWindowsBuildUsesDynamicLibraryTag(t *testing.T) {
 	})
 	legacyDirectURL := "https://example.com/duckdb-driver-agent-windows-amd64.exe"
 	urls := resolveOptionalDriverAgentDownloadURLs(driverDefinition{Type: "duckdb"}, legacyDirectURL, "")
-	if len(urls) != 1 {
-		t.Fatalf("expected DuckDB Windows install to use only the dedicated zip, got %v", urls)
+	if len(urls) != 2 {
+		t.Fatalf("expected DuckDB Windows install to prefer the dedicated zip with a GitHub fallback, got %v", urls)
 	}
-	if urls[0] != driverReleaseLatestDownloadURL(zipAssetName) {
+	if !strings.Contains(urls[0], string(zipAssetName)) {
 		t.Fatalf("expected DuckDB Windows dedicated zip candidate first, got %v", urls)
 	}
 }

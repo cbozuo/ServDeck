@@ -205,10 +205,8 @@ describe('shortcut localization', () => {
       expect(SHORTCUT_ACTION_META.runQuery.label).toBe('Run SQL');
       expect(SHORTCUT_ACTION_META.saveQuery.description).toBe('Save the current query tab; unnamed queries open the save dialog');
       expect(SHORTCUT_ACTION_META.formatSql.label).toBe('Format SQL');
-      expect(SHORTCUT_ACTION_META.triggerSqlAiCompletion.label).toBe('Trigger SQL AI Completion');
       expect(SHORTCUT_ACTION_META.toggleQueryResultsPanel.label).toBe('Toggle Results Panel');
       expect(SHORTCUT_ACTION_META.toggleQueryResultsPanel.description).toBe('Show or hide the results area below the query editor');
-      expect(SHORTCUT_ACTION_META.sendAIChatMessage.description).toContain('Shift+Enter');
       expect(describeConflictContext('global')).toBe('Browser');
 
       const browserSave = findReservedConflict('Ctrl+S');
@@ -220,7 +218,6 @@ describe('shortcut localization', () => {
       setCurrentLanguage('zh-CN');
       expect(SHORTCUT_ACTION_META.runQuery.label).toBe('执行 SQL');
       expect(SHORTCUT_ACTION_META.formatSql.label).toBe('美化 SQL');
-      expect(SHORTCUT_ACTION_META.triggerSqlAiCompletion.label).toBe('触发 SQL AI 自动补全');
       expect(findReservedConflict('Ctrl+S')?.label).toBe('浏览器保存');
     } finally {
       setCurrentLanguage('zh-CN');
@@ -562,18 +559,6 @@ describe('shortcut defaults', () => {
     });
   });
 
-  it('registers manual SQL AI completion as a query editor shortcut', () => {
-    expect(DEFAULT_SHORTCUT_OPTIONS.triggerSqlAiCompletion).toEqual({
-      mac: { combo: 'Alt+\\', enabled: true },
-      windows: { combo: 'Alt+\\', enabled: true },
-    });
-    expect(SHORTCUT_ACTION_META.triggerSqlAiCompletion).toMatchObject({
-      label: '触发 SQL AI 自动补全',
-      scope: 'queryEditor',
-      allowInEditable: true,
-    });
-  });
-
   it('registers query results panel toggle as a query editor shortcut', () => {
     expect(DEFAULT_SHORTCUT_OPTIONS.toggleQueryResultsPanel).toEqual({
       mac: { combo: 'Meta+Shift+M', enabled: true },
@@ -581,18 +566,6 @@ describe('shortcut defaults', () => {
     });
     expect(SHORTCUT_ACTION_META.toggleQueryResultsPanel).toMatchObject({
       label: '切换结果区',
-      scope: 'queryEditor',
-      allowInEditable: true,
-    });
-  });
-
-  it('registers AI diagnosis as a query editor shortcut', () => {
-    expect(DEFAULT_SHORTCUT_OPTIONS.diagnoseExecutionError).toEqual({
-      mac: { combo: 'Meta+Shift+A', enabled: true },
-      windows: { combo: 'Ctrl+Shift+A', enabled: true },
-    });
-    expect(SHORTCUT_ACTION_META.diagnoseExecutionError).toMatchObject({
-      label: 'AI 诊断',
       scope: 'queryEditor',
       allowInEditable: true,
     });
@@ -660,17 +633,12 @@ describe('shortcut defaults', () => {
     expect(getShortcutPlatform()).toBe('windows');
   });
 
-  it('registers connection and AI panel actions as real shortcuts', () => {
+  it('registers the new connection action as a real shortcut', () => {
     expect(DEFAULT_SHORTCUT_OPTIONS.newConnection).toEqual({
       mac: { combo: 'Meta+Shift+N', enabled: true },
       windows: { combo: 'Ctrl+Shift+N', enabled: true },
     });
-    expect(DEFAULT_SHORTCUT_OPTIONS.toggleAIPanel).toEqual({
-      mac: { combo: 'Meta+J', enabled: true },
-      windows: { combo: 'Ctrl+J', enabled: true },
-    });
     expect(SHORTCUT_ACTION_META.newConnection.label).toBe('新建数据源');
-    expect(SHORTCUT_ACTION_META.toggleAIPanel.label).toBe('打开 AI 数据洞察');
   });
 
   it('migrates legacy single-platform shortcut bindings into both platform slots', () => {
@@ -813,15 +781,11 @@ describe('shortcut defaults', () => {
       newQueryTab: {
         mac: { combo: 'Meta+N', enabled: false },
       },
-      sendAIChatMessage: {
-        windows: { combo: 'A', enabled: true },
-      },
     });
 
     expect(options.newQueryTab.mac).toEqual({ combo: 'Meta+N', enabled: false });
     expect(options.newQueryTab.windows).toEqual({ combo: 'Ctrl+N', enabled: true });
     expect(options.saveQuery.windows).toEqual({ combo: 'Ctrl+S', enabled: true });
-    expect(options.sendAIChatMessage.windows).toEqual({ combo: 'Enter', enabled: true });
   });
 
   it('registers editor fullscreen toggle as a query editor shortcut without conflicting native fullscreen', () => {
@@ -972,7 +936,7 @@ describe('comboToMonacoKeyBinding', () => {
     });
   });
 
-  it('maps Alt+\\ (manual AI completion)', () => {
+  it('maps Alt+\\', () => {
     expect(comboToMonacoKeyBinding('Alt+\\', mockKeyMod, mockKeyCode, 'windows')).toEqual({
       keyMod: mockKeyMod.Alt,
       keyCode: mockKeyCode.Backslash,
@@ -999,32 +963,6 @@ describe('comboToMonacoKeyBinding', () => {
       keyMod: mockKeyMod.CtrlCmd | mockKeyMod.Alt,
       keyCode: mockKeyCode.Delete,
     });
-  });
-});
-
-// ─── acceptSqlAiCompletion ──────────────────────────────────────────
-
-describe('acceptSqlAiCompletion', () => {
-  it('默认绑定为 Tab 且启用(win/mac 一致)', () => {
-    expect(DEFAULT_SHORTCUT_OPTIONS.acceptSqlAiCompletion.mac).toEqual({ combo: 'Tab', enabled: true });
-    expect(DEFAULT_SHORTCUT_OPTIONS.acceptSqlAiCompletion.windows).toEqual({ combo: 'Tab', enabled: true });
-  });
-
-  it('允许录制无修饰键的 Tab(裸键场景)', () => {
-    expect(canRecordShortcutForAction('acceptSqlAiCompletion', 'Tab')).toBe(true);
-  });
-
-  it('允许 Shift+Tab(接受键常为 Tab 相关组合)', () => {
-    expect(canRecordShortcutForAction('acceptSqlAiCompletion', 'Shift+Tab')).toBe(true);
-  });
-
-  it('允许带修饰键组合(如 Ctrl+Right)', () => {
-    expect(canRecordShortcutForAction('acceptSqlAiCompletion', 'Ctrl+Right')).toBe(true);
-  });
-
-  it('resolveShortcutBinding 对缺失配置回退默认 Tab', () => {
-    const binding = resolveShortcutBinding({}, 'acceptSqlAiCompletion', 'windows');
-    expect(binding).toEqual({ combo: 'Tab', enabled: true });
   });
 });
 
@@ -1055,29 +993,6 @@ describe('toggleLineComment shortcut', () => {
   it('treats Ctrl+/ as non-reserved so the default binding raises no conflict', () => {
     expect(findReservedConflict('Ctrl+/')).toBeNull();
     expect(findReservedConflictsForAction('toggleLineComment', 'Ctrl+/', 'windows')).toEqual([]);
-  });
-
-  it('detects rebinding onto the AI diagnose combo as a conflict', () => {
-    const windowsBinding = resolveShortcutBinding(
-      {
-        toggleLineComment: { windows: { combo: 'Ctrl+Shift+A', enabled: true }, mac: { combo: '', enabled: false } },
-        diagnoseExecutionError: { windows: { combo: 'Ctrl+Shift+A', enabled: true }, mac: { combo: '', enabled: false } },
-      } as never,
-      'toggleLineComment',
-      'windows',
-    );
-    expect(windowsBinding.combo).toBe('Ctrl+Shift+A');
-    expect(canRecordShortcutForAction('toggleLineComment', 'Ctrl+Shift+A')).toBe(true);
-    // 设置中心改键冲突检测：同组合键被「AI 诊断」占用时必须报告冲突
-    expect(findEnabledActionConflicts(
-      {
-        toggleLineComment: { windows: { combo: 'Ctrl+Shift+A', enabled: true }, mac: { combo: '', enabled: false } },
-        diagnoseExecutionError: { windows: { combo: 'Ctrl+Shift+A', enabled: true }, mac: { combo: '', enabled: false } },
-      } as never,
-      'toggleLineComment',
-      'Ctrl+Shift+A',
-      'windows',
-    )).toEqual(['diagnoseExecutionError']);
   });
 
   it('maps the default combos to Monaco key bindings using the real 0.55 enum names', () => {

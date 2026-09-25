@@ -97,7 +97,6 @@ describe('DataSyncRunHistory compare output', () => {
         checkpointResetEnabled={false}
         onResetCheckpoint={() => undefined}
         onGenerateRepairSql={() => undefined}
-        onAskAiAboutDiffs={() => undefined}
         onSyncDiffs={() => undefined}
       />,
     );
@@ -116,7 +115,6 @@ describe('DataSyncRunHistory compare output', () => {
     expect(markup).toContain('data-data-sync-compare');
     expect(markup).toContain('data-compare-action="repair-sql"');
     expect(markup).toContain('生成修复 SQL');
-    expect(markup).toContain('AI 分析差异');
     expect(markup).toContain('同步差异');
     expect(markup).toContain('运行过程');
     expect(markup).toContain('已开始');
@@ -195,7 +193,6 @@ describe('DataSyncRunHistory compare output', () => {
         checkpointResetEnabled={false}
         onResetCheckpoint={() => undefined}
         onGenerateRepairSql={() => undefined}
-        onAskAiAboutDiffs={() => undefined}
         onSyncDiffs={() => undefined}
       />,
     );

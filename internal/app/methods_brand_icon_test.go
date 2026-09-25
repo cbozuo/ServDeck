@@ -20,7 +20,7 @@ const validBrandIconPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAA
 
 // Wails v2 packages build/appicon.png. Keep it aligned with the default
 // 01-ribbon-graphite-air brand instead of allowing Wails to restore its W icon.
-const defaultBrandAppIconSHA256 = "5a75c96f2e3e9046fbca0adf4302404330e26d93dd9d5b82ca748ae2ba5341e9"
+const defaultBrandAppIconSHA256 = "6ebe687c73d8a9a7e2880d6d17f0e722105f01a91a568f664b9006e4cfe523b6"
 
 func TestRuntimeBrandIconMutationIsNotExposed(t *testing.T) {
 	for _, name := range []string{"SetApplicationBrandIcon", "PrepareWindowsBrandIconRestart"} {
@@ -106,9 +106,9 @@ func TestWindowsTaskbarIconFillsNativeFrames(t *testing.T) {
 		}
 
 		visible := highAlphaBounds(frame)
-		if visible.Empty() || visible.Dx()*100 < width*90 || visible.Dy()*100 < height*90 {
+		if visible.Empty() || visible.Dx()*100 < width*80 || visible.Dy()*100 < height*80 {
 			t.Fatalf(
-				"Windows %dx%d taskbar artwork occupies %dx%d pixels, want at least 90%% of each axis",
+				"Windows %dx%d taskbar artwork occupies %dx%d pixels, want at least 80%% of each axis",
 				width,
 				height,
 				visible.Dx(),

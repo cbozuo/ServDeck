@@ -13,7 +13,6 @@ import {
   attachNativeDetachedWindow,
   advanceNativeDetachedStoreSource,
   applyNativeDetachedHostStateCommand,
-  buildNativeDetachedAIChatSyncStoreSnapshot,
   buildNativeDetachedChangedWorkbenchStoreSnapshot,
   buildNativeDetachedStoreSnapshot,
   buildNativeDetachedSyncStoreSnapshot,
@@ -25,7 +24,6 @@ import {
   fetchNativeDetachedWindowBootstrap,
   hydrateNativeDetachedStore,
   hideCurrentNativeDetachedWindow,
-  hideCurrentNativeDetachedWindowForAISettings,
   hideNativeDetachedWindow,
   presentCurrentNativeDetachedWindow,
   readyNativeDetachedWindow,
@@ -41,14 +39,12 @@ import {
   type NativeDetachedHostStateCommand,
 } from '../utils/nativeDetachedWindowClient';
 import type { CustomThemeDefinition } from '../utils/customTheme';
-import { isMacLikePlatform } from '../utils/appearance';
 import {
   peekQueryEditorResultSession,
   saveQueryEditorResultSessionForOpenTab,
   subscribeQueryEditorResultSession,
   type QueryEditorResultSessionSnapshot,
 } from '../utils/queryEditorResultSessionCache';
-import { buildOverlayWorkbenchTheme } from '../utils/overlayWorkbenchTheme';
 import { APP_OVERLAY_Z_INDEX_BASE } from '../utils/overlayZIndex';
 import { isWailsDevNativeContextMenu, shouldAllowNativeContextMenu } from '../utils/nativeContextMenu';
 import { resolveLiveQueryTab, resolveLiveQueryTabs } from '../utils/liveQueryTabs';
@@ -58,14 +54,7 @@ import CustomThemeStyleHost, {
 } from './theme/CustomThemeStyleHost';
 import ToolbarAppearanceStyleHost from './theme/ToolbarAppearanceStyleHost';
 import NativeDetachedQueryResult from './NativeDetachedQueryResult';
-import {
-  getShortcutPlatform,
-  installGlobalImeCompositionTracking,
-  isShortcutMatch,
-  resolveShortcutBinding,
-} from '../utils/shortcuts';
-import { useAIWorkspaceSnapshot } from './ai/useAIWorkspaceSnapshot';
-const AIChatPanel = React.lazy(() => import('./AIChatPanel'));
+import { installGlobalImeCompositionTracking } from '../utils/shortcuts';
 const WorkbenchTabContent = React.lazy(() => import('./WorkbenchTabContent'));
 const NativeDetachedWindowController = React.lazy(
   () => import('./NativeDetachedWindowController'),
@@ -144,7 +133,6 @@ type NativeDetachedWindowClient = {
   hide?: (payload: NativeDetachedWindowActionPayload) => Promise<number>;
   close: (payload: NativeDetachedWindowActionPayload) => Promise<void>;
   cancelCloseRequest?: (payload: NativeDetachedWindowActionPayload) => Promise<void>;
-  openAISettings: (visibilityRevision: number, providerId?: string) => Promise<void>;
   hostEvent?: (payload: NativeDetachedWindowActionPayload) => Promise<void>;
   closeCurrentWindow: () => Promise<void>;
   hideCurrentWindow?: (visibilityRevision: number) => Promise<void>;
@@ -160,7 +148,6 @@ const defaultClient: NativeDetachedWindowClient = {
   hide: hideNativeDetachedWindow,
   close: closeNativeDetachedWindow,
   cancelCloseRequest: cancelNativeDetachedWindowClose,
-  openAISettings: hideCurrentNativeDetachedWindowForAISettings,
   hostEvent: sendNativeDetachedHostEvent,
   closeCurrentWindow: closeCurrentNativeDetachedWindow,
   hideCurrentWindow: hideCurrentNativeDetachedWindow,
@@ -184,13 +171,11 @@ const buildActionPayload = (
   clearSqlLogs = false,
   resultWindow?: DetachedQueryResultWindow | null,
 ): NativeDetachedWindowActionPayload => {
-  const storeState = bootstrap.kind === 'ai-chat'
-    ? buildNativeDetachedAIChatSyncStoreSnapshot(useStore.getState(), newSqlLogs)
-    : buildNativeDetachedSyncStoreSnapshot(
-        useStore.getState(),
-        bootstrap.kind === 'workbench' ? bootstrap.payload.tab?.id || '' : '',
-        newSqlLogs,
-      );
+  const storeState = buildNativeDetachedSyncStoreSnapshot(
+    useStore.getState(),
+    bootstrap.kind === 'workbench' ? bootstrap.payload.tab?.id || '' : '',
+    newSqlLogs,
+  );
   const screenX = typeof window === 'undefined' ? Number.NaN : Number(window.screenX);
   const screenY = typeof window === 'undefined' ? Number.NaN : Number(window.screenY);
   const width = typeof window === 'undefined'
@@ -235,20 +220,14 @@ const NativeDetachedWindowContent: React.FC<{
   bootstrap: NativeDetachedWindowBootstrap;
   themeModeOverride?: 'light' | 'dark';
   onContentReady: () => void;
-  onAttach: () => void;
   onClose: () => void;
-  onOpenSettings: (providerId?: string) => void;
-  onRegisterAITerminalGuard: (guard: (() => Promise<boolean>) | null) => void;
   onQueryResultStateChange: (patch: Partial<DetachedQueryResultWindow['result']>) => void;
   interactionDisabled?: boolean;
 }> = ({
   bootstrap,
   themeModeOverride,
   onContentReady,
-  onAttach,
   onClose,
-  onOpenSettings,
-  onRegisterAITerminalGuard,
   onQueryResultStateChange,
   interactionDisabled = false,
 }) => {
@@ -284,30 +263,7 @@ const NativeDetachedWindowContent: React.FC<{
         )
       : null;
   }
-  const isDark = themeMode === 'dark';
-  const aiPanelBackground = isDark
-    ? 'var(--gn-bg-panel, #161a21)'
-    : 'var(--gn-bg-panel, #ffffff)';
-  return (
-    <div className="gn-native-detached-ai-chat">
-      <AIChatPanel
-        width={typeof window === 'undefined' ? 440 : window.innerWidth}
-        darkMode={isDark}
-        bgColor={aiPanelBackground}
-        overlayTheme={buildOverlayWorkbenchTheme(isDark, {
-          disableBackdropFilter: true,
-          useThemeVariables: true,
-        })}
-        presentation="detached"
-        onClose={onClose}
-        onAttach={onAttach}
-        onOpenSettings={onOpenSettings}
-        onRegisterTerminalGuard={onRegisterAITerminalGuard}
-        interactionDisabled={interactionDisabled}
-      />
-      <NativeDetachedContentReady onReady={onContentReady} />
-    </div>
-  );
+  return null;
 };
 
 const NativeDetachedContentReady: React.FC<{ onReady: () => void }> = ({ onReady }) => {
@@ -327,10 +283,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
   const [contentMounted, setContentMounted] = useState(true);
   const [contentReady, setContentReady] = useState(false);
   const [controllerEnabled, setControllerEnabled] = useState(false);
-  // A detached AI WebView is its own desktop snapshot source. Keep its lease
-  // alive for the lifetime of the detached window, independent of panel UI
-  // visibility or terminal actions.
-  useAIWorkspaceSnapshot({ enabled: bootstrap?.kind === 'ai-chat' });
   // A detached WebView has an independent custom-theme store. The host sends
   // the resolved definition so it cannot fall back to a different local copy.
   const [customThemeOverride, setCustomThemeOverride] = useState<
@@ -344,13 +296,10 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
   const terminalActionRequestedRef = useRef(false);
   const terminalActionGenerationRef = useRef(0);
   const terminalCloseRecoveryPendingRef = useRef(false);
-  const openAISettingsAfterHideRef = useRef(false);
-  const openAISettingsProviderIdRef = useRef('');
   const activeTerminalActionRef = useRef<'attach' | 'hide' | 'close' | null>(null);
   const closePreemptionRequestedRef = useRef(false);
   const hideVisibilityRevisionRef = useRef(0);
   const lastFocusVisibilityRevisionRef = useRef(0);
-  const aiTerminalGuardRef = useRef<(() => Promise<boolean>) | null>(null);
   const resultSessionRef = useRef<QueryEditorResultSessionSnapshot | null>(null);
   const queryResultWindowRef = useRef<DetachedQueryResultWindow | null>(null);
   const queryResultDirtyGenerationRef = useRef(0);
@@ -363,7 +312,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
   const actionRevisionRef = useRef(0);
   const actionQueueRef = useRef<Promise<void>>(Promise.resolve());
   const processedHostEventIdsRef = useRef<Set<string>>(new Set());
-  const previousHostAIContextsRef = useRef<unknown>({});
   const hostEventSequenceRef = useRef(0);
   const workbenchStateSourceRef = useRef<NativeDetachedStoreSnapshot>({});
   const syncedWorkbenchTabIdsRef = useRef<Set<string>>(new Set());
@@ -381,7 +329,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
   const themeMode = useStore((state) => state.theme);
   const fontSize = useStore((state) => state.fontSize);
   const uiScale = useStore((state) => state.uiScale);
-  const shortcutOptions = useStore((state) => state.shortcutOptions);
   const [computedCustomThemeAntTokens, setComputedCustomThemeAntTokens] = useState<CustomThemeAntTokenSnapshot | null>(null);
   const effectiveThemeMode = customThemeOverride?.baseMode === 'dark'
     ? 'dark'
@@ -427,7 +374,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
         hydrateNativeDetachedStore(useStore, nextBootstrap.payload.storeState);
         setCustomThemeOverride(readNativeDetachedThemeContext(nextBootstrap.payload.storeState));
         queryResultWindowRef.current = nextBootstrap.payload.resultWindow ?? null;
-        previousHostAIContextsRef.current = useStore.getState().aiContexts;
         workbenchStateSourceRef.current = buildNativeDetachedWorkbenchMutableStoreSnapshot(
           useStore.getState(),
         );
@@ -475,10 +421,8 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
             return currentKey === nextKey ? current : themeContext;
           });
         }
-        const isCurrentAIWindow = bootstrap.kind === 'ai-chat'
-          && String(command?.id || '') === bootstrap.id;
         const visibilityRevision = Math.trunc(Number(command?.payload?.visibilityRevision));
-        if (isCurrentAIWindow && Number.isFinite(visibilityRevision) && visibilityRevision > 0) {
+        if (Number.isFinite(visibilityRevision) && visibilityRevision > 0) {
           if (
             command.action === 'hide'
             && visibilityRevision > lastFocusVisibilityRevisionRef.current
@@ -505,7 +449,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
               terminalActionStartedRef.current = false;
               terminalActionRequestedRef.current = false;
               activeTerminalActionRef.current = null;
-              openAISettingsAfterHideRef.current = false;
               hideVisibilityRevisionRef.current = 0;
               setTerminalCloseRecoveryAvailable(false);
               setTerminalAction((current) => current === 'hide' ? null : current);
@@ -519,7 +462,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
           command,
           {
             processedEventIds: processedHostEventIdsRef.current,
-            previousHostAIContextsRef,
             dispatchHostEvent: (hostEvent) => {
               if (typeof window === 'undefined') return;
               window.dispatchEvent(new CustomEvent(hostEvent.name, {
@@ -534,18 +476,11 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
 
   useEffect(() => {
     if (!bootstrap || typeof window === 'undefined' || !client.hostEvent) return undefined;
-    const eventNames: NativeDetachedHostEventName[] = bootstrap.kind === 'ai-chat'
-      ? [
-          'gonavi:insert-sql',
-          'gonavi:jvm-apply-ai-plan',
-          'gonavi:jvm-apply-diagnostic-plan',
-        ]
-      : [
-          'gonavi:ai:inject-prompt',
-          'gonavi:open-download-source-settings',
-          'gonavi:open-global-proxy-settings',
-          ...(bootstrap.kind === 'workbench' ? ['gonavi:locate-sidebar-object' as const] : []),
-        ];
+    const eventNames: NativeDetachedHostEventName[] = [
+      'gonavi:open-download-source-settings',
+      'gonavi:open-global-proxy-settings',
+      ...(bootstrap.kind === 'workbench' ? ['gonavi:locate-sidebar-object' as const] : []),
+    ];
     const forwardToHost = (event: Event) => {
       hostEventSequenceRef.current += 1;
       const hostEvent: NativeDetachedHostEvent = {
@@ -566,34 +501,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
       eventNames.forEach((eventName) => window.removeEventListener(eventName, forwardToHost));
     };
   }, [bootstrap, client]);
-
-  useEffect(() => {
-    if (!bootstrap || typeof window === 'undefined' || !client.hostEvent) return undefined;
-    const platform = getShortcutPlatform(isMacLikePlatform());
-    const binding = resolveShortcutBinding(shortcutOptions, 'toggleAIPanel', platform);
-    if (!binding.enabled) return undefined;
-
-    const handleToggleAIShortcut = (event: KeyboardEvent) => {
-      if (!isShortcutMatch(event, binding.combo)) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (event.repeat) return;
-      hostEventSequenceRef.current += 1;
-      void client.hostEvent?.({
-        id: bootstrap.id,
-        kind: bootstrap.kind,
-        hostEvent: {
-          id: `${bootstrap.id}:${Date.now()}:${hostEventSequenceRef.current}`,
-          name: 'gonavi:shortcut:toggle-ai-panel',
-        },
-      }).catch((error) => {
-        console.warn('[Native Detached Window] Failed to forward AI shortcut to host', error);
-      });
-    };
-    const listenerOptions = { capture: true };
-    window.addEventListener('keydown', handleToggleAIShortcut, listenerOptions);
-    return () => window.removeEventListener('keydown', handleToggleAIShortcut, listenerOptions);
-  }, [bootstrap, client, shortcutOptions]);
 
   useEffect(() => {
     if (!bootstrap || !contentMounted || !contentReady) return undefined;
@@ -811,7 +718,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
     visibilityRevision = 0,
   ) => {
     if (!bootstrap) return;
-    if (action !== 'hide') openAISettingsAfterHideRef.current = false;
     const normalizedVisibilityRevision = Math.trunc(Number(visibilityRevision));
     if (
       action === 'hide'
@@ -838,35 +744,20 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
       }
       return;
     }
-    if (action === 'hide' && bootstrap.kind !== 'ai-chat') return;
+    if (action === 'hide') return;
     terminalActionGenerationRef.current += 1;
     setTerminalCloseRecoveryAvailable(false);
     terminalActionRequestedRef.current = true;
     activeTerminalActionRef.current = action;
     closePreemptionRequestedRef.current = false;
-    hideVisibilityRevisionRef.current = action === 'hide'
-      && Number.isFinite(normalizedVisibilityRevision)
-      && normalizedVisibilityRevision > 0
-      ? normalizedVisibilityRevision
-      : 0;
+    hideVisibilityRevisionRef.current = 0;
     if (syncTimerRef.current !== null) {
       clearTimeout(syncTimerRef.current);
       syncTimerRef.current = null;
     }
-    if (bootstrap.kind !== 'ai-chat') setContentMounted(false);
+    setContentMounted(false);
     setTerminalAction(action);
   }, [bootstrap]);
-
-  const requestOpenAISettings = useCallback((providerId?: string) => {
-    if (
-      !bootstrap
-      || bootstrap.kind !== 'ai-chat'
-      || terminalActionRequestedRef.current
-    ) return;
-    openAISettingsAfterHideRef.current = true;
-    openAISettingsProviderIdRef.current = String(providerId || '').trim();
-    requestTerminalAction('hide');
-  }, [bootstrap, requestTerminalAction]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -902,7 +793,7 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
       || terminalActionStartedRef.current
       || !terminalActionRequestedRef.current
       || activeTerminalActionRef.current !== terminalAction
-      || (bootstrap.kind !== 'ai-chat' && contentMounted)
+      || contentMounted
     ) {
       return;
     }
@@ -1016,13 +907,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
       try {
         await actionQueueRef.current;
         if (!isCurrentTerminalAction()) return;
-        if (bootstrap.kind === 'ai-chat') {
-          const canTerminate = await aiTerminalGuardRef.current?.();
-          if (!isCurrentTerminalAction()) return;
-          if (canTerminate === false) {
-            throw new Error('AI stream did not stop before the detached window handoff');
-          }
-        }
         actionToRun = closePreemptionRequestedRef.current ? 'close' : terminalAction;
         if (actionToRun === 'attach' && bootstrap.kind === 'workbench') {
           const finalSqlLogs = readUnsyncedSqlLogs();
@@ -1089,13 +973,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
           }
           if (closePreemptionRequestedRef.current) {
             await submitPreemptingClose();
-          } else if (openAISettingsAfterHideRef.current) {
-            const providerId = openAISettingsProviderIdRef.current;
-            if (providerId) {
-              await client.openAISettings(visibilityRevision, providerId);
-            } else {
-              await client.openAISettings(visibilityRevision);
-            }
           } else {
             if (!client.hideCurrentWindow) {
               throw new Error('Native detached hide control is unavailable');
@@ -1123,7 +1000,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
         if (
           actionToRun === 'hide'
           && !closeActionSubmitted
-          && !openAISettingsAfterHideRef.current
         ) {
           const visibilityRevision = hideVisibilityRevisionRef.current;
           if (visibilityRevision > 0) {
@@ -1145,8 +1021,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
         }
         if (!isCurrentTerminalAction()) return;
         if (actionToRun === 'hide' && !closeActionSubmitted) {
-          openAISettingsAfterHideRef.current = false;
-          openAISettingsProviderIdRef.current = '';
           terminalActionStartedRef.current = false;
           terminalActionRequestedRef.current = false;
           activeTerminalActionRef.current = null;
@@ -1163,8 +1037,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
       }
       if (!isCurrentTerminalAction()) return;
       if (actionToRun === 'hide') {
-        openAISettingsAfterHideRef.current = false;
-        openAISettingsProviderIdRef.current = '';
         terminalActionStartedRef.current = false;
         terminalActionRequestedRef.current = false;
         activeTerminalActionRef.current = null;
@@ -1212,20 +1084,16 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
   }, [client, terminalCloseRecoveryAvailable]);
 
   const requestWindowClose = useCallback(() => {
-    requestTerminalAction(bootstrap?.kind === 'ai-chat' ? 'hide' : 'close');
-  }, [bootstrap?.kind, requestTerminalAction]);
+    requestTerminalAction('close');
+  }, [requestTerminalAction]);
 
   const chromeLabels = useMemo(() => ({
     attach: bootstrap?.kind === 'workbench'
       ? translate('tab_manager.detached.restore')
-      : bootstrap?.kind === 'ai-chat'
-        ? translate('ai_chat.detached.action.dock')
-        : translate('query_editor.results_panel.detached.restore'),
+      : translate('query_editor.results_panel.detached.restore'),
     close: bootstrap?.kind === 'workbench'
       ? translate('tab_manager.detached.close')
-      : bootstrap?.kind === 'ai-chat'
-        ? translate('ai_chat.header.tooltip.close')
-        : translate('query_editor.results_panel.detached.close'),
+      : translate('query_editor.results_panel.detached.close'),
   }), [bootstrap?.kind, translate]);
 
   const isDark = effectiveThemeMode === 'dark';
@@ -1398,35 +1266,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
           font-size: 12px;
           line-height: 1.5;
         }
-        .gn-native-detached-ai-chat {
-          flex: 1 1 auto;
-          min-width: 0;
-          min-height: 0;
-          display: flex;
-          overflow: hidden;
-        }
-        .gn-native-detached-ai-chat .ai-chat-panel {
-          width: 100% !important;
-          height: 100%;
-          min-width: 0;
-          border-left: 0 !important;
-        }
-        .gn-native-detached-ai-chat .ai-resize-handle {
-          display: none !important;
-        }
-        .gn-native-detached-ai-chat .ai-chat-header {
-          cursor: move;
-          user-select: none;
-          --wails-draggable: drag;
-        }
-        .gn-native-detached-ai-chat .ai-chat-header button,
-        .gn-native-detached-ai-chat .ai-chat-header a,
-        .gn-native-detached-ai-chat .ai-chat-header input,
-        .gn-native-detached-ai-chat .ai-chat-header textarea,
-        .gn-native-detached-ai-chat .ai-chat-header-right,
-        .gn-native-detached-ai-chat .gn-v2-ai-mode-tabs {
-          --wails-draggable: no-drag;
-        }
         `}</style>
         {terminalCloseRecoveryAvailable ? (
           <Tooltip title={chromeLabels.close}>
@@ -1442,7 +1281,7 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
             />
           </Tooltip>
         ) : null}
-        {bootstrap?.kind !== 'ai-chat' ? <div className="gn-native-detached-chrome">
+        <div className="gn-native-detached-chrome">
           <div className="gn-native-detached-title" title={bootstrap?.title || ''}>
             {bootstrap?.title || ''}
           </div>
@@ -1468,7 +1307,7 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
               />
             </Tooltip>
           </div>
-        </div> : null}
+        </div>
         <div className="gn-native-detached-body">
           {loadError ? (
             <div className="gn-native-detached-error" role="alert">{loadError}</div>
@@ -1482,12 +1321,7 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
                 bootstrap={bootstrap}
                 themeModeOverride={effectiveThemeMode}
                 onContentReady={markContentReady}
-                onAttach={() => requestTerminalAction('attach')}
                 onClose={requestWindowClose}
-                onOpenSettings={requestOpenAISettings}
-                onRegisterAITerminalGuard={(guard) => {
-                  aiTerminalGuardRef.current = guard;
-                }}
                 interactionDisabled={Boolean(terminalAction)}
                 onQueryResultStateChange={handleQueryResultStateChange}
               />

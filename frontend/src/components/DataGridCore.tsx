@@ -1152,7 +1152,7 @@ const EditableCell: React.FC<EditableCellProps> = React.memo(({
   const i18nLanguage = useDataGridI18nLanguage();
   const dateTimePickerNowLabel = t('data_grid.datetime_picker.now', undefined, i18nLanguage);
 
-  /** DatePicker 面板打开时锁定表格滚动，关闭时恢复 */
+  /** DatePicker 面板打开时锁定表格滚动，收起时恢复 */
   const lockTableScroll = useCallback((lock: boolean) => {
       if (lock) {
           if (scrollLockRef.current) {
@@ -1407,7 +1407,7 @@ const EditableCell: React.FC<EditableCellProps> = React.memo(({
                 if (editingSessionRef.current !== editingSessionId) return;
                 pickerOpenRef.current = open;
                 lockTableScroll(open);
-                // 面板关闭（点击外部）时延迟退出，给 Portal 面板重新获得焦点的机会。
+                // 面板收起（点击外部）时延迟退出，给 Portal 面板重新获得焦点的机会。
                 if (open) {
                   cancelPickerInteraction();
                 } else {

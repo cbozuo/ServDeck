@@ -4629,3 +4629,31 @@ export const resolveQueryLocatorPlan = async ({
         return plan;
     }
 };
+
+/** 按输入片段的大小写形态收敛候选标识符的大小写(本地补全用,与 AI 无关)。 */
+export const applyQueryEditorCompletionFragmentCase = (
+    candidate: string,
+    fragment: string,
+    preserveCandidateCase = false,
+): string => {
+    if (preserveCandidateCase) {
+        return candidate;
+    }
+    const activeFragment = String(fragment || '').trim().split('.').pop() || '';
+    const fragmentCharacters = activeFragment.replace(/[^A-Za-z]/g, '');
+    const candidateParts = String(candidate || '').split('.');
+    const candidateLastPart = candidateParts.pop() || '';
+    const candidateCharacters = candidateLastPart.replace(/[^A-Za-z]/g, '');
+    if (!fragmentCharacters || !candidateCharacters) {
+        return candidate;
+    }
+    // Lowercase input may intentionally target an uppercase metadata name. Do not
+    // uppercase a lowercase metadata name: case-sensitive MySQL deployments would fail.
+    if (
+        fragmentCharacters === fragmentCharacters.toLowerCase()
+        && candidateCharacters === candidateCharacters.toUpperCase()
+    ) {
+        return [...candidateParts, candidateLastPart.toLowerCase()].join('.');
+    }
+    return candidate;
+};

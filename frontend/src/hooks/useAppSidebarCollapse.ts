@@ -15,7 +15,8 @@ export const useAppSidebarCollapse = (shouldDockCollapsedSidebarActionsInTitleba
   const pendingSidebarToggleFocusRef = useRef<PendingSidebarToggleFocus>(null);
   const isSidebarCollapsedRef = useRef(isSidebarCollapsed);
   isSidebarCollapsedRef.current = isSidebarCollapsed;
-  const isCollapsedSidebarActionsDocked = isSidebarCollapsed && shouldDockCollapsedSidebarActionsInTitlebar;
+  // 方案 B:dock 工具条已删除,收起/展开不再切换标题栏两行模式,标题栏恒为单行。
+  const isCollapsedSidebarActionsDocked = false;
 
   useLayoutEffect(() => {
     const sidebarContent = sidebarContentRef.current;

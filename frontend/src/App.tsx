@@ -7854,7 +7854,7 @@ function App() {
               )}
               {/* Collapsed sidebar titlebar actions end */}
               <div className="gn-v2-titlebar-right">
-                  <div id="gonavi-titlebar-about-action" className="gonavi-titlebar-quick-actions-slot gn-v2-titlebar-about-slot" />
+
                   <TitleBarSystemActions
                     settingsLabel={t('app.sidebar.settings')}
                     onOpenSettings={handleOpenSettingsModal}

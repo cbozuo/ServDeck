@@ -4352,13 +4352,8 @@ const Sidebar: React.FC<{
     },
   ];
   // 关于 GoNavi 作为标题栏独立按钮，和数据工作流 / SQL 工具并列。
-  const v2TitlebarAboutActions: TitleBarQuickAction[] = [
-    {
-      key: 'about-go-navi',
-      label: t('app.settings.group.about.title'),
-      onClick: () => onOpenSettingsNavigation?.({ group: 'about', pane: 'about-go-navi' }),
-    },
-  ];
+  // 「关于」按钮已移除。
+  const v2TitlebarAboutActions: TitleBarQuickAction[] = [];
 
   const getCommandSearchCopyOptions = useCallback((item: V2CommandSearchItem): V2CommandSearchCopyOption[] => {
     if (item.kind === 'action') return [];
@@ -4536,40 +4531,6 @@ const Sidebar: React.FC<{
                 data-sidebar-explorer-actions="true"
             >
                 {v2ExplorerContext && <V2ExplorerContextSummary context={v2ExplorerContext} />}
-                {!usePersistentSidebarFilter && (
-                    <div
-                        className="gn-v2-explorer-action-group is-search"
-                        role="group"
-                        aria-label={v2CommandSearchLabel}
-                        data-v2-sidebar-search-mode="command"
-                    >
-                        <Tooltip title={v2CommandSearchLabel} placement="bottom" mouseEnterDelay={0.35}>
-                            <Button
-                                size="small"
-                                type="text"
-                                className="gn-v2-explorer-tool"
-                                icon={<SearchOutlined />}
-                                aria-label={v2CommandSearchLabel}
-                                data-sidebar-command-search-action="true"
-                                data-v2-command-search-icon-only="true"
-                                onClick={() => {
-                                    openV2CommandSearch();
-                                    onFocusCommandSearch?.();
-                                }}
-                            />
-                        </Tooltip>
-                    </div>
-                )}
-                <V2ExplorerToolbarActions
-                    {...v2ExplorerToolbarActionProps}
-                    toggleAction={onCollapseSidebar && collapseSidebarLabel ? {
-                      label: collapseSidebarLabel,
-                      onClick: onCollapseSidebar,
-                      buttonRef: collapseSidebarButtonRef,
-                      placement: 'explorer-toolbar',
-                      expanded: true,
-                    } : undefined}
-                />
         </div>
 
         {usePersistentSidebarFilter && (
@@ -4599,13 +4560,6 @@ const Sidebar: React.FC<{
         </div>
         )}
 
-        <SidebarFilterSlot
-            activeConnection={activeConnection}
-            treeData={displayTreeData}
-            hasRelationalFilterConnection={hasRelationalObjectKindFilterConnection}
-            activeFilter={v2ExplorerFilter}
-            onFilterChange={setV2ExplorerFilter}
-        />
 
         <div
             ref={treeContainerRef}
@@ -4689,26 +4643,6 @@ const Sidebar: React.FC<{
         </div>
         <SidebarSearchPanel {...v2CommandSearchPanelProps} />
 
-        {collapsedSidebarActionsTarget && createPortal(
-          <V2ExplorerToolbarActions
-            {...v2ExplorerToolbarActionProps}
-            onLocateCurrentTable={() => {
-              handleLocateActiveTabInSidebar();
-            }}
-            onScrollToTop={() => {
-              onExpandSidebar?.();
-              scrollV2ExplorerToTop();
-            }}
-            toggleAction={onExpandSidebar && expandSidebarLabel ? {
-              label: expandSidebarLabel,
-              onClick: onExpandSidebar,
-              buttonRef: expandSidebarButtonRef,
-              placement: 'collapsed-titlebar',
-              expanded: false,
-            } : undefined}
-          />,
-          collapsedSidebarActionsTarget,
-        )}
 
         <TitleBarQuickActionsHost
           label={v2RailObjectActionsLabel}

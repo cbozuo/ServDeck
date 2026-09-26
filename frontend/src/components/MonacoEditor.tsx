@@ -1,0 +1,1124 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Editor, { loader, type BeforeMount, type EditorProps, type OnMount } from '@monaco-editor/react';
+import { message } from 'antd';
+import { t } from '../i18n';
+import { useStore } from '../store';
+import { sanitizeDataTableFontSize } from '../utils/dataGridDisplay';
+import { DEFAULT_MONO_FONT_FAMILY } from '../utils/fontFamilies';
+import {
+  resolveSqlEditorFontSize,
+  resolveSqlEditorSuggestionLayout,
+} from '../utils/sqlEditorTypography';
+import {
+  installWailsMonacoClipboardPasteHandler,
+  MONACO_CLIPBOARD_HANDLER_REVISION,
+  type MonacoClipboardReadFailure,
+} from '../utils/monacoClipboard';
+
+export type { BeforeMount, OnMount } from '@monaco-editor/react';
+export type GonaviMonacoTypography = 'code' | 'data' | 'sql';
+
+/** Unified host class for all GoNavi Monaco instances (theme bg via --gn-monaco-bg). */
+export const GONAVI_MONACO_SURFACE_CLASS = 'gn-monaco-surface';
+/** CSS variable used by .gn-monaco-surface; defaults to --gn-bg-panel in theme sheets. */
+export const GONAVI_MONACO_BG_CSS_VAR = '--gn-monaco-bg';
+
+const DEFAULT_FONT_SIZE = 14;
+const MIN_FONT_SIZE = 12;
+const MAX_FONT_SIZE = 20;
+const PRINTABLE_INPUT_FALLBACK_DELAY_MS = 80;
+const SHORTCUT_INPUT_GUARD_WINDOW_MS = 250;
+const NON_PRINTABLE_INPUT_PATTERN = /[\u0000-\u001f\u007f]/;
+let monacoConfiguredPromise: Promise<void> | null = null;
+let transparentThemesRegistered = false;
+
+const isTestRuntime = (): boolean => {
+  const env = (import.meta as unknown as { env?: Record<string, unknown> }).env || {};
+  return env.MODE === 'test' || env.VITEST === true || env.VITEST === 'true';
+};
+
+type MonacoWorkerFactory = () => Worker;
+
+interface MonacoWorkerFactories {
+  editor: MonacoWorkerFactory;
+  json: MonacoWorkerFactory;
+}
+
+export const installMonacoWorkerEnvironment = (
+  scope: Record<string, any>,
+  workers: MonacoWorkerFactories,
+) => {
+  scope.MonacoEnvironment = {
+    ...(scope.MonacoEnvironment || {}),
+    getWorker(_moduleId: string, label: string) {
+      if (label === 'json') return workers.json();
+      // css/html/typescript workers are intentionally not bundled: no editor
+      // instance uses those languages, so they fall back to the base worker.
+      return workers.editor();
+    },
+  };
+};
+
+const sameEditorPosition = (left: any, right: any): boolean => (
+  Number(left?.lineNumber) === Number(right?.lineNumber)
+  && Number(left?.column) === Number(right?.column)
+);
+
+const sameEditorRange = (left: any, right: any): boolean => (
+  Number(left?.startLineNumber) === Number(right?.startLineNumber)
+  && Number(left?.startColumn) === Number(right?.startColumn)
+  && Number(left?.endLineNumber) === Number(right?.endLineNumber)
+  && Number(left?.endColumn) === Number(right?.endColumn)
+);
+
+const isSelectionEmpty = (selection: any): boolean => (
+  !selection
+  || (
+    Number(selection.startLineNumber) === Number(selection.endLineNumber)
+    && Number(selection.startColumn) === Number(selection.endColumn)
+  )
+);
+
+const stripSqlIdentifierQuotes = (value: string): string => {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if ((text.startsWith('`') && text.endsWith('`'))
+    || (text.startsWith('"') && text.endsWith('"'))
+    || (text.startsWith('[') && text.endsWith(']'))) {
+    return text.slice(1, -1).trim();
+  }
+  return text;
+};
+
+const splitSqlIdentifierPath = (raw: string): string[] => (
+  String(raw || '')
+    .split('.')
+    .map(stripSqlIdentifierQuotes)
+    .map((part) => part.trim())
+    .filter(Boolean)
+);
+
+const resolveIdentifierWindowAtColumn = (
+  lineContent: string,
+  column: number,
+): { start: number; end: number; text: string } | null => {
+  const text = String(lineContent || '');
+  if (!text) return null;
+  const isIdentChar = (ch: string) => /[A-Za-z0-9_$`"\[\].]/.test(ch || '');
+  let offset = Math.max(0, Math.min(text.length - 1, Number(column || 1) - 2));
+  if (!isIdentChar(text[offset] || '')) {
+    if (offset > 0 && isIdentChar(text[offset - 1] || '')) {
+      offset -= 1;
+    } else if (offset + 1 < text.length && isIdentChar(text[offset + 1] || '')) {
+      offset += 1;
+    } else {
+      return null;
+    }
+  }
+  let start = offset;
+  while (start > 0 && isIdentChar(text[start - 1] || '')) start -= 1;
+  let end = offset + 1;
+  while (end < text.length && isIdentChar(text[end] || '')) end += 1;
+  return start < end ? { start, end, text: text.slice(start, end).trim() } : null;
+};
+
+const isLikelyTableReferenceIdentifier = (
+  lineContent: string,
+  identifierStart: number,
+): boolean => {
+  const beforeIdentifier = String(lineContent || '').slice(0, Math.max(0, identifierStart));
+  return /\b(?:from|join|update|into|delete\s+from|alter\s+table|drop\s+table|truncate\s+table)\s*$/i.test(beforeIdentifier);
+};
+
+const isOceanBaseOracleConnection = (connection: any): boolean => {
+  const config = connection?.config || {};
+  return String(config.type || '').trim().toLowerCase() === 'oceanbase'
+    && String(config.oceanBaseProtocol || '').trim().toLowerCase() === 'oracle';
+};
+
+const installOceanBaseOracleNavigationFallback = (editor: any) => {
+  const editorDomNode = editor?.getDomNode?.();
+  if (!editorDomNode || editor.__gonaviObOracleNavigationFallbackInstalled) {
+    return;
+  }
+  Object.defineProperty(editor, '__gonaviObOracleNavigationFallbackInstalled', {
+    value: true,
+    configurable: true,
+  });
+
+  const handleMouseDownCapture = (event: MouseEvent) => {
+    if (event.button !== 0 || !(event.ctrlKey || event.metaKey) || event.altKey) {
+      return;
+    }
+
+    const store = useStore.getState();
+    const activeTab = (store.tabs || []).find((tab: any) => tab.id === store.activeTabId);
+    if (!activeTab || activeTab.type !== 'query') {
+      return;
+    }
+    const connectionId = String(activeTab.connectionId || store.activeContext?.connectionId || '').trim();
+    if (!connectionId) {
+      return;
+    }
+    const connection = (store.connections || []).find((item: any) => item.id === connectionId);
+    if (!isOceanBaseOracleConnection(connection)) {
+      return;
+    }
+
+    const target = editor.getTargetAtClientPoint?.(event.clientX, event.clientY);
+    const position = target?.position;
+    if (!position) {
+      return;
+    }
+    const model = editor.getModel?.();
+    const lineContent = String(model?.getLineContent?.(position.lineNumber) || '');
+    const identifier = resolveIdentifierWindowAtColumn(lineContent, position.column);
+    if (!identifier || !identifier.text.includes('.')) {
+      return;
+    }
+    if (!isLikelyTableReferenceIdentifier(lineContent, identifier.start)) {
+      return;
+    }
+
+    const parts = splitSqlIdentifierPath(identifier.text);
+    if (parts.length < 2) {
+      return;
+    }
+    const schemaName = parts[parts.length - 2];
+    const tableName = parts[parts.length - 1];
+    if (!schemaName || !tableName) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+    store.setActiveContext?.({ connectionId, dbName: schemaName });
+    store.addTab?.({
+      id: `${connectionId}-${schemaName}-table-${tableName}`,
+      title: tableName,
+      type: 'table',
+      connectionId,
+      dbName: schemaName,
+      tableName,
+      initialViewMode: 'fields',
+      initialViewModeRequestId: String(Date.now()),
+      objectType: 'table',
+      returnToTabId: activeTab.id || undefined,
+    });
+  };
+
+  editorDomNode.addEventListener('mousedown', handleMouseDownCapture, true);
+  editor.onDidDispose?.(() => {
+    editorDomNode.removeEventListener('mousedown', handleMouseDownCapture, true);
+  });
+};
+
+const isWebKitImeScrollRuntime = (): boolean => {
+  const userAgent = typeof navigator === 'undefined' ? '' : String(navigator.userAgent || '');
+  return /AppleWebKit\//i.test(userAgent)
+    && !/(?:Chrome|Chromium|CriOS|Edg|EdgiOS|OPR|OPiOS|FxiOS)\//i.test(userAgent);
+};
+
+export const installWebKitImeScrollStabilizer = (editor: any) => {
+  if (!isWebKitImeScrollRuntime() || editor?.__gonaviWebKitImeScrollStabilizerInstalled) {
+    return;
+  }
+
+  const editorDomNode = editor?.getDomNode?.();
+  const TextAreaElement = typeof HTMLTextAreaElement === 'undefined' ? null : HTMLTextAreaElement;
+  const input = editorDomNode?.querySelector?.('textarea.inputarea, .inputarea textarea, textarea') as HTMLTextAreaElement | null;
+  if (!TextAreaElement || !(input instanceof TextAreaElement)) {
+    return;
+  }
+
+  Object.defineProperty(editor, '__gonaviWebKitImeScrollStabilizerInstalled', {
+    value: true,
+    configurable: true,
+  });
+
+  let composing = false;
+  let compositionScrollLeft = 0;
+  let compositionScrollTop = 0;
+
+  const restoreCompositionScroll = () => {
+    if (!composing) {
+      return;
+    }
+    if (input.scrollLeft !== compositionScrollLeft) {
+      input.scrollLeft = compositionScrollLeft;
+    }
+    if (input.scrollTop !== compositionScrollTop) {
+      input.scrollTop = compositionScrollTop;
+    }
+  };
+  const handleCompositionStart = () => {
+    // Monaco has already positioned its visible IME textarea when this listener runs.
+    // Keep that baseline stable while WebKit and Monaco both try to scroll the textarea.
+    compositionScrollLeft = input.scrollLeft;
+    compositionScrollTop = input.scrollTop;
+    composing = true;
+  };
+  const handleCompositionEnd = () => {
+    composing = false;
+  };
+  const handleBlur = () => {
+    composing = false;
+  };
+
+  input.addEventListener('compositionstart', handleCompositionStart);
+  input.addEventListener('compositionupdate', restoreCompositionScroll);
+  input.addEventListener('compositionend', handleCompositionEnd);
+  input.addEventListener('scroll', restoreCompositionScroll);
+  input.addEventListener('blur', handleBlur);
+
+  editor.onDidDispose?.(() => {
+    composing = false;
+    input.removeEventListener('compositionstart', handleCompositionStart);
+    input.removeEventListener('compositionupdate', restoreCompositionScroll);
+    input.removeEventListener('compositionend', handleCompositionEnd);
+    input.removeEventListener('scroll', restoreCompositionScroll);
+    input.removeEventListener('blur', handleBlur);
+  });
+};
+
+export const installPrintableInputFallback = (editor: any, monaco: any) => {
+  const editorDomNode = editor?.getDomNode?.();
+  if (!editorDomNode || editor.__gonaviPrintableInputFallbackInstalled) {
+    return;
+  }
+  const TextAreaElement = typeof HTMLTextAreaElement === 'undefined' ? null : HTMLTextAreaElement;
+  const input = editorDomNode.querySelector?.('textarea.inputarea, .inputarea textarea, textarea') as HTMLTextAreaElement | null;
+  if (!TextAreaElement || !(input instanceof TextAreaElement)) {
+    return;
+  }
+  Object.defineProperty(editor, '__gonaviPrintableInputFallbackInstalled', {
+    value: true,
+    configurable: true,
+  });
+
+  let pendingInput: {
+    valueBefore: string;
+    positionBefore: any;
+    offsetBefore: number;
+    text: string;
+    timer: number | null;
+  } | null = null;
+  let pendingSelectionInput: {
+    valueBefore: string;
+    rangeBefore: {
+      startLineNumber: number;
+      startColumn: number;
+      endLineNumber: number;
+      endColumn: number;
+    };
+    startOffset: number;
+    endOffset: number;
+    text: string;
+    timer: number | null;
+  } | null = null;
+  let shortcutInputGuardKey = '';
+  let shortcutInputGuardUntil = 0;
+  let sqlInputFocused = true;
+
+  const clearPendingInput = () => {
+    if (!pendingInput) {
+      return;
+    }
+    if (pendingInput.timer !== null) {
+      clearTimeout(pendingInput.timer);
+    }
+    pendingInput = null;
+  };
+
+  const clearPendingSelectionInput = () => {
+    if (!pendingSelectionInput) {
+      return;
+    }
+    if (pendingSelectionInput.timer !== null) {
+      clearTimeout(pendingSelectionInput.timer);
+    }
+    pendingSelectionInput = null;
+  };
+
+  const clearPendingInputs = () => {
+    clearPendingInput();
+    clearPendingSelectionInput();
+  };
+
+  const resolveKeyboardEvent = (rawEvent: any): any => (
+    rawEvent?.browserEvent || rawEvent?.event || rawEvent
+  );
+
+  const hasModifier = (event: any, modifier: 'Alt' | 'Control' | 'Meta') => {
+    const property = modifier === 'Control'
+      ? 'ctrlKey'
+      : modifier === 'Meta'
+        ? 'metaKey'
+        : 'altKey';
+    if (event?.[property] === true) {
+      return true;
+    }
+    try {
+      return event?.getModifierState?.(modifier) === true;
+    } catch {
+      return false;
+    }
+  };
+
+  const isAltGraphKeyEvent = (event: any): boolean => (
+    hasModifier(event, 'Control')
+    && hasModifier(event, 'Alt')
+    && !hasModifier(event, 'Meta')
+  );
+
+  const isModifierOnlyKey = (event: any): boolean => {
+    const key = String(event?.key || '').trim().toLowerCase();
+    const code = String(event?.code || '').trim().toLowerCase();
+    return key === 'control'
+      || key === 'ctrl'
+      || key === 'meta'
+      || key === 'command'
+      || key === 'os'
+      || key === 'shift'
+      || key === 'alt'
+      || code.startsWith('control')
+      || code.startsWith('meta')
+      || code.startsWith('shift')
+      || code.startsWith('alt');
+  };
+
+  const markShortcutKeyDown = (rawEvent: any) => {
+    const event = resolveKeyboardEvent(rawEvent);
+    if (!event || String(event.type || '').toLowerCase() === 'keyup') {
+      return;
+    }
+    const hasControlModifier = hasModifier(event, 'Control') || hasModifier(event, 'Meta');
+    if (!hasControlModifier || isAltGraphKeyEvent(event) || isModifierOnlyKey(event)) {
+      return;
+    }
+    shortcutInputGuardKey = String(event.key || '').trim().toLowerCase();
+    shortcutInputGuardUntil = Date.now() + SHORTCUT_INPUT_GUARD_WINDOW_MS;
+    clearPendingInputs();
+  };
+
+  const isShortcutInputEvent = (rawEvent: any, text: string): boolean => {
+    const event = resolveKeyboardEvent(rawEvent);
+    const hasControlModifier = hasModifier(event, 'Control') || hasModifier(event, 'Meta');
+    if (hasControlModifier && !isAltGraphKeyEvent(event)) {
+      return true;
+    }
+    if (shortcutInputGuardUntil <= Date.now()) {
+      shortcutInputGuardKey = '';
+      return false;
+    }
+    const normalizedText = String(text || '').toLowerCase();
+    const matchesShortcutKey = Boolean(
+      shortcutInputGuardKey
+      && normalizedText.length === 1
+      && normalizedText === shortcutInputGuardKey,
+    );
+    shortcutInputGuardKey = '';
+    shortcutInputGuardUntil = 0;
+    return matchesShortcutKey;
+  };
+
+  const getPendingNativeInputDelta = (pending: NonNullable<typeof pendingInput>) => {
+    const afterValue = String(editor.getValue?.() ?? '');
+    if (afterValue === pending.valueBefore) {
+      return null;
+    }
+
+    let startOffset = 0;
+    while (
+      startOffset < pending.valueBefore.length
+      && startOffset < afterValue.length
+      && pending.valueBefore[startOffset] === afterValue[startOffset]
+    ) {
+      startOffset += 1;
+    }
+
+    let beforeEndOffset = pending.valueBefore.length;
+    let afterEndOffset = afterValue.length;
+    while (
+      beforeEndOffset > startOffset
+      && afterEndOffset > startOffset
+      && pending.valueBefore[beforeEndOffset - 1] === afterValue[afterEndOffset - 1]
+    ) {
+      beforeEndOffset -= 1;
+      afterEndOffset -= 1;
+    }
+
+    if (startOffset !== pending.offsetBefore || beforeEndOffset !== startOffset) {
+      return null;
+    }
+
+    return {
+      insertedText: afterValue.slice(startOffset, afterEndOffset),
+    };
+  };
+
+  const isSubsequence = (candidate: string, source: string): boolean => {
+    let sourceIndex = 0;
+    for (const char of candidate) {
+      sourceIndex = source.indexOf(char, sourceIndex);
+      if (sourceIndex < 0) {
+        return false;
+      }
+      sourceIndex += char.length;
+    }
+    return true;
+  };
+
+  const hasNativeInputApplied = (pending: NonNullable<typeof pendingInput>): boolean => (
+    getPendingNativeInputDelta(pending)?.insertedText === pending.text
+  );
+
+  const isPendingInputContextCurrent = (
+    pending: NonNullable<typeof pendingInput>,
+    value: string,
+    position: any,
+  ): boolean => {
+    if (value === pending.valueBefore) {
+      return sameEditorPosition(position, pending.positionBefore);
+    }
+    const nativeDelta = getPendingNativeInputDelta(pending);
+    if (!nativeDelta?.insertedText || !isSubsequence(nativeDelta.insertedText, pending.text)) {
+      return false;
+    }
+    const expectedPosition = editor.getModel?.()?.getPositionAt?.(
+      pending.offsetBefore + nativeDelta.insertedText.length,
+    );
+    return sameEditorPosition(position, expectedPosition);
+  };
+
+  const recoverPendingInputAtOriginalPosition = (
+    pending: NonNullable<typeof pendingInput>,
+    currentPosition: any,
+  ): boolean => {
+    const nativeDelta = getPendingNativeInputDelta(pending);
+    const afterValue = String(editor.getValue?.() ?? '');
+    if (
+      (afterValue !== pending.valueBefore
+        && (!nativeDelta?.insertedText || !isSubsequence(nativeDelta.insertedText, pending.text)))
+      || typeof editor.executeEdits !== 'function'
+    ) {
+      return false;
+    }
+
+    const model = editor.getModel?.();
+    const nativeText = nativeDelta?.insertedText || '';
+    const currentOffset = Number(model?.getOffsetAt?.(currentPosition));
+    const endPosition = model?.getPositionAt?.(
+      pending.offsetBefore + nativeText.length,
+    );
+    if (!endPosition || !Number.isFinite(currentOffset)) {
+      return false;
+    }
+
+    editor.executeEdits('gonavi-printable-input-fallback', [{
+      range: {
+        startLineNumber: pending.positionBefore.lineNumber,
+        startColumn: pending.positionBefore.column,
+        endLineNumber: endPosition.lineNumber,
+        endColumn: endPosition.column,
+      },
+      text: pending.text,
+      forceMoveMarkers: true,
+    }]);
+    const insertedLengthDelta = pending.text.length - nativeText.length;
+    const nextOffset = currentOffset <= pending.offsetBefore
+      ? currentOffset
+      : currentOffset >= pending.offsetBefore + nativeText.length
+        ? currentOffset + insertedLengthDelta
+        : pending.offsetBefore + Math.min(
+          currentOffset - pending.offsetBefore,
+          pending.text.length,
+        );
+    const nextPosition = model?.getPositionAt?.(nextOffset);
+    if (nextPosition) {
+      editor.setPosition?.(nextPosition);
+    }
+    return true;
+  };
+
+  const getSelectionReplacementValue = (
+    pending: NonNullable<typeof pendingSelectionInput>,
+    text: string,
+  ): string => (
+    pending.valueBefore.slice(0, pending.startOffset)
+    + text
+    + pending.valueBefore.slice(pending.endOffset)
+  );
+
+  const hasSelectionInputValueApplied = (
+    pending: NonNullable<typeof pendingSelectionInput>,
+  ): boolean => (
+    String(editor.getValue?.() ?? '') === getSelectionReplacementValue(pending, pending.text)
+  );
+
+  const hasNativeSelectionInputApplied = (
+    pending: NonNullable<typeof pendingSelectionInput>,
+  ): boolean => {
+    if (!hasSelectionInputValueApplied(pending)) {
+      return false;
+    }
+    const expectedPosition = editor.getModel?.()?.getPositionAt?.(
+      pending.startOffset + pending.text.length,
+    );
+    return isSelectionEmpty(editor.getSelection?.())
+      && sameEditorPosition(editor.getPosition?.(), expectedPosition);
+  };
+
+  const recoverPendingSelectionInput = (
+    pending: NonNullable<typeof pendingSelectionInput>,
+  ): boolean => {
+    const afterValue = String(editor.getValue?.() ?? '');
+    const expectedValue = getSelectionReplacementValue(pending, pending.text);
+    const model = editor.getModel?.();
+    if (afterValue === expectedValue) {
+      const expectedPosition = model?.getPositionAt?.(
+        pending.startOffset + pending.text.length,
+      );
+      if (expectedPosition) {
+        editor.setPosition?.(expectedPosition);
+      }
+      return true;
+    }
+    const valueAfterDeletion = getSelectionReplacementValue(pending, '');
+    if (
+      (afterValue !== pending.valueBefore && afterValue !== valueAfterDeletion)
+      || typeof editor.executeEdits !== 'function'
+    ) {
+      return false;
+    }
+
+    const range = afterValue === pending.valueBefore
+      ? pending.rangeBefore
+      : (() => {
+          const startPosition = model?.getPositionAt?.(pending.startOffset);
+          if (!startPosition) {
+            return null;
+          }
+          return {
+            startLineNumber: startPosition.lineNumber,
+            startColumn: startPosition.column,
+            endLineNumber: startPosition.lineNumber,
+            endColumn: startPosition.column,
+          };
+        })();
+    if (!range) {
+      return false;
+    }
+
+    editor.executeEdits('gonavi-printable-selection-fallback', [{
+      range,
+      text: pending.text,
+      forceMoveMarkers: true,
+    }]);
+    const nextPosition = model?.getPositionAt?.(pending.startOffset + pending.text.length);
+    if (nextPosition) {
+      editor.setPosition?.(nextPosition);
+    }
+    return true;
+  };
+
+  const settlePendingSelectionInput = () => {
+    const pending = pendingSelectionInput;
+    if (!pending) {
+      return;
+    }
+    clearPendingSelectionInput();
+    if (!hasNativeSelectionInputApplied(pending)) {
+      recoverPendingSelectionInput(pending);
+    }
+  };
+
+  const isReadOnly = (): boolean => {
+    try {
+      const optionId = monaco?.editor?.EditorOption?.readOnly;
+      return optionId !== undefined ? editor.getOption?.(optionId) === true : false;
+    } catch {
+      return false;
+    }
+  };
+
+  const isFindWidgetFocused = (): boolean => {
+    const activeElement = editorDomNode?.ownerDocument?.activeElement
+      || (typeof document !== 'undefined' ? document.activeElement : null);
+    try {
+      return Boolean(activeElement?.closest?.(
+        '.find-widget, .monaco-inputbox, .find-part, .replace-part',
+      ));
+    } catch {
+      return false;
+    }
+  };
+
+  const handleBeforeInput = (event: InputEvent) => {
+    const text = String(event.data || '');
+    if (!sqlInputFocused || isFindWidgetFocused()) {
+      clearPendingInputs();
+      return;
+    }
+    if (
+      event.isComposing
+      || event.inputType !== 'insertText'
+      || !text
+      || text.length > 8
+      || NON_PRINTABLE_INPUT_PATTERN.test(text)
+      || isShortcutInputEvent(event, text)
+      || isReadOnly()
+    ) {
+      return;
+    }
+
+    let selectionBefore = editor.getSelection?.();
+    if (pendingSelectionInput) {
+      if (
+        isSelectionEmpty(selectionBefore)
+        || sameEditorRange(selectionBefore, pendingSelectionInput.rangeBefore)
+      ) {
+        settlePendingSelectionInput();
+        selectionBefore = editor.getSelection?.();
+      } else {
+        clearPendingSelectionInput();
+      }
+    }
+    if (!isSelectionEmpty(selectionBefore)) {
+      if (pendingInput) {
+        clearPendingInput();
+      }
+
+      const model = editor.getModel?.();
+      const startOffset = Number(model?.getOffsetAt?.({
+        lineNumber: selectionBefore.startLineNumber,
+        column: selectionBefore.startColumn,
+      }));
+      const endOffset = Number(model?.getOffsetAt?.({
+        lineNumber: selectionBefore.endLineNumber,
+        column: selectionBefore.endColumn,
+      }));
+      if (!Number.isFinite(startOffset) || !Number.isFinite(endOffset) || startOffset >= endOffset) {
+        return;
+      }
+
+      const pending = {
+        valueBefore: String(editor.getValue?.() ?? ''),
+        rangeBefore: {
+          startLineNumber: selectionBefore.startLineNumber,
+          startColumn: selectionBefore.startColumn,
+          endLineNumber: selectionBefore.endLineNumber,
+          endColumn: selectionBefore.endColumn,
+        },
+        startOffset,
+        endOffset,
+        text,
+        timer: null as number | null,
+      };
+      pendingSelectionInput = pending;
+      pending.timer = window.setTimeout(() => {
+        if (pendingSelectionInput !== pending) {
+          return;
+        }
+        pendingSelectionInput = null;
+        const domNode = editor.getDomNode?.();
+        if (
+          !(domNode instanceof HTMLElement)
+          || !domNode.isConnected
+          || isReadOnly()
+          || !sqlInputFocused
+          || isFindWidgetFocused()
+        ) {
+          return;
+        }
+        if (document.activeElement && !domNode.contains(document.activeElement)) {
+          return;
+        }
+        if (!hasNativeSelectionInputApplied(pending)) {
+          recoverPendingSelectionInput(pending);
+        }
+      }, PRINTABLE_INPUT_FALLBACK_DELAY_MS);
+      return;
+    }
+    let beforeValue = String(editor.getValue?.() ?? '');
+    let beforePosition = editor.getPosition?.();
+    if (!beforePosition) {
+      return;
+    }
+    let beforeOffset = Number(editor.getModel?.()?.getOffsetAt?.(beforePosition));
+    if (!Number.isFinite(beforeOffset)) {
+      return;
+    }
+    if (pendingInput && hasNativeInputApplied(pendingInput)) {
+      clearPendingInput();
+    }
+    if (pendingInput && !isPendingInputContextCurrent(pendingInput, beforeValue, beforePosition)) {
+      recoverPendingInputAtOriginalPosition(pendingInput, beforePosition);
+      clearPendingInput();
+      beforeValue = String(editor.getValue?.() ?? '');
+      beforePosition = editor.getPosition?.();
+      if (!beforePosition) {
+        return;
+      }
+      beforeOffset = Number(editor.getModel?.()?.getOffsetAt?.(beforePosition));
+      if (!Number.isFinite(beforeOffset)) {
+        return;
+      }
+    }
+    if (pendingInput) {
+      pendingInput.text += text;
+      if (pendingInput.timer !== null) {
+        clearTimeout(pendingInput.timer);
+      }
+    } else {
+      pendingInput = {
+        valueBefore: beforeValue,
+        positionBefore: beforePosition,
+        offsetBefore: beforeOffset,
+        text,
+        timer: null,
+      };
+    }
+
+    const pending = pendingInput;
+    pending.timer = window.setTimeout(() => {
+      if (pendingInput !== pending) {
+        return;
+      }
+      pendingInput = null;
+      const domNode = editor.getDomNode?.();
+      if (
+        !(domNode instanceof HTMLElement)
+        || !domNode.isConnected
+        || isReadOnly()
+        || !sqlInputFocused
+        || isFindWidgetFocused()
+      ) {
+        return;
+      }
+      if (document.activeElement && !domNode.contains(document.activeElement)) {
+        return;
+      }
+      const afterValue = String(editor.getValue?.() ?? '');
+      const afterPosition = editor.getPosition?.();
+      if (hasNativeInputApplied(pending)) {
+        return;
+      }
+      if (afterValue !== pending.valueBefore || !sameEditorPosition(pending.positionBefore, afterPosition)) {
+        recoverPendingInputAtOriginalPosition(pending, afterPosition);
+        return;
+      }
+      editor.trigger?.('gonavi-printable-input-fallback', 'type', { text: pending.text });
+    }, PRINTABLE_INPUT_FALLBACK_DELAY_MS);
+  };
+
+  const handleInputBlur = () => {
+    // A shortcut can move focus to Monaco's find/replace widget while a fallback timer is pending.
+    // Never replay that stale input into the editor after the focus transition.
+    sqlInputFocused = false;
+    clearPendingInputs();
+  };
+  const handleInputFocus = () => {
+    sqlInputFocused = true;
+  };
+  input.addEventListener('keydown', markShortcutKeyDown, true);
+  input.addEventListener('beforeinput', handleBeforeInput);
+  input.addEventListener('focus', handleInputFocus);
+  input.addEventListener('blur', handleInputBlur);
+  const keyDownDisposable = editor.onKeyDown?.(markShortcutKeyDown);
+  const modelContentDisposable = editor.onDidChangeModelContent?.(() => {
+    if (pendingInput && hasNativeInputApplied(pendingInput)) {
+      clearPendingInput();
+    }
+    if (pendingSelectionInput && hasSelectionInputValueApplied(pendingSelectionInput)) {
+      clearPendingSelectionInput();
+    }
+  });
+  editor.onDidDispose?.(() => {
+    clearPendingInputs();
+    keyDownDisposable?.dispose?.();
+    modelContentDisposable?.dispose?.();
+    input.removeEventListener('keydown', markShortcutKeyDown, true);
+    input.removeEventListener('beforeinput', handleBeforeInput);
+    input.removeEventListener('focus', handleInputFocus);
+    input.removeEventListener('blur', handleInputBlur);
+  });
+};
+
+export const registerGonaviMonacoThemes: BeforeMount = (monaco) => {
+  if (transparentThemesRegistered) {
+    return;
+  }
+
+  monaco.editor.defineTheme('transparent-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'keyword.sql', foreground: 'C792EA', fontStyle: 'bold' },
+      { token: 'keyword.try.sql', foreground: 'C792EA', fontStyle: 'bold' },
+      { token: 'keyword.catch.sql', foreground: 'C792EA', fontStyle: 'bold' },
+      { token: 'keyword.block.sql', foreground: 'C792EA', fontStyle: 'bold' },
+      { token: 'keyword.choice.sql', foreground: 'C792EA', fontStyle: 'bold' },
+    ],
+    colors: {
+      'editor.background': '#00000000',
+      'editor.lineHighlightBackground': '#ffffff10',
+      'editorGutter.background': '#00000000',
+      // Transparent sticky scroll so panel/theme bg shows through (CSS may also paint --gn-bg-panel).
+      'editorStickyScroll.background': '#00000000',
+      'editorStickyScrollHover.background': '#ffffff12',
+    },
+  });
+  monaco.editor.defineTheme('transparent-light', {
+    base: 'vs',
+    inherit: true,
+    rules: [
+      { token: 'keyword.sql', foreground: '6D28D9', fontStyle: 'bold' },
+      { token: 'keyword.try.sql', foreground: '6D28D9', fontStyle: 'bold' },
+      { token: 'keyword.catch.sql', foreground: '6D28D9', fontStyle: 'bold' },
+      { token: 'keyword.block.sql', foreground: '6D28D9', fontStyle: 'bold' },
+      { token: 'keyword.choice.sql', foreground: '6D28D9', fontStyle: 'bold' },
+    ],
+    colors: {
+      'editor.background': '#00000000',
+      'editor.lineHighlightBackground': '#00000010',
+      'editorGutter.background': '#00000000',
+      'editorStickyScroll.background': '#00000000',
+      'editorStickyScrollHover.background': '#00000010',
+    },
+  });
+
+  transparentThemesRegistered = true;
+};
+
+const ensureMonacoConfigured = (): Promise<void> => {
+  if (isTestRuntime()) {
+    return Promise.resolve();
+  }
+
+  if (!monacoConfiguredPromise) {
+    monacoConfiguredPromise = import('monaco-editor/esm/nls.messages.zh-cn')
+      .then(() => Promise.all([
+        import('monaco-editor/esm/vs/editor/editor.api.js'),
+        import('monaco-editor/esm/vs/editor/editor.worker?worker'),
+        import('monaco-editor/esm/vs/language/json/json.worker?worker'),
+        // 编辑器组件与内置语言高亮按需引入(纯副作用)。刻意不引整包
+        // monaco-editor:其 editor.main 附带 TS/CSS/HTML 语言服务及对应
+        // worker(约 8MB),而本应用只用 sql/mysql/redis/json 语言。
+        import('monaco-editor/esm/vs/editor/editor.all.js'),
+        import('monaco-editor/esm/vs/basic-languages/sql/sql.contribution.js'),
+        import('monaco-editor/esm/vs/basic-languages/mysql/mysql.contribution.js'),
+        import('monaco-editor/esm/vs/basic-languages/redis/redis.contribution.js'),
+        import('monaco-editor/esm/vs/language/json/monaco.contribution.js'),
+      ]))
+      .then(([monaco, editorWorker, jsonWorker]) => {
+        installMonacoWorkerEnvironment(globalThis as unknown as Record<string, any>, {
+          editor: () => new editorWorker.default(),
+          json: () => new jsonWorker.default(),
+        });
+        loader.config({ monaco });
+      });
+  }
+
+  return monacoConfiguredPromise;
+};
+
+interface MonacoEditorProps extends EditorProps {
+  gonaviTypography?: GonaviMonacoTypography;
+}
+
+const MonacoEditor: React.FC<MonacoEditorProps> = ({
+  beforeMount,
+  gonaviTypography = 'code',
+  loading,
+  onMount,
+  options,
+  theme,
+  ...props
+}) => {
+  const [ready, setReady] = useState(isTestRuntime);
+  const appTheme = useStore((state) => state.theme);
+  const dataTableFontSize = useStore((state) => state.appearance.dataTableFontSize);
+  const dataTableFontSizeFollowGlobal = useStore((state) => state.appearance.dataTableFontSizeFollowGlobal);
+  const sqlEditorFontSize = useStore((state) => state.appearance.sqlEditorFontSize);
+  const sqlEditorFontSizeFollowGlobal = useStore((state) => state.appearance.sqlEditorFontSizeFollowGlobal);
+  const monoFontFamily = useStore((state) => state.appearance.customMonoFontFamily);
+  const globalFontSize = useStore((state) => state.fontSize);
+  const clipboardPasteCleanupRef = useRef<(() => void) | null>(null);
+  const clipboardEditorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const clipboardMonacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+  // Monaco theme is process-global; never fall back to "light" or other editors get polluted.
+  const resolvedTheme = theme
+    ?? (appTheme === 'dark' ? 'transparent-dark' : 'transparent-light');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void ensureMonacoConfigured()
+      .then(() => {
+        if (!cancelled) {
+          setReady(true);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to configure Monaco Editor', error);
+        if (!cancelled) {
+          setReady(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleBeforeMount: BeforeMount = useCallback((monaco) => {
+    registerGonaviMonacoThemes(monaco);
+    beforeMount?.(monaco);
+  }, [beforeMount]);
+
+  const handleClipboardReadFailure = useCallback(({ source, error }: MonacoClipboardReadFailure) => {
+    console.warn('Failed to read clipboard text for Monaco paste', error);
+    void message.warning({
+      key: 'gonavi-query-editor-clipboard-read-failed',
+      content: t(source === 'browser'
+        ? 'query_editor.message.clipboard_permission_required'
+        : 'query_editor.message.clipboard_read_failed'),
+      duration: 5,
+    });
+  }, []);
+
+  const replaceClipboardPasteHandler = useCallback((editor: Parameters<OnMount>[0], monaco: Parameters<OnMount>[1]) => {
+    clipboardPasteCleanupRef.current?.();
+    clipboardPasteCleanupRef.current = gonaviTypography === 'sql'
+      ? installWailsMonacoClipboardPasteHandler(
+        monaco,
+        editor,
+        undefined,
+        undefined,
+        handleClipboardReadFailure,
+      )
+      : null;
+  }, [gonaviTypography, handleClipboardReadFailure]);
+
+  useEffect(() => {
+    const editor = clipboardEditorRef.current;
+    const monaco = clipboardMonacoRef.current;
+    if (editor && monaco) {
+      replaceClipboardPasteHandler(editor, monaco);
+    }
+
+    return () => {
+      clipboardPasteCleanupRef.current?.();
+      clipboardPasteCleanupRef.current = null;
+    };
+  }, [MONACO_CLIPBOARD_HANDLER_REVISION, replaceClipboardPasteHandler]);
+
+  const handleMount: OnMount = useCallback((editor, monaco) => {
+    clipboardEditorRef.current = editor;
+    clipboardMonacoRef.current = monaco;
+    replaceClipboardPasteHandler(editor, monaco);
+    installOceanBaseOracleNavigationFallback(editor);
+    installPrintableInputFallback(editor, monaco);
+    installWebKitImeScrollStabilizer(editor);
+    onMount?.(editor, monaco);
+  }, [onMount, replaceClipboardPasteHandler]);
+
+  const resolvedOptions = useMemo(() => {
+    const effectiveGlobalFontSize = Math.min(
+      MAX_FONT_SIZE,
+      Math.max(MIN_FONT_SIZE, Math.round(Number(globalFontSize) || DEFAULT_FONT_SIZE)),
+    );
+    const effectiveDataTableFontSize = dataTableFontSizeFollowGlobal !== false
+      ? effectiveGlobalFontSize
+      : (sanitizeDataTableFontSize(dataTableFontSize) ?? effectiveGlobalFontSize);
+    const effectiveSqlEditorFontSize = resolveSqlEditorFontSize({
+      globalFontSize: effectiveGlobalFontSize,
+      sqlEditorFontSize,
+      sqlEditorFontSizeFollowGlobal,
+    });
+    const resolvedFontSize = gonaviTypography === 'data'
+      ? effectiveDataTableFontSize
+      : gonaviTypography === 'sql'
+        ? effectiveSqlEditorFontSize
+        : Math.max(10, Math.round(effectiveDataTableFontSize * 0.92));
+    const effectiveEditorFontSize = Math.max(
+      10,
+      Math.round(Number(options?.fontSize) || resolvedFontSize),
+    );
+    const suggestionLayout = gonaviTypography === 'sql'
+      ? resolveSqlEditorSuggestionLayout(effectiveEditorFontSize)
+      : null;
+
+    return {
+      ...options,
+      editContext: false,
+      fontFamily: options?.fontFamily ?? monoFontFamily ?? DEFAULT_MONO_FONT_FAMILY,
+      fontSize: options?.fontSize ?? resolvedFontSize,
+      lineHeight: options?.lineHeight ?? Math.max(18, Math.round(effectiveEditorFontSize * 1.62)),
+      ...(suggestionLayout ? { suggestLineHeight: suggestionLayout.rowHeight } : {}),
+    };
+  }, [
+    dataTableFontSize,
+    dataTableFontSizeFollowGlobal,
+    globalFontSize,
+    gonaviTypography,
+    monoFontFamily,
+    options,
+    sqlEditorFontSize,
+    sqlEditorFontSizeFollowGlobal,
+  ]);
+
+  const suggestionLayout = gonaviTypography === 'sql'
+    ? resolveSqlEditorSuggestionLayout(resolvedOptions.fontSize)
+    : null;
+
+  // Unified surface: all call sites inherit panel via --gn-monaco-bg (no per-page bg).
+  const surfaceStyle = {
+    height: props.height || '100%',
+    width: props.width || '100%',
+    minHeight: 0,
+    minWidth: 0,
+    background: `var(${GONAVI_MONACO_BG_CSS_VAR}, var(--gn-bg-panel, transparent))`,
+    ...(suggestionLayout
+      ? {
+        '--gn-query-suggest-name-row-height': `${suggestionLayout.nameLineHeight}px`,
+        '--gn-query-suggest-comment-row-height': `${suggestionLayout.commentLineHeight}px`,
+        '--gn-query-suggest-row-height': `${suggestionLayout.rowHeight}px`,
+      }
+      : {}),
+  } as React.CSSProperties;
+
+  const loadingFallback = (
+    <div
+      className={GONAVI_MONACO_SURFACE_CLASS}
+      data-monaco-editor-loading="true"
+      aria-busy="true"
+      style={surfaceStyle}
+    >
+      {loading || null}
+    </div>
+  );
+
+  if (!ready) {
+    return loadingFallback;
+  }
+
+  return (
+    <div className={GONAVI_MONACO_SURFACE_CLASS} style={surfaceStyle}>
+      <Editor
+        {...props}
+        height="100%"
+        width="100%"
+        theme={resolvedTheme}
+        options={resolvedOptions}
+        loading={loadingFallback}
+        beforeMount={handleBeforeMount}
+        onMount={handleMount}
+      />
+    </div>
+  );
+};
+
+export default MonacoEditor;

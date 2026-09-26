@@ -1,0 +1,46 @@
+# IDE
+.idea/
+*.iml
+.gitignore
+# build / release artifacts
+frontend/release/
+**/release/
+**/dist/
+build/bin/
+
+# wails / node artifacts (按需)
+node_modules/
+frontend/wailsjs/tsconfig.json
+__pycache__/
+*.py[cod]
+
+dist/
+frontend/dist.zip
+.DS_Store
+.gemini-clipboard
+.env
+docker.*.env
+GoNavi-Wails
+GoNavi-Wails.exe
+/optional-driver-agent
+/optional-driver-agent.exe
+.ace-tool/
+.superpowers/
+# Local agent working dirs only. Root AGENTS.md / CLAUDE.md are project conventions and must be committed.
+.claude/
+.gemini/
+.playwright-mcp/
+.zcode/
+**/tmpclaude-*
+docs/superpowers/
+docs/需求追踪/
+
+.worktrees
+docs
+!docs/
+docs/*
+!docs/download-cdn-operations.md
+!docs/blog/
+!docs/blog/**
+.tmp_superpowers_edit
+.gonavi-dev-signing-identity

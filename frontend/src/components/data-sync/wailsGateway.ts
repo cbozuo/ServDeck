@@ -1,0 +1,987 @@
+import * as WailsApp from '../../../wailsjs/go/app/App';
+import { syncjob } from '../../../wailsjs/go/models';
+import { BACKEND_CANCELLED_MESSAGE } from '../../utils/connectionExport';
+import {
+  invokeAppWithSignal,
+  isWebRPCAbortError,
+  type WebRPCRequestOptions,
+} from '../../utils/webRpc';
+
+import type { DataSyncWorkbenchGateway } from './gateway';
+import type {
+  DataSyncApprovalChallenge,
+  DataSyncApprovalGrant,
+  DataSyncCheckpointSummary,
+  DataSyncRouteCapability,
+  DataSyncRunEvent,
+  DataSyncRunCursor,
+  DataSyncRunPage,
+  DataSyncRunPageSize,
+  DataSyncRunRecord,
+  DataSyncTaskDefinition,
+} from './model';
+import { validateDataSyncTask } from './model';
+import {
+  cdcSourceFromProbe,
+  decodeCDCAdapters,
+  decodeCDCProbe,
+  decodeCheckpoint,
+  decodeDataSyncApproval,
+  decodeDataSyncApprovalChallenge,
+  decodeDataSyncJobDefinition,
+  decodeDataSyncPreflightQuery,
+  decodeDatabaseMetadata,
+  decodeErrorRow,
+  decodeFieldMetadata,
+  decodeObjectMetadata,
+  decodeRouteCapability,
+  decodeRunEvent,
+  decodeRunPage,
+  decodeRunRecord,
+  decodeSavedConnectionViews,
+  decodeScheduleSummary,
+  encodeDataSyncJobDefinition,
+  isLocalDataSyncTaskId,
+  requireWailsCommandSuccess,
+  requireWailsQueryData,
+  DataSyncGatewayProtocolError,
+  type WailsDataSyncJobDefinition,
+  type WailsQueryResultLike,
+} from './wailsDto';
+
+import type { WailsDataSyncApi } from './wailsGatewayApi';
+export type { WailsDataSyncApi } from './wailsGatewayApi';
+
+type GatewayOptions = {
+  api?: WailsDataSyncApi;
+  now?: () => number;
+};
+
+type CachedPreflight = {
+  taskRevision: number;
+  taskEditEpoch: number;
+  taskSignature: string;
+  definitionHash: string;
+  approvalRequired: boolean;
+  canExecute: boolean;
+  definition: WailsDataSyncJobDefinition;
+};
+
+type ApprovalToken = {
+  token: string;
+  expiresAt: string;
+  definitionHash: string;
+  taskSignature: string;
+};
+
+type ApprovalChallenge = {
+  challenge: string;
+  notBefore: string;
+  expiresAt: string;
+  definitionHash: string;
+  taskSignature: string;
+};
+
+const UNKNOWN_CAPABILITY: DataSyncRouteCapability = {
+  level: 'unknown',
+  canExecute: false,
+  supportsAutoCreate: false,
+  supportsMutations: false,
+  supportsCdc: false,
+};
+
+const RUN_EVENT_PAGE_SIZE = 500;
+
+const isMissingWailsRunHistoryMethod = (error: unknown): boolean =>
+  error instanceof Error &&
+  /DataSyncRun(?:Page|Delete|ClearTerminal).*is not a function|is not a function/i.test(
+    error.message,
+  );
+
+const isLegacyWailsRunPageWithoutTotal = (error: unknown): boolean =>
+  error instanceof DataSyncGatewayProtocolError &&
+  error.message.startsWith('DataSyncRunPage.data.total:');
+
+const runHistoryBackendRestartRequired = (operation: string): DataSyncGatewayProtocolError =>
+  new DataSyncGatewayProtocolError(
+    operation,
+    'restart the desktop backend to activate run-history management',
+  );
+
+const asApi = (): WailsDataSyncApi =>
+  WailsApp as unknown as WailsDataSyncApi;
+
+const asJobDefinition = (
+  value: WailsDataSyncJobDefinition,
+): syncjob.JobDefinition => new syncjob.JobDefinition(value);
+
+const taskSignature = (
+  task: DataSyncTaskDefinition,
+  previous?: WailsDataSyncJobDefinition,
+): string => JSON.stringify(encodeDataSyncJobDefinition(task, previous));
+
+const sanitizedWireDefinition = (
+  value: unknown,
+): WailsDataSyncJobDefinition => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new DataSyncGatewayProtocolError('job', 'expected object');
+  }
+  const sanitized = { ...(value as WailsDataSyncJobDefinition) };
+  // Backend approval evidence is never retained or reflected into the UI.
+  delete sanitized.approval;
+  return sanitized;
+};
+
+const queryFailureMessage = (result: WailsQueryResultLike): string =>
+  typeof result?.message === 'string' ? result.message.trim() : '';
+
+const isCheckpointMissing = (result: WailsQueryResultLike): boolean =>
+  result?.success === false &&
+  queryFailureMessage(result) === 'data sync job record not found';
+
+const stripEndpointSchema = (schema: string, objectName: string): string => {
+  const prefix = `${schema.trim()}.`;
+  return prefix !== '.' && objectName.trim().startsWith(prefix)
+    ? objectName.trim().slice(prefix.length)
+    : objectName.trim();
+};
+
+const isCurrentPreflight = (
+  cached: CachedPreflight | undefined,
+  task: DataSyncTaskDefinition,
+  previous?: WailsDataSyncJobDefinition,
+): cached is CachedPreflight =>
+  Boolean(
+    cached &&
+      cached.taskRevision === task.revision &&
+      cached.taskEditEpoch === task.editEpoch &&
+      cached.taskSignature === taskSignature(task, previous),
+  );
+
+// Operations reconstructed from a persisted wire job do not carry the
+// in-memory edit epoch. They still must match the exact persisted definition
+// and revision before reusing preflight evidence.
+const isCurrentPersistedPreflight = (
+  cached: CachedPreflight | undefined,
+  task: DataSyncTaskDefinition,
+  previous?: WailsDataSyncJobDefinition,
+): cached is CachedPreflight =>
+  Boolean(
+    cached &&
+      cached.taskRevision === task.revision &&
+      cached.taskSignature === taskSignature(task, previous),
+  );
+
+export const createWailsDataSyncWorkbenchGateway = (
+  options: GatewayOptions = {},
+): DataSyncWorkbenchGateway => {
+  const api = options.api || asApi();
+  const now = options.now || Date.now;
+  const wireJobs = new Map<string, WailsDataSyncJobDefinition>();
+  const taskNames = new Map<string, string>();
+  const preflights = new Map<string, CachedPreflight>();
+  const approvalTokens = new Map<string, ApprovalToken>();
+  const approvalChallenges = new Map<string, ApprovalChallenge>();
+  const errorRows = new Map<string, ReturnType<typeof decodeErrorRow>>();
+  const connectionTypes = new Map<string, string>();
+  let tasksLoaded = false;
+
+  const decodeRuns = (value: unknown): DataSyncRunRecord[] => {
+    if (!Array.isArray(value)) {
+      throw new DataSyncGatewayProtocolError('DataSyncRunList.data', 'expected array');
+    }
+    return value.map((run) => decodeRunRecord(run, taskNames));
+  };
+
+  const takeApprovalToken = (
+    task: DataSyncTaskDefinition,
+    preflight: CachedPreflight,
+  ): string => {
+    const approval = approvalTokens.get(task.id);
+    if (
+      !approval ||
+      approval.definitionHash !== preflight.definitionHash ||
+      approval.taskSignature !== preflight.taskSignature ||
+      Date.parse(approval.expiresAt) <= now()
+    ) {
+      approvalTokens.delete(task.id);
+      return '';
+    }
+    // The backend token is one-time. Remove it before crossing the boundary so
+    // retries can never accidentally reuse a token with uncertain outcome.
+    approvalTokens.delete(task.id);
+    return approval.token;
+  };
+
+  const requireCurrentPreflight = (
+    task: DataSyncTaskDefinition,
+  ): CachedPreflight => {
+    const previous = wireJobs.get(task.id);
+    const cached = preflights.get(task.id);
+    if (!isCurrentPreflight(cached, task, previous)) {
+      throw new DataSyncGatewayProtocolError(
+        'data sync preflight',
+        'task definition changed; run preflight again',
+      );
+    }
+    return cached;
+  };
+
+  const getCheckpoint = async (
+    taskId: string,
+    requestOptions?: WebRPCRequestOptions,
+  ): Promise<DataSyncCheckpointSummary | null> => {
+    if (!taskId.trim() || isLocalDataSyncTaskId(taskId)) return null;
+    const result = await invokeAppWithSignal(
+      'DataSyncCheckpointGet',
+      [taskId],
+      requestOptions?.signal,
+      () => api.DataSyncCheckpointGet(taskId),
+    );
+    if (isCheckpointMissing(result)) return null;
+    return decodeCheckpoint(requireWailsQueryData(result, 'DataSyncCheckpointGet'));
+  };
+
+  const gateway: DataSyncWorkbenchGateway = {
+    capabilities: { errorRowRetry: true },
+    async listSavedConnections() {
+      const connections = decodeSavedConnectionViews(
+        await api.GetSavedConnections(),
+      );
+      connectionTypes.clear();
+      connections.forEach((connection) => {
+        connectionTypes.set(connection.id, connection.type);
+      });
+      return connections;
+    },
+
+    // The picker is a desktop-only affordance: cancellation returns the
+    // backend's cancelled sentinel and must not surface as a failure, and a
+    // missing path is treated the same way so the field keeps its value.
+    async selectBackupDirectory(currentDirectory) {
+      const result = await api.SelectBackupDirectory(currentDirectory);
+      if (!result?.success) {
+        if (result?.message === BACKEND_CANCELLED_MESSAGE) return null;
+        throw new DataSyncGatewayProtocolError(
+          'SelectBackupDirectory',
+          String(result?.message || 'backend rejected the directory picker'),
+        );
+      }
+      const selected = String(result.data ?? '').trim();
+      return selected || null;
+    },
+
+    async listDatabases(connectionId, requestOptions) {
+      return decodeDatabaseMetadata(
+        requireWailsQueryData(
+          await invokeAppWithSignal(
+            'DataSyncDatabaseList',
+            [connectionId],
+            requestOptions?.signal,
+            () => api.DataSyncDatabaseList(connectionId),
+          ),
+          'DataSyncDatabaseList',
+        ),
+      );
+    },
+
+    async listObjects(endpoint, requestOptions) {
+      return decodeObjectMetadata(
+        requireWailsQueryData(
+          await invokeAppWithSignal(
+            'DataSyncObjectList',
+            [endpoint.connectionId, endpoint.database, endpoint.schema],
+            requestOptions?.signal,
+            () => api.DataSyncObjectList(
+              endpoint.connectionId,
+              endpoint.database,
+              endpoint.schema,
+            ),
+          ),
+          'DataSyncObjectList',
+        ),
+        endpoint.type || connectionTypes.get(endpoint.connectionId) || '',
+      );
+    },
+
+    async listFields(endpoint, objectName, requestOptions) {
+      return decodeFieldMetadata(
+        requireWailsQueryData(
+          await invokeAppWithSignal(
+            'DataSyncFieldList',
+            [
+              endpoint.connectionId,
+              endpoint.database,
+              endpoint.schema,
+              stripEndpointSchema(endpoint.schema, objectName),
+            ],
+            requestOptions?.signal,
+            () => api.DataSyncFieldList(
+              endpoint.connectionId,
+              endpoint.database,
+              endpoint.schema,
+              stripEndpointSchema(endpoint.schema, objectName),
+            ),
+          ),
+          'DataSyncFieldList',
+        ),
+      );
+    },
+
+    async listTasks(requestOptions) {
+      const value = requireWailsQueryData(
+        await invokeAppWithSignal(
+          'DataSyncJobList',
+          [],
+          requestOptions?.signal,
+          () => api.DataSyncJobList(),
+        ),
+        'DataSyncJobList',
+      );
+      if (!Array.isArray(value)) {
+        throw new DataSyncGatewayProtocolError('DataSyncJobList.data', 'expected array');
+      }
+      wireJobs.clear();
+      taskNames.clear();
+      const tasks = value.map((item) => {
+        const wire = sanitizedWireDefinition(item);
+        const task = decodeDataSyncJobDefinition(wire);
+        wireJobs.set(task.id, wire);
+        taskNames.set(task.id, task.name);
+        return task;
+      });
+      tasksLoaded = true;
+      return tasks;
+    },
+
+    async saveTask(task) {
+      const previous = wireJobs.get(task.id);
+      let definition = encodeDataSyncJobDefinition(task, previous);
+      let token = '';
+      if (task.lifecycle === 'ready' || task.lifecycle === 'enabled') {
+        const preflight = requireCurrentPreflight(task);
+        definition = preflight.definition;
+        if (preflight.approvalRequired) {
+          token = takeApprovalToken(task, preflight);
+          if (!token) {
+            throw new DataSyncGatewayProtocolError(
+              'DataSyncJobSave',
+              'explicit production approval is required',
+            );
+          }
+        }
+      }
+      const savedValue = requireWailsQueryData(
+        await api.DataSyncJobSave(asJobDefinition(definition), token),
+        'DataSyncJobSave',
+      );
+      const savedWire = sanitizedWireDefinition(savedValue);
+      const saved = decodeDataSyncJobDefinition(savedWire);
+      wireJobs.delete(task.id);
+      taskNames.delete(task.id);
+      preflights.delete(task.id);
+      wireJobs.set(saved.id, savedWire);
+      taskNames.set(saved.id, saved.name);
+      return saved;
+    },
+
+    async resolveCapability(task, requestOptions) {
+      if (!task.source.connectionId || (task.kind !== 'backup' && !task.target.connectionId)) {
+        return { ...UNKNOWN_CAPABILITY };
+      }
+      const savedConnections = await gateway.listSavedConnections();
+      if (!savedConnections.some((connection) => connection.id === task.source.connectionId)
+        || (task.kind !== 'backup' && !savedConnections.some((connection) => connection.id === task.target.connectionId))) {
+        return { ...UNKNOWN_CAPABILITY };
+      }
+      if (task.kind === 'backup') return { ...UNKNOWN_CAPABILITY, level: 'full', canExecute: true };
+      const base = decodeRouteCapability(
+        requireWailsQueryData(
+          await invokeAppWithSignal(
+            'DataSyncCapabilityResolve',
+            [
+              task.source.connectionId,
+              task.source.database,
+              task.source.schema,
+              task.target.connectionId,
+              task.target.database,
+              task.target.schema,
+            ],
+            requestOptions?.signal,
+            () => api.DataSyncCapabilityResolve(
+              task.source.connectionId,
+              task.source.database,
+              task.source.schema,
+              task.target.connectionId,
+              task.target.database,
+              task.target.schema,
+            ),
+          ),
+          'DataSyncCapabilityResolve',
+        ),
+      );
+      if (task.kind !== 'cdc') return base;
+      if (task.incremental.mode !== 'cdc') {
+        return { ...base, canExecute: false, supportsAutoCreate: false, supportsCdc: false };
+      }
+      try {
+        const probe = decodeCDCProbe(
+          requireWailsQueryData(
+            await invokeAppWithSignal(
+              'DataSyncCDCProbe',
+              [
+                task.source.connectionId,
+                task.source.database,
+                task.source.schema,
+                '',
+              ],
+              requestOptions?.signal,
+              () => api.DataSyncCDCProbe(
+                task.source.connectionId,
+                task.source.database,
+                task.source.schema,
+                '',
+              ),
+            ),
+            'DataSyncCDCProbe',
+          ),
+        );
+        return {
+          ...base,
+          canExecute: base.canExecute && probe.supported && probe.ready,
+          supportsAutoCreate: false,
+          supportsCdc: probe.supported,
+          cdcProbeReady: probe.supported && probe.ready,
+          cdcProbeReason: probe.ready ? '' : probe.reason,
+          cdcAdapter: probe.adapter,
+        };
+      } catch (error) {
+        if (isWebRPCAbortError(error)) throw error;
+        return {
+          ...base,
+          canExecute: false,
+          supportsAutoCreate: false,
+          supportsCdc: false,
+          cdcProbeReady: false,
+          cdcProbeReason: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+
+    async preflightTask(task, requestOptions) {
+      const localIssues = validateDataSyncTask(task);
+      if (localIssues.some((issue) => issue.severity === 'blocker')) {
+        preflights.delete(task.id);
+        approvalChallenges.delete(task.id);
+        approvalTokens.delete(task.id);
+        return {
+          taskId: task.id,
+          taskRevision: task.revision,
+          taskEditEpoch: task.editEpoch,
+          status: 'blocked',
+          issues: localIssues,
+          definitionHash: '',
+          approvalRequired: false,
+          approvalSatisfied: false,
+          checkedAt: new Date(now()).toISOString(),
+        };
+      }
+      const previous = wireJobs.get(task.id);
+      const input = encodeDataSyncJobDefinition(task, previous);
+      const decoded = decodeDataSyncPreflightQuery(
+        await invokeAppWithSignal(
+          'DataSyncJobPreflight',
+          [asJobDefinition(input)],
+          requestOptions?.signal,
+          () => api.DataSyncJobPreflight(asJobDefinition(input)),
+        ),
+        task,
+      );
+      if (task.kind === 'compare' && !decoded.capability.canExecute) {
+        decoded.snapshot.status = 'blocked';
+        decoded.snapshot.issues.push({
+          id: 'compare-capability-unsupported',
+          code: 'compare_route_unsupported',
+          severity: 'blocker',
+          stage: 'endpoints',
+          message: 'the selected source-target route cannot execute compare tasks',
+        });
+      }
+      const definition = sanitizedWireDefinition(decoded.definition);
+      approvalChallenges.delete(task.id);
+      approvalTokens.delete(task.id);
+      preflights.set(task.id, {
+        taskRevision: task.revision,
+        taskEditEpoch: task.editEpoch,
+        taskSignature: JSON.stringify(input),
+        definitionHash: decoded.snapshot.definitionHash,
+        approvalRequired: decoded.snapshot.approvalRequired,
+        canExecute: decoded.capability.canExecute,
+        definition,
+      });
+      return decoded.snapshot;
+    },
+
+    async beginApproval(task, preflight): Promise<DataSyncApprovalChallenge> {
+      const cached = requireCurrentPreflight(task);
+      if (
+        !preflight.approvalRequired ||
+        preflight.status === 'blocked' ||
+        cached.definitionHash !== preflight.definitionHash
+      ) {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncJobApprovalBegin',
+          'approval does not match the current passed preflight',
+        );
+      }
+      const challenge = decodeDataSyncApprovalChallenge(
+        requireWailsQueryData(
+          await api.DataSyncJobApprovalBegin(asJobDefinition(cached.definition)),
+          'DataSyncJobApprovalBegin',
+        ),
+      );
+      if (Date.parse(challenge.expiresAt) <= now()) {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncJobApprovalBegin',
+          'approval challenge expired before it could be stored',
+        );
+      }
+      approvalChallenges.set(task.id, {
+        ...challenge,
+        definitionHash: preflight.definitionHash,
+        taskSignature: cached.taskSignature,
+      });
+      return {
+        definitionHash: preflight.definitionHash,
+        notBefore: challenge.notBefore,
+        expiresAt: challenge.expiresAt,
+      };
+    },
+
+    async approveTask(task, preflight): Promise<DataSyncApprovalGrant> {
+      const cached = requireCurrentPreflight(task);
+      const challenge = approvalChallenges.get(task.id);
+      if (
+        !challenge ||
+        challenge.definitionHash !== preflight.definitionHash ||
+        challenge.definitionHash !== cached.definitionHash ||
+        challenge.taskSignature !== cached.taskSignature ||
+        Date.parse(challenge.notBefore) > now() ||
+        Date.parse(challenge.expiresAt) <= now()
+      ) {
+        approvalChallenges.delete(task.id);
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncJobApprove',
+          'backend approval countdown is incomplete, expired, or stale',
+        );
+      }
+      // The backend challenge is also one-time. Remove it before crossing the
+      // boundary so an uncertain response can never be replayed.
+      approvalChallenges.delete(task.id);
+      const approved = decodeDataSyncApproval(
+        requireWailsQueryData(
+          await api.DataSyncJobApprove(
+            asJobDefinition(cached.definition),
+            challenge.challenge,
+          ),
+          'DataSyncJobApprove',
+        ),
+      );
+      if (Date.parse(approved.expiresAt) <= now()) {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncJobApprove',
+          'approval token expired before it could be stored',
+        );
+      }
+      approvalTokens.set(task.id, {
+        ...approved,
+        definitionHash: preflight.definitionHash,
+        taskSignature: cached.taskSignature,
+      });
+      return {
+        definitionHash: preflight.definitionHash,
+        expiresAt: approved.expiresAt,
+      };
+    },
+
+    async startTask(task, preflight) {
+      if (isLocalDataSyncTaskId(task.id)) {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncRunStart',
+          'save the task before running it',
+        );
+      }
+      if (task.lifecycle !== 'ready' && task.lifecycle !== 'enabled') {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncRunStart',
+          'only ready or enabled tasks can run',
+        );
+      }
+      const cached = requireCurrentPreflight(task);
+      if (
+        cached.definitionHash !== preflight.definitionHash ||
+        preflight.status === 'blocked' ||
+        !cached.canExecute
+      ) {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncRunStart',
+          'preflight is blocked or stale',
+        );
+      }
+      let token = '';
+      if (cached.approvalRequired) {
+        token = takeApprovalToken(task, cached);
+        if (!token) {
+          throw new DataSyncGatewayProtocolError(
+            'DataSyncRunStart',
+            'explicit production approval is required',
+          );
+        }
+      }
+      return decodeRunRecord(
+        requireWailsQueryData(
+          await api.DataSyncRunStart(task.id, task.revision, token),
+          'DataSyncRunStart',
+        ),
+        taskNames,
+      );
+    },
+
+    async listRuns(taskId) {
+      return decodeRuns(
+        requireWailsQueryData(
+          await api.DataSyncRunList(taskId || '', 200),
+          'DataSyncRunList',
+        ),
+      );
+    },
+
+    async listRunsPage(
+      cursor?: DataSyncRunCursor | null,
+      pageSize: DataSyncRunPageSize = 10,
+    ): Promise<DataSyncRunPage> {
+      try {
+        return decodeRunPage(
+          requireWailsQueryData(
+            await api.DataSyncRunPage('', cursor?.createdAt || 0, cursor?.id || '', pageSize),
+            'DataSyncRunPage',
+          ),
+          taskNames,
+        );
+      } catch (error) {
+        // Vite can hot-reload the generated frontend binding while an older
+        // Wails backend remains alive. Keep the run view readable until that
+        // desktop process is restarted; only the first legacy page is known.
+        if (
+          !cursor &&
+          (isMissingWailsRunHistoryMethod(error) || isLegacyWailsRunPageWithoutTotal(error))
+        ) {
+          const runs = decodeRuns(
+            requireWailsQueryData(
+              await api.DataSyncRunList('', pageSize),
+              'DataSyncRunList',
+            ),
+          );
+          return {
+            runs,
+            nextCursor: null,
+            total: runs.length,
+          };
+        }
+        throw error;
+      }
+    },
+
+    async listErrorRows(runId) {
+      const value = requireWailsQueryData(
+        await api.DataSyncErrorRowList(runId, '', 500),
+        'DataSyncErrorRowList',
+      );
+      if (!Array.isArray(value)) {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncErrorRowList.data',
+          'expected array',
+        );
+      }
+      return value.map((item) => {
+        const row = decodeErrorRow(item);
+        errorRows.set(row.id, row);
+        return row;
+      });
+    },
+
+    async listRunEvents(runId) {
+      const events: DataSyncRunEvent[] = [];
+      let afterSequence = 0;
+
+      while (true) {
+        const value = requireWailsQueryData(
+          await api.DataSyncRunEventList(runId, afterSequence, RUN_EVENT_PAGE_SIZE),
+          'DataSyncRunEventList',
+        );
+        if (!Array.isArray(value)) {
+          throw new DataSyncGatewayProtocolError(
+            'DataSyncRunEventList.data',
+            'expected array',
+          );
+        }
+        const page = value.map((item, index) =>
+          decodeRunEvent(item, `DataSyncRunEventList.data[${index}]`),
+        );
+        let previousSequence = afterSequence;
+        for (const event of page) {
+          if (event.sequence <= previousSequence) {
+            throw new DataSyncGatewayProtocolError(
+              'DataSyncRunEventList.data',
+              'expected strictly increasing event sequences',
+            );
+          }
+          previousSequence = event.sequence;
+        }
+        events.push(...page);
+        if (page.length < RUN_EVENT_PAGE_SIZE) return events;
+        afterSequence = previousSequence;
+      }
+    },
+
+    async listSchedules() {
+      if (!tasksLoaded) await gateway.listTasks();
+      return Array.from(wireJobs.values()).flatMap((job) => {
+        const schedule = decodeScheduleSummary(job);
+        return schedule ? [schedule] : [];
+      });
+    },
+
+    async listCdcAdapters() {
+      return decodeCDCAdapters(
+        requireWailsQueryData(
+          await api.DataSyncCDCAdapterList(),
+          'DataSyncCDCAdapterList',
+        ),
+      );
+    },
+
+    async listCdcSources(requestOptions) {
+      const tasks =
+        !tasksLoaded
+          ? await gateway.listTasks(requestOptions)
+          : Array.from(wireJobs.values()).map(decodeDataSyncJobDefinition);
+      const cdcTasks = tasks.filter(
+        (
+          task,
+        ): task is DataSyncTaskDefinition & {
+          incremental: Extract<DataSyncTaskDefinition['incremental'], { mode: 'cdc' }>;
+        } => task.kind === 'cdc' && task.incremental.mode === 'cdc',
+      );
+      if (cdcTasks.length === 0) return [];
+      return Promise.all(
+        cdcTasks.map(async (task) => {
+          let checkpoint: DataSyncCheckpointSummary | null = null;
+          let checkpointError = '';
+          try {
+            checkpoint = await getCheckpoint(task.id, requestOptions);
+          } catch (error) {
+            if (isWebRPCAbortError(error)) throw error;
+            checkpointError = error instanceof Error ? error.message : String(error);
+          }
+          try {
+            const probe = decodeCDCProbe(
+              requireWailsQueryData(
+                await invokeAppWithSignal(
+                  'DataSyncCDCProbe',
+                  [
+                    task.source.connectionId,
+                    task.source.database,
+                    task.source.schema,
+                    '',
+                  ],
+                  requestOptions?.signal,
+                  () => api.DataSyncCDCProbe(
+                    task.source.connectionId,
+                    task.source.database,
+                    task.source.schema,
+                    '',
+                  ),
+                ),
+                'DataSyncCDCProbe',
+              ),
+            );
+            return cdcSourceFromProbe(task, probe, checkpoint, checkpointError);
+          } catch (error) {
+            if (isWebRPCAbortError(error)) throw error;
+            const reason = error instanceof Error ? error.message : String(error);
+            return cdcSourceFromProbe(task, null, checkpoint, reason);
+          }
+        }),
+      );
+    },
+
+    getCheckpoint,
+
+    async resetCheckpoint(taskId, expectedJobRevision) {
+      const previous = wireJobs.get(taskId);
+      if (!previous) {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncCheckpointReset',
+          'the current task revision is unavailable; refresh tasks before resetting the checkpoint',
+        );
+      }
+      const task = decodeDataSyncJobDefinition(previous);
+      if (task.lifecycle !== 'paused' || task.revision !== expectedJobRevision) {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncCheckpointReset',
+          'checkpoint reset requires the current paused task revision',
+        );
+      }
+      const savedWire = sanitizedWireDefinition(
+        requireWailsQueryData(
+          await api.DataSyncCheckpointReset(taskId, expectedJobRevision),
+          'DataSyncCheckpointReset',
+        ),
+      );
+      const saved = decodeDataSyncJobDefinition(savedWire);
+      wireJobs.set(saved.id, savedWire);
+      taskNames.set(saved.id, saved.name);
+      preflights.delete(taskId);
+      approvalTokens.delete(taskId);
+      approvalChallenges.delete(taskId);
+      return saved;
+    },
+
+    async cancelRun(runId) {
+      requireWailsCommandSuccess(
+        await api.DataSyncRunCancel(runId),
+        'DataSyncRunCancel',
+      );
+    },
+
+    async deleteRun(runId) {
+      try {
+        requireWailsCommandSuccess(
+          await api.DataSyncRunDelete(runId),
+          'DataSyncRunDelete',
+        );
+      } catch (error) {
+        if (isMissingWailsRunHistoryMethod(error)) {
+          throw runHistoryBackendRestartRequired('DataSyncRunDelete');
+        }
+        throw error;
+      }
+    },
+
+    async clearTerminalRuns() {
+      let payload: unknown;
+      try {
+        payload = requireWailsQueryData(
+          await api.DataSyncRunClearTerminal(''),
+          'DataSyncRunClearTerminal',
+        );
+      } catch (error) {
+        if (isMissingWailsRunHistoryMethod(error)) {
+          throw runHistoryBackendRestartRequired('DataSyncRunClearTerminal');
+        }
+        throw error;
+      }
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncRunClearTerminal.data',
+          'expected object',
+        );
+      }
+      const deleted = (payload as { deleted?: unknown }).deleted;
+      if (typeof deleted !== 'number' || !Number.isSafeInteger(deleted) || deleted < 0) {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncRunClearTerminal.data.deleted',
+          'expected non-negative integer',
+        );
+      }
+      return deleted;
+    },
+
+    async deleteTask(taskId) {
+      // 本地草稿从未持久化，直接清理本地状态即可；只有已保存的任务才走后端。
+      if (!isLocalDataSyncTaskId(taskId)) {
+        requireWailsCommandSuccess(
+          await api.DataSyncJobDelete(taskId),
+          'DataSyncJobDelete',
+        );
+      }
+      wireJobs.delete(taskId);
+      taskNames.delete(taskId);
+      preflights.delete(taskId);
+      approvalTokens.delete(taskId);
+      approvalChallenges.delete(taskId);
+    },
+
+    async resumeRun(runId) {
+      return decodeRunRecord(
+        requireWailsQueryData(
+          await api.DataSyncRunResume(runId),
+          'DataSyncRunResume',
+        ),
+        taskNames,
+      );
+    },
+
+    async retryRun(runId) {
+      return decodeRunRecord(
+        requireWailsQueryData(
+          await api.DataSyncRunRetry(runId),
+          'DataSyncRunRetry',
+        ),
+        taskNames,
+      );
+    },
+
+    async discardErrorRow(errorRowId) {
+      requireWailsCommandSuccess(
+        await api.DataSyncErrorRowDiscard(errorRowId),
+        'DataSyncErrorRowDiscard',
+      );
+    },
+
+    async retryErrorRow(errorRowId) {
+      const row = errorRows.get(errorRowId);
+      if (!row || !row.retryable || row.status !== 'pending') {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncErrorRowRetry',
+          'refresh the error row and capture its full payload before retrying',
+        );
+      }
+      const previous = wireJobs.get(row.taskId);
+      if (!previous) {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncErrorRowRetry',
+          'the current task revision is unavailable; refresh tasks before retrying',
+        );
+      }
+      const task = decodeDataSyncJobDefinition(previous);
+      const cached = preflights.get(task.id);
+      let token = '';
+      if (
+        cached &&
+        isCurrentPersistedPreflight(cached, task, previous) &&
+        cached.approvalRequired &&
+        approvalTokens.has(task.id)
+      ) {
+        token = takeApprovalToken(task, cached);
+      }
+      const retried = decodeErrorRow(
+        requireWailsQueryData(
+          await api.DataSyncErrorRowRetry(errorRowId, task.revision, token),
+          'DataSyncErrorRowRetry',
+        ),
+      );
+      if (retried.id !== row.id || retried.taskId !== row.taskId) {
+        throw new DataSyncGatewayProtocolError(
+          'DataSyncErrorRowRetry.data',
+          'backend returned a different error row or task',
+        );
+      }
+      errorRows.set(retried.id, retried);
+      return retried;
+    },
+  };
+
+  return gateway;
+};

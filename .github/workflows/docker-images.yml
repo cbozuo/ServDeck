@@ -1,0 +1,350 @@
+name: Docker Images
+
+on:
+  push:
+    branches:
+      - dev
+    tags:
+      - 'v*'
+
+concurrency:
+  group: docker-images-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.image_name }} (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image_name:
+          - gonavi-mcp-server
+          - gonavi-cli
+          - gonavi-web-server
+          - gonavi-build-env
+        platform:
+          - linux/amd64
+          - linux/arm64
+        include:
+          - image_name: gonavi-mcp-server
+            dockerfile: Dockerfile.mcp-server
+            description: GoNavi MCP Server container image
+          - image_name: gonavi-cli
+            dockerfile: Dockerfile.cli
+            description: GoNavi command-line interface container image
+          - image_name: gonavi-web-server
+            dockerfile: Dockerfile.web-server
+            description: GoNavi Web Server (browser UI) container image
+          - image_name: gonavi-build-env
+            dockerfile: Dockerfile.build-env
+            description: GoNavi Linux build environment image
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Validate runtime Dockerfiles
+        if: matrix.image_name == 'gonavi-web-server'
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash tools/validate-web-server-dockerfile.test.sh
+          env_file="$(mktemp)"
+          trap 'rm -f "$env_file"' EXIT
+          printf 'GONAVI_HOST_DATA_ROOT=%s\nGONAVI_WEB_PASSWORD=123456\n' "${RUNNER_TEMP}/gonavi-data" >"$env_file"
+          rendered="$(docker compose --env-file "$env_file" -f docker-compose.web-server.yml config)"
+          grep -Eq "GONAVI_WEB_PASSWORD: ['\"]?123456['\"]?$" <<<"$rendered"
+
+      - name: Prepare build variables
+        id: prep
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "owner_lc=$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+          echo "platform_pair=$(printf '%s' "${{ matrix.platform }}" | tr '/' '-')" >> "$GITHUB_OUTPUT"
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=dev-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ steps.prep.outputs.owner_lc }}/${{ matrix.image_name }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image_name }}
+            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Build smoke image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: codex-smoke/${{ matrix.image_name }}:local
+          build-args: |
+            VERSION=${{ steps.prep.outputs.version }}
+          cache-from: type=gha,scope=${{ matrix.image_name }}-${{ steps.prep.outputs.platform_pair }}
+
+      - name: Smoke test MCP Server image
+        if: matrix.image_name == 'gonavi-mcp-server'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid="$(docker run -d -p 8765:8765 -e GONAVI_MCP_HTTP_TOKEN=smoke-token codex-smoke/${{ matrix.image_name }}:local http)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            if curl --fail --silent http://127.0.0.1:8765/healthz >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if ! curl --fail --silent http://127.0.0.1:8765/healthz >/dev/null; then
+            docker logs "$cid"
+            echo "MCP Server image smoke test failed" >&2
+            exit 1
+          fi
+          docker kill --signal=TERM "$cid" >/dev/null
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            if [[ "$(docker inspect -f '{{.State.Status}}' "$cid")" == "exited" ]]; then
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$(docker inspect -f '{{.State.Status}}' "$cid")" != "exited" ]]; then
+            docker logs "$cid"
+            echo "MCP Server image did not exit after SIGTERM" >&2
+            exit 1
+          fi
+          [[ "$(docker inspect -f '{{.State.ExitCode}}' "$cid")" == "0" ]]
+
+      - name: Smoke test CLI image
+        if: matrix.image_name == 'gonavi-cli'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm codex-smoke/${{ matrix.image_name }}:local --version | grep -Fq '"version"'
+          docker run --rm codex-smoke/${{ matrix.image_name }}:local --help | grep -Fq 'GoNavi CLI'
+          data_dir="$(mktemp -d)"
+          trap 'rm -rf "$data_dir"' EXIT
+          printf '%s\n' '{"connections":[{"id":"cli-docker-smoke","name":"CLI Docker smoke","config":{"id":"cli-docker-smoke","type":"sqlite"}}]}' > "$data_dir/connections.json"
+          output="$(docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e HOME=/data \
+            -e GONAVI_LOG_DIR=/data/logs \
+            -v "$data_dir:/data" \
+            codex-smoke/${{ matrix.image_name }}:local list-connections)"
+          grep -Fq '"id":"cli-docker-smoke"' <<< "$output"
+          grep -Fq '"name":"CLI Docker smoke"' <<< "$output"
+
+      - name: Smoke test Web Server image
+        if: matrix.image_name == 'gonavi-web-server'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cookie_jar="$(mktemp)"
+          cid=""
+          trap 'rm -f "$cookie_jar"; if [[ -n "$cid" ]]; then docker rm -f "$cid" >/dev/null 2>&1 || true; fi' EXIT
+          cid="$(docker run -d -p 127.0.0.1::34116 -e GONAVI_WEB_ADDR=0.0.0.0:34116 -e GONAVI_WEB_PASSWORD=123456 codex-smoke/${{ matrix.image_name }}:local web-server)"
+          host_port="$(docker port "$cid" 34116/tcp | awk -F: 'NR == 1 { print $NF }')"
+          if [[ ! "$host_port" =~ ^[0-9]+$ ]]; then
+            docker logs "$cid"
+            echo "Failed to resolve the Web Server smoke-test port" >&2
+            exit 1
+          fi
+          base_url="http://127.0.0.1:${host_port}"
+          ready=false
+          for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+            if curl --fail --silent "${base_url}/__gonavi/healthz" >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$ready" != "true" ]]; then
+            docker logs "$cid"
+            echo "Web Server image smoke test failed" >&2
+            exit 1
+          fi
+          status="$(curl --fail --silent --show-error "${base_url}/__gonavi/auth/status")"
+          grep -Fq '"configured":true' <<<"$status"
+          login="$(curl --fail --silent --show-error -c "$cookie_jar" -H 'Content-Type: application/json' -d '{"password":"123456","code":""}' "${base_url}/__gonavi/auth/login")"
+          grep -Fq '"success":true' <<<"$login"
+          app_status="$(curl --silent --show-error -o /dev/null -w '%{http_code}' -b "$cookie_jar" "${base_url}/")"
+          [[ "$app_status" == "200" ]]
+          docker kill --signal=TERM "$cid" >/dev/null
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            if [[ "$(docker inspect -f '{{.State.Status}}' "$cid")" == "exited" ]]; then
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$(docker inspect -f '{{.State.Status}}' "$cid")" != "exited" ]]; then
+            docker logs "$cid"
+            echo "Web Server image did not exit after SIGTERM" >&2
+            exit 1
+          fi
+          [[ "$(docker inspect -f '{{.State.ExitCode}}' "$cid")" == "0" ]]
+
+      - name: Smoke test build environment image
+        if: matrix.image_name == 'gonavi-build-env'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm codex-smoke/${{ matrix.image_name }}:local \
+            bash -lc 'go version && node -v && npm -v && wails version'
+
+      - name: Push by digest
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ghcr.io/${{ steps.prep.outputs.owner_lc }}/${{ matrix.image_name }}
+          build-args: |
+            VERSION=${{ steps.prep.outputs.version }}
+          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.image_name }}-${{ steps.prep.outputs.platform_pair }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-${{ steps.prep.outputs.platform_pair }}
+
+      - name: Export digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${{ runner.temp }}/digests"
+          digest="${{ steps.push.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.image_name }}-${{ steps.prep.outputs.platform_pair }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Publish ${{ matrix.image_name }}
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image_name: gonavi-mcp-server
+            description: GoNavi MCP Server container image
+          - image_name: gonavi-cli
+            description: GoNavi command-line interface container image
+          - image_name: gonavi-web-server
+            description: GoNavi Web Server (browser UI) container image
+          - image_name: gonavi-build-env
+            description: GoNavi Linux build environment image
+    steps:
+      - name: Normalize image namespace
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "owner_lc=$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.image_name }}-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ steps.vars.outputs.owner_lc }}/${{ matrix.image_name }}
+          flavor: |
+            latest=false
+          tags: |
+            # dev 分支只保留滚动指针：每次推送复用同一个 dev-latest，旧构建
+            # 失去唯一 tag 后自动转为 untagged，不再挤占 package 版本列表。
+            # 不发布 dev-<sha> 永久快照——它会让版本号 tag（0.9.8 等）被数百条
+            # dev 噪音压到列表后页，用户无法肉眼定位可锁定的版本。
+            type=raw,value=dev-latest,enable=${{ github.ref == 'refs/heads/dev' }}
+            # 同时发布带 v 与不带 v 两种形式：#1318 的验收标准写的是 vX.Y.Z，
+            # 而 K8s 生态里 0.9.8 这种无前缀写法更常见（Helm chart、kustomize
+            # 的 image.tag 多按 semver 原样使用）。两者指向同一 digest，多出的
+            # 一两个 tag 不会造成噪音——dev 分支已不发布永久快照。
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern=v{{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern=v{{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image_name }}
+            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf 'ghcr.io/${{ steps.vars.outputs.owner_lc }}/${{ matrix.image_name }}@sha256:%s ' *)
+
+      - name: Verify every published tag resolves
+        shell: bash
+        env:
+          EXPECTED_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          # imagetools create 返回 0 不代表每个 -t 都真正落库：历史上出现过构建已算出
+          # dev-<sha> tag、推送步骤报 success，但 registry 里查不到该 tag 的情况，
+          # 「按提交锁定 dev 镜像」于是在无声中失效。这里逐个回查，缺一即失败。
+          # 旧的 Inspect 步骤只校验 steps.meta.outputs.version 单个 tag，覆盖不到这种缺口。
+          missing=0
+          while IFS= read -r tag; do
+            [[ -n "${tag}" ]] || continue
+            if docker buildx imagetools inspect "${tag}" >/dev/null 2>&1; then
+              echo "✅ ${tag}"
+            else
+              echo "❌ 推送后校验失败，tag 未真正落库: ${tag}" >&2
+              missing=$((missing + 1))
+            fi
+          done <<< "${EXPECTED_TAGS}"
+          if [[ "${missing}" -gt 0 ]]; then
+            echo "共 ${missing} 个 tag 未落库，镜像对该引用不可用" >&2
+            exit 1
+          fi

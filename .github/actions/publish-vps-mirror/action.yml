@@ -1,0 +1,89 @@
+name: Publish verified download edges
+description: Publish immutable assets to the Cst edge and Bero origin
+
+inputs:
+  channel: { required: true, description: stable or dev }
+  app-tag: { required: true, description: Physical application release tag }
+  app-dir: { required: true, description: Application release assets }
+  app-manifest: { required: true, description: Mutable application manifest }
+  driver-enabled: { required: true, description: Whether driver assets are included }
+  driver-tag: { required: false, default: '', description: Physical driver release tag }
+  driver-dir: { required: false, default: '', description: Driver release assets }
+  driver-version-index: { required: false, default: '', description: Versioned driver index }
+  driver-latest-index: { required: false, default: '', description: Mutable driver index }
+  cst-ssh-host: { required: true, description: Cst SSH host }
+  cst-ssh-port: { required: true, description: Cst SSH port }
+  cst-ssh-user: { required: true, description: Restricted gonavi-cdn user }
+  cst-ssh-private-key: { required: true, description: Cst deployment key }
+  cst-ssh-known-hosts: { required: true, description: Pinned Cst host key }
+  bero-ssh-host: { required: true, description: Bero origin SSH host; must be 94.103.173.47 }
+  bero-ssh-port: { required: true, description: Bero origin SSH port; must be 37167 }
+  bero-ssh-user: { required: true, description: Restricted gonavi-cdn user }
+  bero-ssh-private-key: { required: true, description: Bero origin deployment key }
+  bero-ssh-known-hosts: { required: true, description: Pinned Bero origin host key }
+  bero-base-url: { required: true, description: HTTPS Bero origin base URL }
+  throughput-warning-mbps: { required: false, default: '20', description: Observability-only public eight-Range warning threshold }
+  cst-max-bytes: { required: false, default: '9000000000', description: Maximum Cst mirror bytes }
+  cst-reserve-free-bytes: { required: false, default: '2000000000', description: Minimum free bytes preserved on Cst }
+  bero-max-bytes: { required: false, default: '9000000000', description: Maximum Bero origin bytes }
+  bero-reserve-free-bytes: { required: false, default: '2000000000', description: Minimum free bytes preserved on Bero }
+
+runs:
+  using: composite
+  steps:
+    - name: Validate GUI update manifest for dispatcher publication
+      shell: bash
+      env:
+        PUB_CHANNEL: ${{ inputs.channel }}
+        PUB_APP_TAG: ${{ inputs.app-tag }}
+        PUB_APP_DIR: ${{ inputs.app-dir }}
+        PUB_APP_MANIFEST: ${{ inputs.app-manifest }}
+      run: |
+        set -euo pipefail
+        case "${PUB_CHANNEL}" in
+          stable) download_path_prefix=/gonavi/releases/download ;;
+          dev) download_path_prefix=/gonavi/dev/releases/download ;;
+          *) echo "Invalid publication channel: ${PUB_CHANNEL}" >&2; exit 1 ;;
+        esac
+        python3 "${GITHUB_WORKSPACE}/tools/validate-gui-update-manifest.py" \
+          --channel "${PUB_CHANNEL}" \
+          --app-tag "${PUB_APP_TAG}" \
+          --app-dir "${PUB_APP_DIR}" \
+          --manifest "${PUB_APP_MANIFEST}" \
+          --github-repository "${GITHUB_REPOSITORY}" \
+          --download-dispatcher-url "https://download-dispatch.syngnat.top/v1/resolve" \
+          --download-path-prefix "${download_path_prefix}"
+
+    - name: Publish verified static edges
+      shell: bash
+      env:
+        PUB_CHANNEL: ${{ inputs.channel }}
+        PUB_APP_TAG: ${{ inputs.app-tag }}
+        PUB_APP_DIR: ${{ inputs.app-dir }}
+        PUB_APP_MANIFEST: ${{ inputs.app-manifest }}
+        PUB_DRIVER_ENABLED: ${{ inputs.driver-enabled }}
+        PUB_DRIVER_TAG: ${{ inputs.driver-tag }}
+        PUB_DRIVER_DIR: ${{ inputs.driver-dir }}
+        PUB_DRIVER_VERSION_INDEX: ${{ inputs.driver-version-index }}
+        PUB_DRIVER_LATEST_INDEX: ${{ inputs.driver-latest-index }}
+        PUB_GENERATION: ${{ inputs.channel }}-${{ github.run_id }}-${{ github.run_attempt }}
+        PUB_THROUGHPUT_WARN_MBPS: ${{ inputs.throughput-warning-mbps }}
+        EDGE_CST_HOST: ${{ inputs.cst-ssh-host }}
+        EDGE_CST_PORT: ${{ inputs.cst-ssh-port }}
+        EDGE_CST_USER: ${{ inputs.cst-ssh-user }}
+        EDGE_CST_PRIVATE_KEY: ${{ inputs.cst-ssh-private-key }}
+        EDGE_CST_KNOWN_HOSTS: ${{ inputs.cst-ssh-known-hosts }}
+        EDGE_CST_ROOT: /srv/gonavi-downloads
+        EDGE_CST_BASE_URL: https://download.syngnat.top
+        EDGE_CST_MAX_BYTES: ${{ inputs.cst-max-bytes }}
+        EDGE_CST_RESERVE_FREE_BYTES: ${{ inputs.cst-reserve-free-bytes }}
+        EDGE_BERO_HOST: ${{ inputs.bero-ssh-host }}
+        EDGE_BERO_PORT: ${{ inputs.bero-ssh-port }}
+        EDGE_BERO_USER: ${{ inputs.bero-ssh-user }}
+        EDGE_BERO_PRIVATE_KEY: ${{ inputs.bero-ssh-private-key }}
+        EDGE_BERO_KNOWN_HOSTS: ${{ inputs.bero-ssh-known-hosts }}
+        EDGE_BERO_ROOT: /srv/gonavi-downloads
+        EDGE_BERO_BASE_URL: ${{ inputs.bero-base-url }}
+        EDGE_BERO_MAX_BYTES: ${{ inputs.bero-max-bytes }}
+        EDGE_BERO_RESERVE_FREE_BYTES: ${{ inputs.bero-reserve-free-bytes }}
+      run: bash "${GITHUB_WORKSPACE}/tools/publish-edge-release.sh"

@@ -1,0 +1,480 @@
+import { createSidebarResizeAwareFrameScheduler } from '../utils/sidebarResizeLifecycle';
+
+// Let the layout, rather than the row count or a later React measurement, place
+// the native horizontal scrollbar at the bottom of the available table area.
+export const DATA_GRID_FILL_BODY_CSS = `
+  .data-grid-root .data-grid-table-wrap,
+  .data-grid-root .data-grid-table-wrap .ant-table-wrapper,
+  .data-grid-root .data-grid-table-wrap .ant-spin-nested-loading,
+  .data-grid-root .data-grid-table-wrap .ant-spin-container,
+  .data-grid-root .data-grid-table-wrap .ant-table,
+  .data-grid-root .data-grid-table-wrap .ant-table-container,
+  .data-grid-root .data-grid-table-wrap .ant-table-tbody-virtual {
+    display: flex; flex-direction: column; flex: 1; min-height: 0;
+  }
+  .data-grid-root .data-grid-table-wrap .ant-table-header { flex: none; }
+  .data-grid-root .data-grid-table-wrap .ant-table-tbody-virtual-holder {
+    flex: 1; max-height: none !important;
+  }
+  .data-grid-root .data-grid-table-wrap .ant-table-empty .ant-table-body {
+    overflow-x: hidden !important;
+  }
+  .data-grid-root.data-grid-empty .data-grid-external-horizontal-scroll {
+    display: none !important;
+  }
+`;
+
+export interface TableBodyBottomPaddingOptions {
+  hasHorizontalOverflow: boolean;
+  floatingScrollbarHeight: number;
+  floatingScrollbarGap: number;
+}
+
+export interface VirtualTableScrollXOptions {
+  totalWidth: number;
+  tableViewportWidth: number;
+  isMacLike: boolean;
+  nativeHorizontalScroll?: boolean;
+  stretchToViewport?: boolean;
+}
+
+export interface VirtualHorizontalMaxScrollOptions {
+  tableScrollX: number;
+  clientWidth: number;
+  scrollWidth?: number;
+  useNativeScroll: boolean;
+}
+
+export interface DataGridHorizontalWheelIntentOptions {
+  deltaX: number;
+  deltaY: number;
+  shiftKey: boolean;
+}
+
+export interface DataGridNativeHorizontalWheelOptions extends DataGridHorizontalWheelIntentOptions {
+  nativeHorizontalEnabled: boolean;
+}
+
+export interface DataGridNativeHorizontalWheelDispatchOptions {
+  delta: number;
+  currentScrollLeft: number;
+  maxScrollLeft: number;
+}
+
+export interface DataGridHorizontalRangeCommitOptions {
+  nextOffset: number;
+  lastCommittedOffset: number;
+  thresholdPx: number;
+}
+
+export interface ExternalHorizontalScrollInnerWidthOptions {
+  tableScrollWidth: number;
+  trackInset: number;
+}
+
+export interface ExternalHorizontalScrollMetricsOptions extends ExternalHorizontalScrollInnerWidthOptions {
+  tableViewportWidth: number;
+  measuredScrollWidth: number;
+  measuredClientWidth: number;
+  measuredTrackClientWidth?: number;
+}
+
+export interface ExternalHorizontalScrollMetrics {
+  visible: boolean;
+  innerWidth: number;
+  maxScrollLeft: number;
+}
+
+export interface DataGridColumnQuickFindScrollLeftOptions {
+  currentScrollLeft: number;
+  columnLeft: number;
+  columnWidth: number;
+  viewportWidth: number;
+  scrollWidth: number;
+}
+
+export interface DataGridMeasurementHeightOptions {
+  measuredHeight: number;
+  rootHeight?: number;
+  queryResultHeight?: number;
+  queryResultSiblingHeight?: number;
+}
+
+export interface DataGridMetricsMeasurementOptions {
+  target: HTMLElement;
+  externalHorizontalTrack?: HTMLElement | null;
+  floatingScrollbarHeight: number;
+  floatingScrollbarGap: number;
+  isWindowsLike: boolean;
+}
+
+export interface DataGridMetricsMeasurement {
+  viewportWidth: number | null;
+  scrollWidth: number;
+  clientWidth: number;
+  trackClientWidth: number;
+  bodyBottomPadding: number;
+  tableHeight: number | null;
+}
+
+const MIN_SCROLLBAR_CLEARANCE = 8;
+const FLOATING_SCROLLBAR_VISUAL_EXTRA = 4;
+const HORIZONTAL_WHEEL_MIN_DELTA = 0.5;
+const HORIZONTAL_WHEEL_DOMINANCE_RATIO = 1.35;
+
+export const resolveDataGridMeasurementHeight = ({
+  measuredHeight,
+  rootHeight,
+  queryResultHeight,
+  queryResultSiblingHeight = 0,
+}: DataGridMeasurementHeightOptions): number => {
+  if (!Number.isFinite(rootHeight) || !Number.isFinite(queryResultHeight)) {
+    return measuredHeight;
+  }
+
+  const rootChromeHeight = Math.max(0, Number(rootHeight) - measuredHeight);
+  const availableHeight = Number(queryResultHeight) - Math.max(0, queryResultSiblingHeight) - rootChromeHeight;
+  return Math.max(measuredHeight, availableHeight);
+};
+
+export const calculateTableBodyBottomPadding = ({
+  hasHorizontalOverflow,
+  floatingScrollbarHeight,
+  floatingScrollbarGap,
+}: TableBodyBottomPaddingOptions): number => {
+  if (!hasHorizontalOverflow) {
+    return 0;
+  }
+
+  const safeScrollbarHeight = Math.max(0, Math.ceil(floatingScrollbarHeight));
+  const safeScrollbarGap = Math.max(0, Math.ceil(floatingScrollbarGap));
+
+  return safeScrollbarHeight + FLOATING_SCROLLBAR_VISUAL_EXTRA + safeScrollbarGap + MIN_SCROLLBAR_CLEARANCE;
+};
+
+export const measureDataGridMetrics = ({
+  target,
+  externalHorizontalTrack,
+  floatingScrollbarHeight,
+  floatingScrollbarGap,
+  isWindowsLike,
+}: DataGridMetricsMeasurementOptions): DataGridMetricsMeasurement | null => {
+  const rect = target.getBoundingClientRect();
+  const rootElement = target.parentElement;
+  const rootRect = rootElement?.getBoundingClientRect();
+  const queryResultParentRect = rootElement
+    ?.closest('.query-result-tabs .ant-tabs-content')
+    ?.getBoundingClientRect();
+  const queryResultSiblingHeight = queryResultParentRect && rootElement?.parentElement
+    ? Array.from(rootElement.parentElement.children).reduce((total, sibling) => {
+        if (sibling === rootElement || !(sibling instanceof HTMLElement)) return total;
+        const siblingRect = sibling.getBoundingClientRect();
+        const siblingStyle = window.getComputedStyle(sibling);
+        return total + siblingRect.height
+          + (Number.parseFloat(siblingStyle.marginTop) || 0)
+          + (Number.parseFloat(siblingStyle.marginBottom) || 0);
+      }, 0)
+    : 0;
+  const height = resolveDataGridMeasurementHeight({
+    measuredHeight: rect.height,
+    rootHeight: rootRect?.height,
+    queryResultHeight: queryResultParentRect?.height,
+    queryResultSiblingHeight,
+  });
+  if (!Number.isFinite(height) || height < 50) return null;
+
+  const header = target.querySelector('.ant-table-header') || target.querySelector('.ant-table-thead');
+  const rawHeaderHeight = header?.getBoundingClientRect().height ?? Number.NaN;
+  const headerHeight = Number.isFinite(rawHeaderHeight) && rawHeaderHeight >= 24 && rawHeaderHeight <= 120
+    ? rawHeaderHeight
+    : 42;
+  const rawPaginationHeight = target.querySelector('.data-grid-pagination-wrap')?.getBoundingClientRect().height ?? 0;
+  const paginationHeight = Number.isFinite(rawPaginationHeight) && rawPaginationHeight > 0
+    ? rawPaginationHeight
+    : 0;
+  const virtualBody = target.querySelector('.ant-table-tbody-virtual-holder') as HTMLElement | null;
+  const virtualHolder = target.querySelector('.rc-virtual-list-holder') as HTMLElement | null;
+  const body = target.querySelector('.ant-table-body') as HTMLElement | null;
+  const scrollable = virtualBody || virtualHolder || body;
+  const virtualScrollbar = target.querySelector(
+    '.ant-table-tbody-virtual-scrollbar-horizontal',
+  ) as HTMLElement | null;
+  const scrollWidth = scrollable?.scrollWidth || 0;
+  const clientWidth = scrollable?.clientWidth || 0;
+  const hasHorizontalOverflow = scrollWidth - clientWidth > 1;
+  const bodyBottomPadding = isWindowsLike ? 0 : calculateTableBodyBottomPadding({
+    hasHorizontalOverflow,
+    floatingScrollbarHeight,
+    floatingScrollbarGap,
+  });
+  const virtualScrollbarReserve = isWindowsLike || !hasHorizontalOverflow || !virtualScrollbar
+    ? 0
+    : Math.ceil(virtualScrollbar.getBoundingClientRect().height || (floatingScrollbarHeight + floatingScrollbarGap + 4));
+  const nextHeight = Math.floor(height - headerHeight - paginationHeight - 2 - virtualScrollbarReserve);
+
+  return {
+    viewportWidth: Number.isFinite(rect.width) && rect.width > 0 ? Math.floor(rect.width) : null,
+    scrollWidth,
+    clientWidth,
+    trackClientWidth: externalHorizontalTrack?.clientWidth || 0,
+    bodyBottomPadding,
+    tableHeight: Number.isFinite(nextHeight) && nextHeight >= 100 ? nextHeight : null,
+  };
+};
+
+export const observeDataGridMetrics = (
+  target: HTMLElement,
+  measure: (element: HTMLElement) => boolean,
+): (() => void) => {
+  let hasAppliedMetrics = false;
+  const scheduler = createSidebarResizeAwareFrameScheduler(() => measure(target));
+  const resizeObserver = new ResizeObserver(() => {
+    if (hasAppliedMetrics) {
+      scheduler.schedule();
+      return;
+    }
+    hasAppliedMetrics = measure(target);
+  });
+
+  resizeObserver.observe(target);
+  hasAppliedMetrics = measure(target);
+  return () => {
+    resizeObserver.disconnect();
+    scheduler.dispose();
+  };
+};
+
+export const calculateVirtualTableScrollX = ({
+  totalWidth,
+  tableViewportWidth,
+  isMacLike,
+  nativeHorizontalScroll,
+  stretchToViewport = true,
+}: VirtualTableScrollXOptions): number => {
+  const safeTotalWidth = Math.max(0, Math.ceil(totalWidth));
+  const safeViewportWidth = Math.max(0, Math.floor(tableViewportWidth));
+
+  if (stretchToViewport && safeViewportWidth > 0 && safeTotalWidth < safeViewportWidth) {
+    return safeViewportWidth;
+  }
+
+  const useNativeSlop = nativeHorizontalScroll ?? isMacLike;
+  if (useNativeSlop && safeViewportWidth > 0 && safeTotalWidth > safeViewportWidth) {
+    return safeTotalWidth + 2;
+  }
+
+  return safeTotalWidth;
+};
+
+export const resolveVirtualHorizontalMaxScroll = ({
+  tableScrollX,
+  clientWidth,
+  scrollWidth,
+  useNativeScroll,
+}: VirtualHorizontalMaxScrollOptions): number => {
+  const safeClientWidth = Math.max(0, Number(clientWidth) || 0);
+  const declaredMax = Math.max(0, (Number(tableScrollX) || 0) - safeClientWidth);
+  if (!useNativeScroll) {
+    return declaredMax;
+  }
+  const nativeMax = Math.max(0, (Number(scrollWidth) || 0) - safeClientWidth);
+  return nativeMax > 0 ? nativeMax : declaredMax;
+};
+
+/** 兼容 antd ColumnType.key（React.Key = string | number | bigint） */
+export type AbsorbExtraColumnKey = string | number | bigint;
+
+export type AbsorbExtraColumnWidthOptions<T extends { key?: AbsorbExtraColumnKey; width?: number | string }> = {
+  columns: T[];
+  selectionColumnWidth: number;
+  tableViewportWidth: number;
+  /** 这些列保持声明宽度，不参与吸收多余空间（如行号列） */
+  fixedColumnKeys?: Iterable<string>;
+  defaultColumnWidth: number;
+};
+
+/**
+ * 少字段时 rc-table 会把 scroll.x 扩到视口并均摊拉宽所有列。
+ * 将「视口 − 声明总宽」的差额加到最后一个非固定数据列，避免行号/勾选列被一起撑宽。
+ */
+export const absorbExtraWidthIntoFlexibleColumns = <T extends { key?: AbsorbExtraColumnKey; width?: number | string }>({
+  columns,
+  selectionColumnWidth,
+  tableViewportWidth,
+  fixedColumnKeys,
+  defaultColumnWidth,
+}: AbsorbExtraColumnWidthOptions<T>): T[] => {
+  if (!Array.isArray(columns) || columns.length === 0) {
+    return columns;
+  }
+
+  const safeViewport = Math.max(0, Math.floor(Number(tableViewportWidth) || 0));
+  const safeSelection = Math.max(0, Math.ceil(Number(selectionColumnWidth) || 0));
+  const safeDefault = Math.max(1, Math.ceil(Number(defaultColumnWidth) || 1));
+  const fixedKeys = new Set(
+    Array.from(fixedColumnKeys || [], (key) => String(key || '').trim()).filter(Boolean),
+  );
+
+  const resolveWidth = (column: T): number => {
+    const raw = Number(column.width);
+    return Number.isFinite(raw) && raw > 0 ? Math.ceil(raw) : safeDefault;
+  };
+
+  const declaredTotal = columns.reduce((sum, column) => sum + resolveWidth(column), 0) + safeSelection;
+  if (safeViewport <= 0 || declaredTotal >= safeViewport) {
+    return columns;
+  }
+
+  let flexibleIndex = -1;
+  for (let index = columns.length - 1; index >= 0; index -= 1) {
+    const key = String(columns[index]?.key ?? '').trim();
+    if (!fixedKeys.has(key)) {
+      flexibleIndex = index;
+      break;
+    }
+  }
+  if (flexibleIndex < 0) {
+    return columns;
+  }
+
+  const extra = safeViewport - declaredTotal;
+  return columns.map((column, index) => {
+    if (index !== flexibleIndex) {
+      return column;
+    }
+    return {
+      ...column,
+      width: resolveWidth(column) + extra,
+    };
+  });
+};
+
+export const calculateExternalHorizontalScrollInnerWidth = ({
+  tableScrollWidth,
+  trackInset,
+}: ExternalHorizontalScrollInnerWidthOptions): number => {
+  const safeTableScrollWidth = Math.max(0, Math.ceil(tableScrollWidth));
+  const safeTrackInset = Math.max(0, Math.ceil(trackInset));
+
+  return Math.max(1, safeTableScrollWidth - safeTrackInset * 2);
+};
+
+export const resolveExternalHorizontalScrollMetrics = ({
+  tableScrollWidth,
+  tableViewportWidth,
+  measuredScrollWidth,
+  measuredClientWidth,
+  measuredTrackClientWidth,
+  trackInset,
+}: ExternalHorizontalScrollMetricsOptions): ExternalHorizontalScrollMetrics => {
+  const safeTableScrollWidth = Math.max(0, Math.ceil(tableScrollWidth));
+  const safeViewportWidth = Math.max(0, Math.floor(tableViewportWidth));
+  const safeMeasuredScrollWidth = Math.max(0, Math.ceil(measuredScrollWidth));
+  const safeMeasuredClientWidth = Math.max(0, Math.floor(measuredClientWidth));
+  const safeMeasuredTrackClientWidth = Math.max(0, Math.floor(measuredTrackClientWidth || 0));
+  const safeTrackInset = Math.max(0, Math.ceil(trackInset));
+  const calculatedMaxScrollLeft = safeViewportWidth > 0
+    ? Math.max(0, safeTableScrollWidth - safeViewportWidth)
+    : 0;
+  const measuredMaxScrollLeft = Math.max(0, safeMeasuredScrollWidth - safeMeasuredClientWidth);
+  const maxScrollLeft = Math.max(calculatedMaxScrollLeft, measuredMaxScrollLeft);
+  const innerWidth = safeViewportWidth > 0
+    ? Math.max(1, safeMeasuredTrackClientWidth || (safeViewportWidth - safeTrackInset * 2)) + maxScrollLeft
+    : calculateExternalHorizontalScrollInnerWidth({ tableScrollWidth, trackInset });
+
+  return {
+    visible: maxScrollLeft > 1,
+    innerWidth,
+    maxScrollLeft,
+  };
+};
+
+export const resolveDataGridColumnQuickFindScrollLeft = ({
+  currentScrollLeft,
+  columnLeft,
+  columnWidth,
+  viewportWidth,
+  scrollWidth,
+}: DataGridColumnQuickFindScrollLeftOptions): number => {
+  const safeViewportWidth = Math.max(0, Math.floor(viewportWidth));
+  const safeScrollWidth = Math.max(0, Math.ceil(scrollWidth));
+  const maxScrollLeft = Math.max(0, safeScrollWidth - safeViewportWidth);
+
+  if (safeViewportWidth <= 0 || maxScrollLeft <= 0) {
+    return 0;
+  }
+
+  const safeCurrentScrollLeft = Number.isFinite(currentScrollLeft)
+    ? Math.max(0, Math.min(maxScrollLeft, currentScrollLeft))
+    : 0;
+  const safeColumnLeft = Number.isFinite(columnLeft) ? columnLeft : safeCurrentScrollLeft;
+  const safeColumnWidth = Math.max(0, Number.isFinite(columnWidth) ? columnWidth : 0);
+
+  if (safeColumnWidth >= safeViewportWidth) {
+    return Math.max(0, Math.min(maxScrollLeft, safeColumnLeft));
+  }
+
+  const centeredScrollLeft = safeColumnLeft - (safeViewportWidth - safeColumnWidth) / 2;
+  return Math.max(0, Math.min(maxScrollLeft, centeredScrollLeft));
+};
+
+export const resolveDataGridHorizontalWheelDelta = ({
+  deltaX,
+  deltaY,
+  shiftKey,
+}: DataGridHorizontalWheelIntentOptions): number => {
+  const safeDeltaX = Number.isFinite(deltaX) ? deltaX : 0;
+  const safeDeltaY = Number.isFinite(deltaY) ? deltaY : 0;
+  const absX = Math.abs(safeDeltaX);
+  const absY = Math.abs(safeDeltaY);
+
+  if (shiftKey && absY >= HORIZONTAL_WHEEL_MIN_DELTA) {
+    return safeDeltaY;
+  }
+
+  if (absX < HORIZONTAL_WHEEL_MIN_DELTA) {
+    return 0;
+  }
+
+  // 触摸板纵向滚动常会夹带微小 deltaX。
+  // 只有横向位移明显占优时才拦截为横向滚动，避免误伤垂直滚动流畅度。
+  if (absY > 0 && absX < absY * HORIZONTAL_WHEEL_DOMINANCE_RATIO) {
+    return 0;
+  }
+
+  return safeDeltaX;
+};
+
+export const shouldLetNativeHorizontalWheelPass = ({
+  deltaX,
+  deltaY,
+  shiftKey,
+  nativeHorizontalEnabled,
+}: DataGridNativeHorizontalWheelOptions): boolean => {
+  if (!nativeHorizontalEnabled || shiftKey) {
+    return false;
+  }
+  return resolveDataGridHorizontalWheelDelta({ deltaX, deltaY, shiftKey: false }) !== 0;
+};
+
+export const resolveNativeHorizontalWheelScrollLeft = ({
+  delta,
+  currentScrollLeft,
+  maxScrollLeft,
+}: DataGridNativeHorizontalWheelDispatchOptions): number => {
+  const safeDelta = Number.isFinite(delta) ? delta : 0;
+  const safeCurrent = Number.isFinite(currentScrollLeft) ? Math.max(0, currentScrollLeft) : 0;
+  const safeMax = Number.isFinite(maxScrollLeft) ? Math.max(0, maxScrollLeft) : 0;
+  return Math.max(0, Math.min(safeMax, safeCurrent + safeDelta));
+};
+
+export const shouldCommitVirtualHorizontalRange = ({
+  nextOffset,
+  lastCommittedOffset,
+  thresholdPx,
+}: DataGridHorizontalRangeCommitOptions): boolean => {
+  const safeNext = Number.isFinite(nextOffset) ? nextOffset : 0;
+  const safeLast = Number.isFinite(lastCommittedOffset) ? lastCommittedOffset : 0;
+  const safeThreshold = Number.isFinite(thresholdPx) ? Math.max(0, thresholdPx) : 0;
+  return Math.abs(safeNext - safeLast) >= safeThreshold;
+};

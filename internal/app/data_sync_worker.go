@@ -124,3 +124,22 @@ func (a *App) registerExistingDataSyncSchedules(ctx context.Context, manager *sy
 	}
 	return nil
 }
+
+// ShutdownDataSyncBackgroundWorker stops the detached data-sync worker process
+// (if any) so closing the main window does not leave a background ServDeck
+// process behind. Safe to call when no worker is running.
+func (a *App) ShutdownDataSyncBackgroundWorker(ctx context.Context) {
+	if a == nil || a.ctx == nil {
+		return
+	}
+	root, rootErr := appdata.ResolveActiveRoot()
+	if rootErr != nil {
+		logger.Warnf("解析数据根目录失败，跳过后台进程停止：%v", rootErr)
+		return
+	}
+	stopCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	if err := syncworker.Stop(stopCtx, root); err != nil {
+		logger.Warnf("停止数据同步后台进程失败：%v", err)
+	}
+}

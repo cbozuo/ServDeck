@@ -1494,6 +1494,10 @@ export function Shutdown() {
   return window['go']['app']['App']['Shutdown']();
 }
 
+export function ShutdownDataSyncBackgroundWorker(arg1) {
+  return window['go']['app']['App']['ShutdownDataSyncBackgroundWorker'](arg1);
+}
+
 export function StartDriverPackageDownload(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['StartDriverPackageDownload'](arg1, arg2, arg3, arg4);
 }

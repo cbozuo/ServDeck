@@ -1247,8 +1247,15 @@ function App() {
     if (typeof window === 'undefined') {
       return;
     }
+    // 只在跨越 760px 断点时才更新 state,避免每个 resize 事件触发全应用重渲染
+    let lastSide = (window.innerWidth || 0) < 760;
     const syncViewportWidth = () => {
-      setViewportWidth(window.innerWidth || document.documentElement?.clientWidth || 1280);
+      const width = window.innerWidth || document.documentElement?.clientWidth || 1280;
+      const side = width < 760;
+      if (side !== lastSide) {
+        lastSide = side;
+        setViewportWidth(width);
+      }
     };
     syncViewportWidth();
     window.addEventListener('resize', syncViewportWidth);
@@ -2238,7 +2245,12 @@ function App() {
               void saveWindowState();
           },
           handlers: {
-              resize: handleWindowRuntimeChange,
+              // resize 过程中只保存状态,不执行 bounds 修复——修复内的 WindowSetSize 会与
+              // 用户拖拽互相打架(程序化改窗→再触发 resize→循环抖动);静止 300ms 后再修。
+              resize: () => {
+                  scheduleWindowBoundsRepair(300);
+                  scheduleWindowStateSave(260);
+              },
               focus: handleWindowRuntimeChange,
               pageshow: handleWindowRuntimeChange,
               pagehide: handleWindowLifecycleFlush,

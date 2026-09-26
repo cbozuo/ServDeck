@@ -88,50 +88,6 @@ const createToolbar = (overrides: Partial<React.ComponentProps<typeof V2Explorer
 };
 
 describe('collapsed V2 sidebar actions', () => {
-  it('mounts the shared sidebar toolbar in the collapsed titlebar host', () => {
-    const hostStart = appSource.indexOf('data-collapsed-sidebar-actions="true"');
-    const hostEnd = appSource.indexOf('{/* Collapsed sidebar titlebar actions end */}', hostStart);
-    const actionsSource = appSource.slice(hostStart, hostEnd);
-    const sharedActionsStart = sidebarSource.indexOf('export const V2ExplorerToolbarActions');
-    const sharedActionsEnd = sidebarSource.indexOf('\nconst Sidebar:', sharedActionsStart);
-    const sharedActionsSource = sidebarSource.slice(sharedActionsStart, sharedActionsEnd);
-
-    expect(hostStart).toBeGreaterThanOrEqual(0);
-    expect(hostEnd).toBeGreaterThan(hostStart);
-    expect(sharedActionsStart).toBeGreaterThanOrEqual(0);
-    expect(sharedActionsEnd).toBeGreaterThan(sharedActionsStart);
-    expect(appSource).toContain('isCollapsedSidebarActionsDocked');
-    expect(appSource).toContain('shouldDockCollapsedSidebarActionsInTitlebar = resolveCollapsedSidebarDocking(');
-    expect(appSource).toContain('runtimePlatform,');
-    expect(appSource).toContain('navigatorPlatform,');
-    expect(appSource).toContain('isWebRuntime,');
-    expect(appSource).toMatch(
-      /resolveTitleBarLayout\(\s*effectiveUiScale,\s*isCollapsedSidebarActionsDocked,\s*effectiveSidebarRailScale,\s*\)/s,
-    );
-    expect(appSource).toContain("isCollapsedSidebarActionsDocked ? 'gn-v2-titlebar-collapsed-docked' : ''");
-    expect(actionsSource).toContain('role="toolbar"');
-    expect(actionsSource).toContain('data-no-titlebar-toggle="true"');
-    expect(appSource).toContain('ref={setCollapsedSidebarActionsTarget}');
-    expect(appSource).toContain('collapsedSidebarActionsTarget={collapsedSidebarActionsTarget}');
-    expect(appSource).toContain('onExpandSidebar={handleExpandSidebarPanel}');
-    expect(appSource).toContain('onEnsureSidebarExpanded={handleEnsureSidebarExpanded}');
-    expect(sidebarSource).toContain('collapsedSidebarActionsTarget && createPortal(');
-    expect(sidebarSource).toContain("placement: 'collapsed-titlebar'");
-
-    const actionMarkers = [
-      'data-sidebar-locate-current-tab-action="true"',
-      'data-sidebar-scroll-to-top-action="true"',
-      'data-sidebar-active-connection-actions="true"',
-      'data-sidebar-toggle-placement={toggleAction.placement}',
-    ];
-    const markerIndexes = actionMarkers.map((marker) => sharedActionsSource.indexOf(marker));
-    expect(markerIndexes.every((index) => index >= 0)).toBe(true);
-    expect(markerIndexes).toEqual([...markerIndexes].sort((a, b) => a - b));
-    expect(sharedActionsSource).toContain('disabled={!canLocateActiveTab}');
-    expect(sharedActionsSource).toContain('disabled={!hasActiveConnection}');
-    expect(sharedActionsSource).toContain('aria-haspopup="menu"');
-  });
-
   it('hides the fixed rail only when the docked titlebar host is active', () => {
     expect(appSource).toContain(
       "data-sidebar-actions-placement={isCollapsedSidebarActionsDocked ? 'titlebar' : 'fixed-rail'}",

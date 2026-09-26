@@ -2566,6 +2566,7 @@ body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn svg {
     font-size: 16px;
 }
 
+/* 统一悬浮背景:所有按钮 hover 均为圆角方块,大小随按钮本体 */
 body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn:hover,
 body[data-ui-version="v2"] .gn-v2-titlebar-system-action.ant-btn:focus-visible {
     background: var(--gn-bg-hover, rgba(15, 23, 42, 0.045));
@@ -2634,7 +2635,7 @@ button[data-titlebar-brand-toggle="true"]:focus-visible {
     height: var(--gn-titlebar-divider-height, 16px);
     flex-shrink: 0;
     background: color-mix(in srgb, var(--gn-br-2, rgba(15, 23, 42, 0.12)) 88%, transparent);
-    margin: 0 12px 0 12px;
+    margin: 0 8px 0 8px;
 }
 
 .gn-v2-titlebar-quick-actions {
@@ -2878,7 +2879,7 @@ body[data-ui-version="v2"][data-platform='windows'] .titlebar-window-controls {
    与内缩的 ::before 叠成两层底色。 */
 body[data-ui-version="v2"] .gn-v2-titlebar .titlebar-window-controls > .ant-btn.ant-btn-text {
     border: 0 !important;
-    border-radius: 0 !important;
+    border-radius: 8px !important;
     box-shadow: none !important;
     /* 本体恒透明,底色只由内缩小方块负责 */
     background: transparent !important;

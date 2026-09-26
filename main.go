@@ -268,6 +268,8 @@ func main() {
 		OnShutdown: func(ctx context.Context) {
 			app.StartWindowsRuntimeProcessReaper()
 			nativewindow.ShutdownLifecycle(nativeWindowManager)
+			// 停止数据同步后台 worker,避免关闭窗口后残留 sync-worker 进程
+			application.ShutdownDataSyncBackgroundWorker(ctx)
 			application.Shutdown()
 		},
 		OnBeforeClose: app.NewBeforeCloseHandler(application),
@@ -384,7 +386,9 @@ func resolveWindowVisualOptions(goos string, lowMemoryMode bool) (*options.RGBA,
 			BackdropType:                      windows.None,
 			DisableWindowIcon:                 false,
 			DisableFramelessWindowDecorations: false,
-			Messages:                          resolveWindowsRuntimeMessages(),
+			// resize 时 WebView2 PutBounds 异步追帧导致的闪烁,用防抖降低追帧频率
+			ResizeDebounceMS: 40,
+			Messages:         resolveWindowsRuntimeMessages(),
 		}
 	}
 

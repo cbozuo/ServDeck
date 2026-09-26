@@ -758,6 +758,8 @@ export function SetWindowTranslucency(arg1:number,arg2:number,arg3:boolean):Prom
 
 export function Shutdown():Promise<void>;
 
+export function ShutdownDataSyncBackgroundWorker(arg1:context.Context):Promise<void>;
+
 export function StartDriverPackageDownload(arg1:string,arg2:string,arg3:string,arg4:string):Promise<connection.QueryResult>;
 
 export function StartSavedConnectionsHealthRun(arg1:Array<string>):Promise<connection.ConnectionHealthRun>;

@@ -10,7 +10,7 @@ export const getMacNativeTitlebarContentOffset = (titleBarHeight: number, enable
 
 export const getMacNativeTitlebarPaddingLeft = (uiScale: number, enabled: boolean): number => {
   if (!enabled) {
-    return Math.max(12, Math.round(16 * uiScale));
+    return Math.max(4, Math.round(8 * uiScale));
   }
   return Math.max(88, Math.round(96 * uiScale));
 };

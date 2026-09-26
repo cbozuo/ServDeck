@@ -55,7 +55,7 @@ describe('TitleBarPrimaryActions', () => {
     expect(match, 'Missing titlebar window-control override').not.toBeNull();
     const body = match?.groups?.body ?? '';
     expect(body).toContain('border: 0 !important;');
-    expect(body).toContain('border-radius: 0 !important;');
+    expect(body).toContain('border-radius: 8px !important;');
     expect(body).toContain('box-shadow: none !important;');
 
     const closeHoverMatch = appCss.match(

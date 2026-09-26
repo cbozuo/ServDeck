@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServDeck 首页高保真 — 服务总览仪表盘</title>
+<style>
+  /* ============================================================
+     主题 Token（对齐 frontend/src/v2-theme.css 的 --gn-* 命名）
+     亮/暗两套照抄现有值；自定义主题示例只覆盖 accent 色系，
+     证明首页完全由 token 驱动，任意主题（含用户自定义）自适应。
+     ============================================================ */
+  :root, [data-theme="light"], [data-theme="custom"] {
+    --gn-bg-app:      rgb(246 246 244);
+    --gn-bg-chrome:   rgb(236 236 234);
+    --gn-bg-titlebar: rgb(250 250 248);
+    --gn-bg-panel:    rgb(255 255 255);
+    --gn-bg-panel-2:  rgb(250 250 248);
+    --gn-bg-input:    rgb(255 255 255);
+    --gn-bg-hover:    rgba(15, 23, 42, 0.045);
+    --gn-bg-active:   rgba(15, 23, 42, 0.075);
+    --gn-bg-selected: color-mix(in srgb, var(--gn-accent) 14%, transparent);
+    --gn-fg-1: #0c1322; --gn-fg-2: #1f2937; --gn-fg-3: #4b5563;
+    --gn-fg-4: #6b7280; --gn-fg-5: #9ca3af;
+    --gn-br-1: rgba(15, 23, 42, 0.08);
+    --gn-br-2: rgba(15, 23, 42, 0.12);
+    --gn-br-3: rgba(15, 23, 42, 0.18);
+    --gn-accent:       #15803d;
+    --gn-accent-2:     #166534;
+    --gn-accent-soft:  color-mix(in srgb, var(--gn-accent) 16%, var(--gn-bg-panel));
+    --gn-accent-strong: #15803d;
+    --gn-accent-strong-hover: #126634;
+    --gn-accent-strong-active: #0d4d27;
+    --gn-on-accent: #ffffff;
+    --gn-info:  #0369a1;
+    --gn-warn:  #d97706;
+    --gn-danger: #dc2626;
+    --gn-shadow-md:  0 4px 14px rgba(15, 23, 42, 0.08);
+    --gn-shadow-lg:  0 12px 40px rgba(15, 23, 42, 0.14);
+    --gn-shadow-card: 0 0 0 0.5px rgba(15, 23, 42, 0.10), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --gn-font-sans: "Inter", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+    --gn-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  /* 自定义主题示例：以亮色为基底，仅替换主色系（取自品牌渐变的紫） */
+  [data-theme="custom"] {
+    --gn-accent:        #6d28d9;
+    --gn-accent-2:      #5b21b6;
+    --gn-accent-soft:   color-mix(in srgb, var(--gn-accent) 14%, var(--gn-bg-panel));
+    --gn-accent-strong: #6d28d9;
+    --gn-accent-strong-hover: #5b21b6;
+    --gn-accent-strong-active: #4c1d95;
+  }
+  [data-theme="dark"] {
+    --gn-bg-app:      rgb(12 14 18);
+    --gn-bg-chrome:   rgb(20 23 28);
+    --gn-bg-titlebar: rgb(27 31 39);
+    --gn-bg-panel:    rgb(22 26 33);
+    --gn-bg-panel-2:  rgb(27 31 39);
+    --gn-bg-input:    rgb(15 18 23);
+    --gn-bg-hover:    rgba(255, 255, 255, 0.05);
+    --gn-bg-active:   rgba(255, 255, 255, 0.08);
+    --gn-bg-selected: color-mix(in srgb, var(--gn-accent) 18%, transparent);
+    --gn-fg-1: #ffffff; --gn-fg-2: #f5f5f5; --gn-fg-3: #e6e6e6;
+    --gn-fg-4: #d9d9d9; --gn-fg-5: #cccccc;
+    --gn-br-1: rgba(255, 255, 255, 0.06);
+    --gn-br-2: rgba(255, 255, 255, 0.10);
+    --gn-br-3: rgba(255, 255, 255, 0.16);
+    --gn-accent:       #22c55e;
+    --gn-accent-2:     #16a34a;
+    --gn-accent-soft:  color-mix(in srgb, var(--gn-accent) 22%, transparent);
+    --gn-accent-strong: #15803d;
+    --gn-accent-strong-hover: #126634;
+    --gn-accent-strong-active: #0d4d27;
+    --gn-on-accent: #ffffff;
+    --gn-info:  #38bdf8;
+    --gn-warn:  #f59e0b;
+    --gn-danger: #f87171;
+    --gn-shadow-md:  0 4px 14px rgba(0, 0, 0, 0.45);
+    --gn-shadow-lg:  0 12px 40px rgba(0, 0, 0, 0.55);
+    --gn-shadow-card: 0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+  /* 服务类型生态色（生态品牌色，主题仅提供底色混合） */
+  :root { --t-java: #e76f00; --t-rust: #c2410c; --t-node: #2f8f4e; --t-exe: #64748b; }
+  [data-theme="dark"] { --t-java: #f7a03c; --t-rust: #fb923c; --t-node: #4ade80; --t-exe: #94a3b8; }
+
+  /* ============================================================ 基础 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--gn-font-sans);
+    background: var(--gn-bg-app);
+    color: var(--gn-fg-1);
+    font-size: 13px;
+    overflow: hidden;
+    transition: background-color .2s ease;
+  }
+  svg.ic { width: 16px; height: 16px; display: block; }
+  button { font-family: inherit; border: 0; background: transparent; color: inherit; cursor: pointer; }
+
+  .app { display: flex; flex-direction: column; height: 100vh; min-width: 1180px; }
+
+  /* ============================================================ 48px 标题栏（复刻方案B） */
+  .titlebar {
+    height: 48px; flex-shrink: 0;
+    display: flex; align-items: center;
+    background: var(--gn-bg-titlebar);
+    border-bottom: 1px solid var(--gn-br-1);
+    padding-left: 11px; user-select: none;
+  }
+  .brandlogo {
+    width: 34px; height: 34px; border-radius: 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    position: relative; flex-shrink: 0; color: var(--gn-fg-4);
+  }
+  .brandlogo:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .brandlogo .bl-logo, .brandlogo .bl-fold { width: 20px; height: 20px; display: block; }
+  .brandlogo .bl-fold { display: none; position: absolute; }
+  .brandlogo:hover .bl-logo { display: none; }
+  .brandlogo:hover .bl-fold { display: block; }
+  .brandlogo svg.bl-logo path { opacity: .82; transition: opacity .15s; }
+  .brandlogo:hover svg.bl-logo path { opacity: 1; }
+  .tdivider { width: 1px; height: 20px; background: var(--gn-br-2); margin: 0 6px; flex-shrink: 0; }
+  .ghostbtn {
+    height: 32px; padding: 0 10px; border-radius: 7px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600; color: var(--gn-fg-3);
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .ghostbtn:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .ghostbtn .ic { opacity: .85; }
+  .ghostbtn .chev { width: 11px; height: 11px; opacity: .6; margin-left: -1px; }
+  .spring { flex: 1 1 auto; min-width: 0; }
+  .gear {
+    width: 30px; height: 30px; border-radius: 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--gn-fg-4); margin-right: 12px;
+  }
+  .gear:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .winbtns { display: flex; align-items: center; gap: 2px; padding-right: 6px; }
+  .winbtn {
+    width: 40px; height: 40px; color: var(--gn-fg-4);
+    display: inline-flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .winbtn::before {
+    content: ""; position: absolute; inset: 5px; border-radius: 7px;
+    background: transparent; transition: background-color .15s ease;
+  }
+  .winbtn:hover { color: var(--gn-fg-1); }
+  .winbtn:hover::before { background: var(--gn-bg-hover); }
+  .winbtn.close:hover { color: #fff; }
+  .winbtn.close:hover::before { background: #e81123; }
+  .winbtn .ic { position: relative; }
+
+  /* ============================================================ 主体两栏 */
+  .wbody { flex: 1; display: flex; min-height: 0; }
+
+  /* ---------- 侧栏：服务导航 ---------- */
+  .sidebar {
+    width: 330px; flex-shrink: 0;
+    background: var(--gn-bg-panel);
+    border-right: 1px solid var(--gn-br-1);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .sb-search { padding: 12px 12px 8px; display: flex; gap: 8px; }
+  .sb-search-box {
+    flex: 1; height: 30px; border-radius: 7px;
+    background: var(--gn-bg-input);
+    border: 1px solid var(--gn-br-2);
+    display: flex; align-items: center; gap: 6px; padding: 0 8px;
+    color: var(--gn-fg-5);
+  }
+  .sb-search-box .ic { width: 14px; height: 14px; flex-shrink: 0; }
+  .sb-search-box input {
+    flex: 1; border: 0; outline: 0; background: transparent;
+    font: inherit; font-size: 12.5px; color: var(--gn-fg-1);
+  }
+  .sb-search-box input::placeholder { color: var(--gn-fg-5); }
+  .sb-add {
+    width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--gn-fg-4); border: 1px solid var(--gn-br-2);
+  }
+  .sb-add:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+
+  .sb-tree { flex: 1; overflow-y: auto; padding: 4px 8px 12px; }
+  .tree-row {
+    height: 30px; padding: 0 8px; border-radius: 6px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; color: var(--gn-fg-2); cursor: pointer;
+  }
+  .tree-row:hover { background: var(--gn-bg-hover); }
+  .tree-row.selected { background: var(--gn-bg-selected); color: var(--gn-fg-1); font-weight: 600; }
+  .tree-row .ic { width: 14px; height: 14px; color: var(--gn-fg-4); flex-shrink: 0; }
+  .tree-row.selected .ic { color: var(--gn-accent); }
+  .tree-row .cnt {
+    margin-left: auto; font-family: var(--gn-font-mono);
+    font-size: 11px; color: var(--gn-fg-5);
+  }
+  .tree-row .cnt.bad { color: var(--gn-danger); font-weight: 700; }
+  .tree-group { margin-top: 2px; }
+  .tree-chev { width: 12px; height: 12px; transition: transform .15s ease; color: var(--gn-fg-5); }
+  .tree-group.collapsed .tree-chev { transform: rotate(-90deg); }
+  .tree-group.collapsed .tree-children { display: none; }
+  .tree-children { margin: 1px 0 3px; }
+  .tree-leaf { padding-left: 34px; font-weight: 400; }
+  .leaf-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .leaf-dot.run    { background: var(--gn-accent); }
+  .leaf-dot.stop   { background: var(--gn-fg-5); opacity: .55; }
+  .leaf-dot.err    { background: var(--gn-danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gn-danger) 18%, transparent); }
+  .leaf-state { margin-left: auto; font-size: 10.5px; color: var(--gn-fg-5); }
+  .leaf-state.bad { color: var(--gn-danger); }
+
+  .sb-engine {
+    flex-shrink: 0; border-top: 1px solid var(--gn-br-1);
+    padding: 10px 14px; display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--gn-fg-3);
+    background: var(--gn-bg-panel-2);
+  }
+  .sb-engine .ic { width: 14px; height: 14px; color: var(--gn-accent); }
+  .engine-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--gn-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gn-accent) 18%, transparent);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--gn-accent) 10%, transparent); } }
+  .sb-engine .ver { margin-left: auto; font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-fg-5); }
+
+  /* ---------- 主区：总览仪表盘 ---------- */
+  .main { flex: 1; min-width: 0; overflow-y: auto; padding: 22px 26px 40px; }
+
+  .pagehead { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 18px; }
+  .pagehead h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  .pagehead .sub { margin-top: 4px; font-size: 12px; color: var(--gn-fg-4); }
+  .pagehead .sub b { color: var(--gn-fg-2); font-weight: 600; }
+  .pagehead .sub .live {
+    display: inline-flex; align-items: center; gap: 5px; margin-left: 8px;
+    color: var(--gn-accent-2);
+  }
+  .pagehead .actions { margin-left: auto; display: flex; gap: 8px; flex-shrink: 0; }
+  .btn {
+    height: 32px; padding: 0 12px; border-radius: 8px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600;
+  }
+  .btn-ghost { border: 1px solid var(--gn-br-2); color: var(--gn-fg-2); }
+  .btn-ghost:hover { background: var(--gn-bg-hover); }
+  .btn-primary { background: var(--gn-accent-strong); color: var(--gn-on-accent); box-shadow: var(--gn-shadow-md); }
+  .btn-primary:hover { background: var(--gn-accent-strong-hover); }
+  .btn-primary:active { background: var(--gn-accent-strong-active); }
+
+  /* 统计带 */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+  .stat {
+    background: var(--gn-bg-panel); border-radius: 10px;
+    box-shadow: var(--gn-shadow-card);
+    padding: 13px 16px 12px;
+  }
+  .stat .s-top { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--gn-fg-4); }
+  .stat .s-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .stat .s-num {
+    margin-top: 6px; font-family: var(--gn-font-mono);
+    font-size: 26px; font-weight: 600; line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .s-num small { font-size: 12px; font-weight: 500; color: var(--gn-fg-5); margin-left: 6px; font-family: var(--gn-font-sans); }
+  .s-dot.run  { background: var(--gn-accent); }
+  .s-dot.stop { background: var(--gn-fg-5); }
+  .s-dot.err  { background: var(--gn-danger); }
+  .s-dot.auto { background: var(--gn-info); }
+  .stat.err  { box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-danger) 30%, transparent), var(--gn-shadow-card); }
+  .stat.err .s-num { color: var(--gn-danger); }
+
+  /* 服务卡片网格 */
+  .cards-title { display: flex; align-items: center; margin: 6px 0 10px; }
+  .cards-title h2 { font-size: 13px; font-weight: 700; color: var(--gn-fg-2); }
+  .cards-title .more {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: var(--gn-fg-4); padding: 4px 6px; border-radius: 6px;
+  }
+  .cards-title .more:hover { color: var(--gn-accent); background: var(--gn-bg-hover); }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .card {
+    background: var(--gn-bg-panel); border-radius: 10px;
+    box-shadow: var(--gn-shadow-card);
+    padding: 12px 14px 11px;
+    display: flex; flex-direction: column; gap: 9px;
+    transition: box-shadow .15s ease, transform .15s ease;
+  }
+  .card:hover { box-shadow: 0 0 0 1px var(--gn-br-2), var(--gn-shadow-md); }
+  .card.err { box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-danger) 32%, transparent), var(--gn-shadow-card); }
+  .card.err:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-danger) 45%, transparent), var(--gn-shadow-md); }
+  .card .c-head { display: flex; align-items: center; gap: 8px; }
+  .type-ic {
+    width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .type-ic .ic { width: 15px; height: 15px; }
+  .type-ic.java { background: color-mix(in srgb, var(--t-java) 12%, var(--gn-bg-panel)); color: var(--t-java); }
+  .type-ic.rust { background: color-mix(in srgb, var(--t-rust) 12%, var(--gn-bg-panel)); color: var(--t-rust); }
+  .type-ic.node { background: color-mix(in srgb, var(--t-node) 12%, var(--gn-bg-panel)); color: var(--t-node); }
+  .type-ic.exe  { background: color-mix(in srgb, var(--t-exe) 12%, var(--gn-bg-panel)); color: var(--t-exe); }
+  .c-name { font-size: 13px; font-weight: 600; color: var(--gn-fg-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge {
+    margin-left: auto; flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 20px; padding: 0 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge i { width: 6px; height: 6px; border-radius: 50%; }
+  .badge.run    { background: var(--gn-accent-soft); color: var(--gn-accent-2); }
+  .badge.run i  { background: var(--gn-accent); }
+  .badge.stop   { background: var(--gn-bg-hover); color: var(--gn-fg-4); }
+  .badge.stop i { background: var(--gn-fg-5); }
+  .badge.err    { background: color-mix(in srgb, var(--gn-danger) 12%, transparent); color: var(--gn-danger); }
+  .badge.err i  { background: var(--gn-danger); }
+  .c-meta { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--gn-fg-4); }
+  .c-meta .ic { width: 12px; height: 12px; }
+  .c-meta span { display: inline-flex; align-items: center; gap: 4px; }
+  .c-meta .auto-tag { color: var(--gn-info); }
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .metric .m-label { font-size: 10.5px; color: var(--gn-fg-5); letter-spacing: .02em; }
+  .metric .m-val {
+    margin-top: 1px; font-family: var(--gn-font-mono);
+    font-size: 12.5px; font-weight: 600; color: var(--gn-fg-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .metric .m-val i { font-style: normal; font-size: 10.5px; color: var(--gn-fg-5); margin-left: 1px; }
+  .m-bar { margin-top: 4px; height: 3px; border-radius: 2px; background: var(--gn-bg-hover); overflow: hidden; }
+  .m-bar i { display: block; height: 100%; border-radius: 2px; }
+  .m-bar.cpu i { background: var(--gn-accent); }
+  .m-bar.mem i { background: var(--gn-info); }
+  .m-bar.warn i { background: var(--gn-warn); }
+  .c-foot { display: flex; align-items: center; margin-top: 1px; }
+  .btn-xs {
+    height: 26px; padding: 0 10px; border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 600; border: 1px solid var(--gn-br-2);
+    color: var(--gn-fg-2);
+  }
+  .btn-xs:hover { background: var(--gn-bg-hover); }
+  .btn-xs .ic { width: 12px; height: 12px; }
+  .btn-xs.start { background: var(--gn-accent-strong); border-color: transparent; color: var(--gn-on-accent); }
+  .btn-xs.start:hover { background: var(--gn-accent-strong-hover); }
+  .btn-xs.retry { color: var(--gn-danger); border-color: color-mix(in srgb, var(--gn-danger) 35%, transparent); }
+  .btn-xs.retry:hover { background: color-mix(in srgb, var(--gn-danger) 8%, transparent); }
+  .icon-more {
+    margin-left: auto; width: 28px; height: 26px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--gn-fg-5);
+  }
+  .icon-more:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .c-foot .hint { margin-left: 8px; font-size: 11px; color: var(--gn-fg-5); }
+
+  /* 曲线 + 事件 双栏 */
+  .duo { display: grid; grid-template-columns: 1.55fr 1fr; gap: 12px; margin-top: 14px; }
+  .panel {
+    background: var(--gn-bg-panel); border-radius: 10px;
+    box-shadow: var(--gn-shadow-card); padding: 14px 16px;
+    min-width: 0;
+  }
+  .panel h3 { font-size: 13px; font-weight: 700; color: var(--gn-fg-2); }
+  .panel .p-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .legend { margin-left: auto; display: flex; gap: 14px; font-size: 11.5px; color: var(--gn-fg-4); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend .lg-line { width: 14px; height: 2.5px; border-radius: 2px; }
+  .legend b { font-family: var(--gn-font-mono); font-weight: 600; color: var(--gn-fg-2); }
+  .chart-wrap { position: relative; }
+  .chart-wrap svg { display: block; width: 100%; height: auto; }
+
+  /* 事件时间线 */
+  .events { display: flex; flex-direction: column; }
+  .event { display: flex; gap: 10px; position: relative; padding-bottom: 14px; }
+  .event:last-child { padding-bottom: 2px; }
+  .event::before {
+    content: ""; position: absolute; left: 4px; top: 14px; bottom: -2px;
+    width: 1px; background: var(--gn-br-1);
+  }
+  .event:last-child::before { display: none; }
+  .e-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--gn-bg-panel); }
+  .e-dot.run  { background: var(--gn-accent); }
+  .e-dot.warn { background: var(--gn-warn); }
+  .e-dot.err  { background: var(--gn-danger); }
+  .e-dot.info { background: var(--gn-info); }
+  .e-dot.stop { background: var(--gn-fg-5); }
+  .e-time { width: 74px; flex-shrink: 0; font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-fg-5); padding-top: 1.5px; }
+  .e-body { font-size: 12.5px; color: var(--gn-fg-3); line-height: 1.45; min-width: 0; }
+  .e-body b { color: var(--gn-fg-1); font-weight: 600; }
+  .e-body .tag {
+    display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 600; vertical-align: 1px;
+  }
+  .tag.err  { background: color-mix(in srgb, var(--gn-danger) 12%, transparent); color: var(--gn-danger); }
+  .tag.warn { background: color-mix(in srgb, var(--gn-warn) 14%, transparent); color: var(--gn-warn); }
+  .tag.ok   { background: var(--gn-accent-soft); color: var(--gn-accent-2); }
+  .tag.info { background: color-mix(in srgb, var(--gn-info) 12%, transparent); color: var(--gn-info); }
+
+  /* ============================================================ 原型专用：主题切换 dock */
+  .theme-dock {
+    position: fixed; right: 18px; bottom: 12px; z-index: 99;
+    background: var(--gn-bg-panel); border-radius: 12px;
+    box-shadow: var(--gn-shadow-lg), 0 0 0 1px var(--gn-br-2);
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; align-items: center;
+  }
+  .theme-dock .td-tip { font-size: 10.5px; color: var(--gn-fg-5); letter-spacing: .02em; }
+  .td-seg { display: flex; background: var(--gn-bg-hover); border-radius: 8px; padding: 3px; gap: 2px; }
+  .td-seg button {
+    height: 24px; padding: 0 10px; border-radius: 6px;
+    font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4);
+  }
+  .td-seg button:hover { color: var(--gn-fg-1); }
+  .td-seg button.on { background: var(--gn-bg-panel); color: var(--gn-fg-1); box-shadow: var(--gn-shadow-md); }
+
+  /* 滚动条 */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--gn-br-2); border-radius: 5px; border: 2.5px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* 窄窗口自适应 */
+  @media (max-width: 1280px) {
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .duo { grid-template-columns: 1fr; }
+    .sidebar { width: 280px; }
+  }
+</style>
+</head>
+<body data-theme="light">
+
+  <!-- 公共 SVG defs：品牌渐变 + 线性图标（自包含，无外部依赖） -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="servyGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0.083" stop-color="#540E82"/><stop offset="0.25" stop-color="#4F2887"/>
+        <stop offset="0.417" stop-color="#4C4990"/><stop offset="0.583" stop-color="#456C9D"/>
+        <stop offset="0.75" stop-color="#398DAB"/><stop offset="0.917" stop-color="#24AEB9"/>
+      </linearGradient>
+      <symbol id="logo" viewBox="0 0 1024 1024"><path fill="url(#servyGrad)" fill-rule="evenodd" d="M466.50,76.00 520.00,75.50 579.00,82.50 643.00,99.50 695.00,121.50 740.00,147.50 783.00,179.50 821.50,216.00 843.50,242.00 852.50,257.00 853.50,337.00 850.50,344.00 846.00,348.50 836.00,352.50 732.00,352.50 724.00,348.50 703.50,322.00 670.00,290.50 632.00,265.50 598.00,249.50 556.00,236.50 510.00,230.50 479.00,230.50 436.00,236.50 414.00,242.50 379.00,255.50 349.00,271.50 320.00,291.50 283.50,326.00 265.50,348.00 249.50,372.00 233.50,403.00 220.50,442.00 213.50,474.00 210.50,519.00 214.50,561.00 223.50,598.00 236.50,631.00 253.50,663.00 284.50,703.00 318.00,734.50 347.00,754.50 386.00,773.50 426.00,786.50 467.00,793.50 516.00,793.50 569.00,785.50 573.00,786.50 580.00,791.50 660.00,870.50 682.50,893.00 685.50,899.00 685.50,906.00 681.00,910.50 640.00,927.50 577.00,943.50 519.00,950.50 470.00,950.50 431.00,946.50 394.00,939.50 342.00,924.50 301.00,907.50 262.00,885.50 231.00,864.50 198.00,837.50 156.50,795.00 134.50,767.00 109.50,727.00 92.50,694.00 80.50,665.00 67.50,623.00 57.50,570.00 54.50,534.00 54.50,491.00 56.50,482.00 57.50,456.00 66.50,409.00 80.50,363.00 92.50,333.00 112.50,294.00 133.50,262.00 159.50,229.00 199.00,188.50 223.00,168.50 268.00,137.50 310.00,115.50 341.00,102.50 383.00,89.50 431.00,79.50 466.50,76.00ZM448.50,433.00 936.00,432.50 951.00,438.50 962.50,450.00 968.50,560.00 961.50,574.00 954.00,581.50 935.00,590.50 452.00,590.50 441.00,587.50 432.00,582.50 421.50,571.00 416.50,557.00 416.50,463.00 422.50,450.00 431.00,440.50 439.00,435.50 448.50,433.00ZM652.50,672.00 839.00,671.50 843.00,673.50 851.50,684.00 851.50,721.00 853.50,729.00 947.50,824.00 952.50,836.00 953.50,848.00 946.50,866.00 877.00,933.50 861.00,938.50 848.00,937.50 840.00,933.50 832.00,927.50 630.50,724.00 624.50,709.00 626.50,695.00 636.00,680.50 641.00,676.50 652.50,672.00Z"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-min" viewBox="0 0 14 14"><path d="M3 7h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-max" viewBox="0 0 14 14"><rect x="3.2" y="3.2" width="7.6" height="7.6" rx="1.4" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+      <symbol id="i-x" viewBox="0 0 14 14"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-fold" viewBox="0 0 16 16"><rect x="1.8" y="2.8" width="12.4" height="10.4" rx="1.8" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M6 2.8v10.4" stroke="currentColor" stroke-width="1.2"/><path d="M11.4 8H8.2M9.6 6.4L8 8l1.6 1.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+      <symbol id="i-chev" viewBox="0 0 12 12"><path d="M3.5 4.8L6 7.3l2.5-2.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-chev-r" viewBox="0 0 12 12"><path d="M4.8 3.5L7.3 6l-2.5 2.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M10.4 10.4L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+      <symbol id="i-play" viewBox="0 0 16 16"><path d="M5.5 3.6L12.3 8l-6.8 4.4z" fill="currentColor"/></symbol>
+      <symbol id="i-stop" viewBox="0 0 16 16"><rect x="4.5" y="4.5" width="7" height="7" rx="1.2" fill="currentColor"/></symbol>
+      <symbol id="i-retry" viewBox="0 0 16 16"><path d="M13.2 8a5.2 5.2 0 1 1-1.6-3.75" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M13.4 1.8v3h-3" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="12.5" cy="8" r="1.3" fill="currentColor"/></symbol>
+      <symbol id="i-chart" viewBox="0 0 16 16"><path d="M2.5 13.5v-13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none" opacity=".001"/><path d="M2.5 12.5L6 8.6l3 2 4.5-6.1" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 13.8h11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".45"/></symbol>
+      <symbol id="i-grid" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="8.9" y="2.5" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="2.5" y="8.9" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="8.9" y="8.9" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+      <symbol id="i-import" viewBox="0 0 16 16"><path d="M8 2.5v6.5M5.5 6.8L8 9.3l2.5-2.5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.8 11.5v1.2a1 1 0 0 0 1 1h8.4a1 1 0 0 0 1-1v-1.2" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-bolt" viewBox="0 0 16 16"><path d="M8.8 1.8L3.8 9h3.1l-.9 5.2L11.4 7H8.2z" fill="currentColor"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M8 5.2V8l2.1 1.4" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 1.8l5.2 2v3.6c0 3.1-2.1 5.6-5.2 6.8-3.1-1.2-5.2-3.7-5.2-6.8V3.8z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M5.9 7.9l1.6 1.6 2.8-2.9" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M2.8 8a5.2 5.2 0 0 1 9-3.6M13.2 8a5.2 5.2 0 0 1-9 3.6" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M11.5 2.2l.4 2.4-2.4.4M4.5 13.8l-.4-2.4 2.4-.4" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-java" viewBox="0 0 16 16"><path d="M4 6.9h7v3.4a3 3 0 0 1-3 3h-1a3 3 0 0 1-3-3z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M11 7.5h.8a1.7 1.7 0 0 1 0 3.4h-.9" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/><path d="M6.4 3.2c-.5.8.5 1.1 0 2M9.1 3.2c-.5.8.5 1.1 0 2" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-rust" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.1" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M8 2.2v1.7M8 12.1v1.7M13.8 8h-1.7M3.9 8H2.2M12.2 3.8l-1.2 1.2M5 11l-1.2 1.2M12.2 12.2L11 11M5 5L3.8 3.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-node" viewBox="0 0 16 16"><path d="M8 1.8l5.4 3.1v6.2L8 14.2l-5.4-3.1V4.9z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/></symbol>
+      <symbol id="i-exe" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M2.5 6h11" stroke="currentColor" stroke-width="1.2"/><circle cx="4.6" cy="4.5" r=".55" fill="currentColor"/><circle cx="6.4" cy="4.5" r=".55" fill="currentColor"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 12 12"><path d="M2.5 6h7M6.8 3.2L9.6 6l-2.8 2.8" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="app">
+
+    <!-- ============ 48px 标题栏 ============ -->
+    <header class="titlebar">
+      <button class="brandlogo" title="折叠侧栏">
+        <svg class="bl-logo"><use href="#logo"/></svg>
+        <svg class="bl-fold"><use href="#i-fold"/></svg>
+      </button>
+      <div class="tdivider" style="margin:0 8px 0 9px"></div>
+      <button class="ghostbtn"><svg class="ic"><use href="#i-plus"/></svg>注册服务</button>
+      <button class="ghostbtn"><svg class="ic"><use href="#i-import"/></svg>导入配置</button>
+      <div class="tdivider"></div>
+      <button class="ghostbtn"><svg class="ic"><use href="#i-grid"/></svg>服务管理<svg class="chev"><use href="#i-chev"/></svg></button>
+      <button class="ghostbtn"><svg class="ic"><use href="#i-chart"/></svg>监控中心</button>
+      <div class="spring"></div>
+      <button class="gear" title="设置"><svg class="ic"><use href="#i-gear"/></svg></button>
+      <div class="winbtns">
+        <button class="winbtn"><svg class="ic"><use href="#i-min"/></svg></button>
+        <button class="winbtn"><svg class="ic"><use href="#i-max"/></svg></button>
+        <button class="winbtn close"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+    </header>
+
+    <div class="wbody">
+
+      <!-- ============ 侧栏：服务导航 ============ -->
+      <aside class="sidebar">
+        <div class="sb-search">
+          <div class="sb-search-box">
+            <svg class="ic"><use href="#i-search"/></svg>
+            <input placeholder="筛选服务…" />
+          </div>
+          <button class="sb-add" title="新建服务分组"><svg class="ic"><use href="#i-plus"/></svg></button>
+        </div>
+
+        <nav class="sb-tree">
+          <div class="tree-row selected">
+            <svg class="ic"><use href="#i-grid"/></svg>全部服务<span class="cnt">11</span>
+          </div>
+          <div class="tree-row">
+            <svg class="ic"><use href="#i-bolt"/></svg>开机自启<span class="cnt">5</span>
+          </div>
+          <div class="tree-row">
+            <svg class="ic"><use href="#i-shield"/></svg>运行异常<span class="cnt bad">1</span>
+          </div>
+
+          <div class="tree-group">
+            <div class="tree-row" style="margin-top:8px">
+              <svg class="tree-chev"><use href="#i-chev"/></svg>
+              <svg class="ic" style="color:var(--t-java)"><use href="#i-java"/></svg>Java<span class="cnt">4</span>
+            </div>
+            <div class="tree-children">
+              <div class="tree-row tree-leaf"><i class="leaf-dot run"></i>order-service<span class="leaf-state">运行中</span></div>
+              <div class="tree-row tree-leaf"><i class="leaf-dot run"></i>payment-service<span class="leaf-state">运行中</span></div>
+              <div class="tree-row tree-leaf"><i class="leaf-dot err"></i>report-generator<span class="leaf-state bad">失败</span></div>
+              <div class="tree-row tree-leaf"><i class="leaf-dot run"></i>data-sync-service<span class="leaf-state">运行中</span></div>
+            </div>
+          </div>
+
+          <div class="tree-group">
+            <div class="tree-row" style="margin-top:2px">
+              <svg class="tree-chev"><use href="#i-chev"/></svg>
+              <svg class="ic" style="color:var(--t-rust)"><use href="#i-rust"/></svg>Rust<span class="cnt">3</span>
+            </div>
+            <div class="tree-children">
+              <div class="tree-row tree-leaf"><i class="leaf-dot run"></i>gateway-api<span class="leaf-state">运行中</span></div>
+              <div class="tree-row tree-leaf"><i class="leaf-dot run"></i>log-agent<span class="leaf-state">运行中</span></div>
+              <div class="tree-row tree-leaf"><i class="leaf-dot stop"></i>cache-engine<span class="leaf-state">已停止</span></div>
+            </div>
+          </div>
+
+          <div class="tree-group">
+            <div class="tree-row" style="margin-top:2px">
+              <svg class="tree-chev"><use href="#i-chev"/></svg>
+              <svg class="ic" style="color:var(--t-node)"><use href="#i-node"/></svg>Node.js<span class="cnt">2</span>
+            </div>
+            <div class="tree-children">
+              <div class="tree-row tree-leaf"><i class="leaf-dot run"></i>web-console<span class="leaf-state">运行中</span></div>
+              <div class="tree-row tree-leaf"><i class="leaf-dot stop"></i>cache-worker<span class="leaf-state">已停止</span></div>
+            </div>
+          </div>
+
+          <div class="tree-group">
+            <div class="tree-row" style="margin-top:2px">
+              <svg class="tree-chev"><use href="#i-chev"/></svg>
+              <svg class="ic" style="color:var(--t-exe)"><use href="#i-exe"/></svg>其他<span class="cnt">2</span>
+            </div>
+            <div class="tree-children">
+              <div class="tree-row tree-leaf"><i class="leaf-dot run"></i>backup-runner<span class="leaf-state">运行中</span></div>
+              <div class="tree-row tree-leaf"><i class="leaf-dot stop"></i>metrics-exporter<span class="leaf-state">已停止</span></div>
+            </div>
+          </div>
+        </nav>
+
+        <div class="sb-engine">
+          <i class="engine-dot"></i>
+          <svg class="ic"><use href="#i-shield"/></svg>
+          servy-10.1.exe · 引擎就绪
+          <span class="ver">v10.1</span>
+        </div>
+      </aside>
+
+      <!-- ============ 主区：总览仪表盘 ============ -->
+      <main class="main">
+
+        <div class="pagehead">
+          <div>
+            <h1>服务总览</h1>
+            <div class="sub">上午好，11 个服务中 <b>7</b> 个正在运行 · 数据更新于 10:26:05<span class="live"><i class="engine-dot" style="width:6px;height:6px"></i>每 2 秒自动刷新</span></div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-ghost"><svg class="ic" style="width:14px;height:14px"><use href="#i-refresh"/></svg>刷新</button>
+            <button class="btn btn-primary"><svg class="ic" style="width:14px;height:14px"><use href="#i-plus"/></svg>注册服务</button>
+          </div>
+        </div>
+
+        <!-- 统计带 -->
+        <div class="stats">
+          <div class="stat">
+            <div class="s-top"><i class="s-dot run"></i>运行中</div>
+            <div class="s-num">7<small>/ 11</small></div>
+          </div>
+          <div class="stat">
+            <div class="s-top"><i class="s-dot stop"></i>已停止</div>
+            <div class="s-num">3</div>
+          </div>
+          <div class="stat err">
+            <div class="s-top"><i class="s-dot err"></i>启动失败</div>
+            <div class="s-num">1</div>
+          </div>
+          <div class="stat">
+            <div class="s-top"><i class="s-dot auto"></i>开机自启</div>
+            <div class="s-num">5</div>
+          </div>
+        </div>
+
+        <!-- 服务卡片 -->
+        <div class="cards-title">
+          <h2>重点服务</h2>
+          <button class="more">查看全部 11 个服务<svg class="ic" style="width:11px;height:11px"><use href="#i-arrow"/></svg></button>
+        </div>
+        <div class="cards">
+
+          <div class="card">
+            <div class="c-head">
+              <span class="type-ic java"><svg class="ic"><use href="#i-java"/></svg></span>
+              <span class="c-name">order-service</span>
+              <span class="badge run"><i></i>运行中</span>
+            </div>
+            <div class="c-meta">
+              <span><svg class="ic"><use href="#i-clock"/></svg>运行 3 天 4 小时</span>
+              <span class="auto-tag"><svg class="ic"><use href="#i-bolt"/></svg>自启</span>
+            </div>
+            <div class="metrics">
+              <div class="metric"><div class="m-label">CPU</div><div class="m-val">2.1<i>%</i></div><div class="m-bar cpu"><i style="width:21%"></i></div></div>
+              <div class="metric"><div class="m-label">内存</div><div class="m-val">486<i>MB</i></div><div class="m-bar warn"><i style="width:86%"></i></div></div>
+            </div>
+            <div class="c-foot">
+              <button class="btn-xs"><svg class="ic"><use href="#i-stop"/></svg>停止</button>
+              <button class="icon-more"><svg class="ic"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="c-head">
+              <span class="type-ic rust"><svg class="ic"><use href="#i-rust"/></svg></span>
+              <span class="c-name">gateway-api</span>
+              <span class="badge run"><i></i>运行中</span>
+            </div>
+            <div class="c-meta">
+              <span><svg class="ic"><use href="#i-clock"/></svg>运行 7 天 12 小时</span>
+              <span class="auto-tag"><svg class="ic"><use href="#i-bolt"/></svg>自启</span>
+            </div>
+            <div class="metrics">
+              <div class="metric"><div class="m-label">CPU</div><div class="m-val">0.8<i>%</i></div><div class="m-bar cpu"><i style="width:8%"></i></div></div>
+              <div class="metric"><div class="m-label">内存</div><div class="m-val">32<i>MB</i></div><div class="m-bar mem"><i style="width:6%"></i></div></div>
+            </div>
+            <div class="c-foot">
+              <button class="btn-xs"><svg class="ic"><use href="#i-stop"/></svg>停止</button>
+              <button class="icon-more"><svg class="ic"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="c-head">
+              <span class="type-ic java"><svg class="ic"><use href="#i-java"/></svg></span>
+              <span class="c-name">payment-service</span>
+              <span class="badge run"><i></i>运行中</span>
+            </div>
+            <div class="c-meta">
+              <span><svg class="ic"><use href="#i-clock"/></svg>运行 3 天 4 小时</span>
+              <span class="auto-tag"><svg class="ic"><use href="#i-bolt"/></svg>自启</span>
+            </div>
+            <div class="metrics">
+              <div class="metric"><div class="m-label">CPU</div><div class="m-val">1.4<i>%</i></div><div class="m-bar cpu"><i style="width:14%"></i></div></div>
+              <div class="metric"><div class="m-label">内存</div><div class="m-val">512<i>MB</i></div><div class="m-bar mem"><i style="width:13%"></i></div></div>
+            </div>
+            <div class="c-foot">
+              <button class="btn-xs"><svg class="ic"><use href="#i-stop"/></svg>停止</button>
+              <button class="icon-more"><svg class="ic"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="c-head">
+              <span class="type-ic java"><svg class="ic"><use href="#i-java"/></svg></span>
+              <span class="c-name">data-sync-service</span>
+              <span class="badge run"><i></i>运行中</span>
+            </div>
+            <div class="c-meta">
+              <span><svg class="ic"><use href="#i-clock"/></svg>运行 3 天 4 小时</span>
+              <span class="auto-tag"><svg class="ic"><use href="#i-bolt"/></svg>自启</span>
+            </div>
+            <div class="metrics">
+              <div class="metric"><div class="m-label">CPU</div><div class="m-val">3.2<i>%</i></div><div class="m-bar cpu"><i style="width:32%"></i></div></div>
+              <div class="metric"><div class="m-label">内存</div><div class="m-val">1.2<i>GB</i></div><div class="m-bar mem"><i style="width:30%"></i></div></div>
+            </div>
+            <div class="c-foot">
+              <button class="btn-xs"><svg class="ic"><use href="#i-stop"/></svg>停止</button>
+              <button class="icon-more"><svg class="ic"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="c-head">
+              <span class="type-ic rust"><svg class="ic"><use href="#i-rust"/></svg></span>
+              <span class="c-name">log-agent</span>
+              <span class="badge run"><i></i>运行中</span>
+            </div>
+            <div class="c-meta">
+              <span><svg class="ic"><use href="#i-clock"/></svg>运行 7 天 12 小时</span>
+              <span class="auto-tag"><svg class="ic"><use href="#i-bolt"/></svg>自启</span>
+            </div>
+            <div class="metrics">
+              <div class="metric"><div class="m-label">CPU</div><div class="m-val">0.3<i>%</i></div><div class="m-bar cpu"><i style="width:3%"></i></div></div>
+              <div class="metric"><div class="m-label">内存</div><div class="m-val">18<i>MB</i></div><div class="m-bar mem"><i style="width:4%"></i></div></div>
+            </div>
+            <div class="c-foot">
+              <button class="btn-xs"><svg class="ic"><use href="#i-stop"/></svg>停止</button>
+              <button class="icon-more"><svg class="ic"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="c-head">
+              <span class="type-ic node"><svg class="ic"><use href="#i-node"/></svg></span>
+              <span class="c-name">web-console</span>
+              <span class="badge run"><i></i>运行中</span>
+            </div>
+            <div class="c-meta">
+              <span><svg class="ic"><use href="#i-clock"/></svg>运行 26 小时</span>
+            </div>
+            <div class="metrics">
+              <div class="metric"><div class="m-label">CPU</div><div class="m-val">0.5<i>%</i></div><div class="m-bar cpu"><i style="width:5%"></i></div></div>
+              <div class="metric"><div class="m-label">内存</div><div class="m-val">96<i>MB</i></div><div class="m-bar mem"><i style="width:10%"></i></div></div>
+            </div>
+            <div class="c-foot">
+              <button class="btn-xs"><svg class="ic"><use href="#i-stop"/></svg>停止</button>
+              <button class="icon-more"><svg class="ic"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="c-head">
+              <span class="type-ic node"><svg class="ic"><use href="#i-node"/></svg></span>
+              <span class="c-name">cache-worker</span>
+              <span class="badge stop"><i></i>已停止</span>
+            </div>
+            <div class="c-meta">
+              <span><svg class="ic"><use href="#i-clock"/></svg>上次停止 昨天 22:31</span>
+            </div>
+            <div class="metrics">
+              <div class="metric"><div class="m-label">CPU</div><div class="m-val">—</div><div class="m-bar cpu"><i style="width:0%"></i></div></div>
+              <div class="metric"><div class="m-label">内存</div><div class="m-val">—</div><div class="m-bar mem"><i style="width:0%"></i></div></div>
+            </div>
+            <div class="c-foot">
+              <button class="btn-xs start"><svg class="ic"><use href="#i-play"/></svg>启动</button>
+              <button class="icon-more"><svg class="ic"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+          <div class="card err">
+            <div class="c-head">
+              <span class="type-ic java"><svg class="ic"><use href="#i-java"/></svg></span>
+              <span class="c-name">report-generator</span>
+              <span class="badge err"><i></i>启动失败</span>
+            </div>
+            <div class="c-meta">
+              <span><svg class="ic"><use href="#i-clock"/></svg>退出码 1 · 已自动重试 2 次</span>
+            </div>
+            <div class="metrics">
+              <div class="metric"><div class="m-label">CPU</div><div class="m-val">—</div><div class="m-bar cpu"><i style="width:0%"></i></div></div>
+              <div class="metric"><div class="m-label">内存</div><div class="m-val">—</div><div class="m-bar mem"><i style="width:0%"></i></div></div>
+            </div>
+            <div class="c-foot">
+              <button class="btn-xs retry"><svg class="ic"><use href="#i-retry"/></svg>重试</button>
+              <button class="btn-xs" style="border-color:transparent;color:var(--gn-fg-4)">日志</button>
+              <button class="icon-more"><svg class="ic"><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 曲线 + 事件 -->
+        <div class="duo">
+          <div class="panel">
+            <div class="p-head">
+              <h3>资源趋势 · 近 5 分钟</h3>
+              <div class="legend">
+                <span><i class="lg-line" style="background:var(--gn-accent)"></i>CPU <b>3.2%</b></span>
+                <span><i class="lg-line" style="background:var(--gn-info)"></i>内存 <b>2.41 GB</b></span>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <svg id="trendChart" viewBox="0 0 640 150"></svg>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="p-head">
+              <h3>最近事件</h3>
+              <button class="more" style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--gn-fg-4);padding:4px 6px;border-radius:6px">全部日志</button>
+            </div>
+            <div class="events">
+              <div class="event">
+                <i class="e-dot err"></i><span class="e-time">10:26:03</span>
+                <div class="e-body"><b>report-generator</b> 启动失败（退出码 1）<span class="tag err">失败</span></div>
+              </div>
+              <div class="event">
+                <i class="e-dot run"></i><span class="e-time">10:02:41</span>
+                <div class="e-body"><b>gateway-api</b> 随系统启动自动拉起<span class="tag ok">自启</span></div>
+              </div>
+              <div class="event">
+                <i class="e-dot warn"></i><span class="e-time">09:47:12</span>
+                <div class="e-body"><b>order-service</b> 内存占用 86%，超过 80% 告警线<span class="tag warn">告警</span></div>
+              </div>
+              <div class="event">
+                <i class="e-dot info"></i><span class="e-time">09:30:00</span>
+                <div class="e-body"><b>backup-runner</b> 通过 servy 注册为新服务<span class="tag info">注册</span></div>
+              </div>
+              <div class="event">
+                <i class="e-dot stop"></i><span class="e-time">昨天 22:31</span>
+                <div class="e-body"><b>cache-worker</b> 手动停止</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- 原型专用：主题切换 -->
+  <div class="theme-dock">
+    <span class="td-tip">原型演示 · 全 Token 驱动</span>
+    <div class="td-seg">
+      <button data-t="light" class="on">亮色</button>
+      <button data-t="dark">暗色</button>
+      <button data-t="custom">自定义</button>
+    </div>
+  </div>
+
+<script>
+  // ---- 主题切换 ----
+  const seg = document.querySelectorAll('.td-seg button');
+  seg.forEach(b => b.addEventListener('click', () => {
+    document.body.dataset.theme = b.dataset.t;
+    seg.forEach(x => x.classList.toggle('on', x === b));
+  }));
+
+  // ---- 侧栏分组折叠 ----
+  document.querySelectorAll('.tree-group > .tree-row').forEach(row => {
+    row.addEventListener('click', () => row.parentElement.classList.toggle('collapsed'));
+  });
+
+  // ---- 资源趋势曲线（模拟 recharts 折线观感） ----
+  (function drawTrend() {
+    const svg = document.getElementById('trendChart');
+    const NS = 'http://www.w3.org/2000/svg';
+    const W = 640, H = 150, L = 34, R = 8, T = 10, B = 20;
+    const iw = W - L - R, ih = H - T - B;
+    const el = (tag, attrs) => {
+      const n = document.createElementNS(NS, tag);
+      for (const k in attrs) n.setAttribute(k, attrs[k]);
+      svg.appendChild(n); return n;
+    };
+    // 网格线（混合量纲图：CPU 满量程 10%、内存满量程 8GB，各自归一化，不标公共刻度）
+    [0, 0.5, 1].forEach(f => {
+      const y = T + ih * f;
+      el('line', { x1: L, y1: y, x2: W - R, y2: y, stroke: 'var(--gn-br-1)', 'stroke-dasharray': '3 4' });
+    });
+    // x 轴时间刻度
+    [['10:21', 0], ['10:23', .5], ['10:26', 1]].forEach(([s, f]) => {
+      const t = el('text', { x: L + iw * f, y: H - 5, 'text-anchor': f === 0 ? 'start' : f === 1 ? 'end' : 'middle', fill: 'var(--gn-fg-5)', 'font-size': 9.5, 'font-family': 'var(--gn-font-mono)' });
+      t.textContent = s;
+    });
+    // 随机游走序列
+    const walk = (n, v0, min, max, amp) => {
+      const a = [v0];
+      for (let i = 1; i < n; i++) {
+        let v = a[i - 1] + (Math.random() - 0.5) * amp;
+        v = Math.max(min, Math.min(max, v)); a.push(v);
+      }
+      return a;
+    };
+    const cpu = walk(33, 3.1, 1.5, 7.5, 1.6);
+    cpu[15] = 6.4; // 一个小尖峰，真实感
+    const mem = walk(33, 2.35, 2.05, 2.7, 0.12);
+    const toPath = (arr, max) => {
+      const pts = arr.map((v, i) => [L + iw * i / (arr.length - 1), T + ih * (1 - v / max)]);
+      const d = pts.map(([x, y], i) => (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1)).join(' ');
+      return { d, pts };
+    };
+    const c = toPath(cpu, 10), m = toPath(mem, 8);
+    // CPU 面积
+    el('path', { d: c.d + ` L ${W - R} ${T + ih} L ${L} ${T + ih} Z`, fill: 'var(--gn-accent)', opacity: 0.09 });
+    el('path', { d: m.d, fill: 'none', stroke: 'var(--gn-info)', 'stroke-width': 1.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: 0.9 });
+    el('path', { d: c.d, fill: 'none', stroke: 'var(--gn-accent)', 'stroke-width': 1.8, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+    // 末端点
+    const [ex, ey] = c.pts[c.pts.length - 1];
+    el('circle', { cx: ex, cy: ey, r: 3, fill: 'var(--gn-accent)', stroke: 'var(--gn-bg-panel)', 'stroke-width': 1.5 });
+    const [mx, my] = m.pts[m.pts.length - 1];
+    el('circle', { cx: mx, cy: my, r: 3, fill: 'var(--gn-info)', stroke: 'var(--gn-bg-panel)', 'stroke-width': 1.5 });
+  })();
+</script>
+</body>
+</html>

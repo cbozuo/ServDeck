@@ -486,6 +486,8 @@ export function ListReproductionBundleSources():Promise<connection.QueryResult>;
 
 export function ListSQLDirectory(arg1:string):Promise<connection.QueryResult>;
 
+export function ListWindowsServices():Promise<connection.QueryResult>;
+
 export function LoadConnectionSidebarLayout():Promise<connection.ConnectionSidebarLayout>;
 
 export function LocateServyEngine():Promise<connection.QueryResult>;
@@ -713,6 +715,8 @@ export function RetrySecurityUpdateCurrentRound(arg1:app.RetrySecurityUpdateRequ
 export function RevealSavedConnectionPrimaryPassword(arg1:string):Promise<string>;
 
 export function RevealSavedQueryInFolder(arg1:string):Promise<connection.QueryResult>;
+
+export function SampleHostResources():Promise<connection.QueryResult>;
 
 export function SaveCloudBackupConfig(arg1:app.CloudBackupConfigInput):Promise<app.CloudBackupConfig>;
 

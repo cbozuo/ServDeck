@@ -35,10 +35,6 @@ const buttonLabels = (buttons: any[]): string[] => buttons.map((button) => butto
 
 const renderPrimaryActions = (overrides: Record<string, unknown> = {}) => create(
   <TitleBarPrimaryActions
-    newQueryLabel="新建查询"
-    newConnectionLabel="新建连接"
-    onNewQuery={vi.fn()}
-    onNewConnection={vi.fn()}
     connectionGroupLabel="管理分组"
     onConnectionGroupManagement={vi.fn()}
     addServiceLabel="新增服务"
@@ -200,43 +196,31 @@ describe('TitleBarPrimaryActions', () => {
     const onAddService = vi.fn();
     const onConnectionGroupManagement = vi.fn();
     const onDataRoot = vi.fn();
-    const onNewQuery = vi.fn();
-    const onNewConnection = vi.fn();
     const shortcutOptions = cloneShortcutOptions(DEFAULT_SHORTCUT_OPTIONS);
     const renderer = renderPrimaryActions({
-      newQueryShortcut: resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newQueryTab', 'mac'),
-      newConnectionShortcut: resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'mac'),
       onAddService,
       onConnectionGroupManagement,
       onDataRoot,
-      onNewQuery,
-      onNewConnection,
     });
 
     const actions = renderer.root.findByProps({ 'data-titlebar-primary-actions': 'true' });
     expect(actions.props['data-no-titlebar-toggle']).toBe('true');
     const buttons = actions.findAllByType('button');
-    expect(buttonLabels(buttons)).toEqual(['新增服务', '管理分组', '数据目录', '新建查询', '新建连接']);
+    expect(buttonLabels(buttons)).toEqual(['新增服务', '管理分组', '数据目录']);
     expect(buttons.map((button) => button.props.className)).toEqual([
       'gonavi-titlebar-icon-action',
       'gonavi-titlebar-icon-action',
       'gonavi-titlebar-icon-action',
-      'gonavi-titlebar-primary-action',
-      'gonavi-titlebar-primary-action',
     ]);
     expect(buttons.map((button) => button.props['data-gonavi-titlebar-icon-action'])).toEqual([
       'add-service',
       'connection-group',
       'data-root',
-      undefined,
-      undefined,
     ]);
     expect(buttons.map((button) => button.props.title)).toEqual([
       undefined,
       undefined,
       undefined,
-      '新建查询 · ⌘N',
-      '新建连接 · ⌘⇧N',
     ]);
 
     // 图标组是独立的一簇，靠 2px 间距收紧
@@ -247,53 +231,36 @@ describe('TitleBarPrimaryActions', () => {
     buttons[0].props.onClick();
     buttons[1].props.onClick();
     buttons[2].props.onClick();
-    buttons[3].props.onClick();
-    buttons[4].props.onClick();
     expect(onAddService).toHaveBeenCalledTimes(1);
     expect(onConnectionGroupManagement).toHaveBeenCalledTimes(1);
     expect(onDataRoot).toHaveBeenCalledTimes(1);
-    expect(onNewQuery).toHaveBeenCalledTimes(1);
-    expect(onNewConnection).toHaveBeenCalledTimes(1);
   });
 
   it('hides icon actions whose label or handler is absent', () => {
     const renderer = create(
       <TitleBarPrimaryActions
-        newQueryLabel="新建查询"
-        newConnectionLabel="新建连接"
-        onNewQuery={vi.fn()}
-        onNewConnection={vi.fn()}
         connectionGroupLabel="管理分组"
         onConnectionGroupManagement={vi.fn()}
         dataRootLabel="数据目录"
       />,
     );
     const actions = renderer.root.findByProps({ 'data-titlebar-primary-actions': 'true' });
-    expect(buttonLabels(actions.findAllByType('button'))).toEqual(['管理分组', '新建查询', '新建连接']);
+    expect(buttonLabels(actions.findAllByType('button'))).toEqual(['管理分组']);
   });
 
   it('exposes a glyph for every icon action and a text span for every text action', () => {
     const renderer = renderPrimaryActions();
     const actions = renderer.root.findByProps({ 'data-titlebar-primary-actions': 'true' });
     const buttons = actions.findAllByType('button');
-    expect(buttons).toHaveLength(5);
+    expect(buttons).toHaveLength(3);
     // 两枚自定义 SVG 走 data-titlebar-glyph，管理分组沿用 antd 的 FolderOutlined
     expect(renderer.root.findAllByProps({ 'data-titlebar-glyph': 'true' })).toHaveLength(2);
     expect(buttons[1].findAllByProps({ 'data-icon': 'true' })).toHaveLength(1);
-    const spanLabels = buttons.slice(3).map((button) => {
-      const spans = button.findAllByType('span').filter((span) => typeof span.props?.children === 'string');
-      return spans[spans.length - 1]?.props?.children;
-    });
-    expect(spanLabels).toEqual(['新建查询', '新建连接']);
   });
 
   it('shows both Windows shortcut labels', () => {
     const shortcutOptions = cloneShortcutOptions(DEFAULT_SHORTCUT_OPTIONS);
     const renderer = renderPrimaryActions({
-      newQueryLabel: 'New Query',
-      newConnectionLabel: 'New Connection',
-      newQueryShortcut: resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newQueryTab', 'windows'),
-      newConnectionShortcut: resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'windows'),
     });
 
     const buttons = renderer.root.findAllByType('button');
@@ -301,8 +268,6 @@ describe('TitleBarPrimaryActions', () => {
       undefined,
       undefined,
       undefined,
-      'New Query · Ctrl+N',
-      'New Connection · Ctrl+Shift+N',
     ]);
   });
 
@@ -319,8 +284,6 @@ describe('TitleBarPrimaryActions', () => {
     expect(resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'windows')).toBe('Ctrl+Alt+C');
 
     const renderer = renderPrimaryActions({
-      newQueryShortcut: resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newQueryTab', 'mac'),
-      newConnectionShortcut: resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'mac'),
     });
 
     const buttons = renderer.root.findAllByType('button');
@@ -328,10 +291,8 @@ describe('TitleBarPrimaryActions', () => {
       undefined,
       undefined,
       undefined,
-      '新建查询 · ⌘⌥Q',
-      '新建连接',
     ]);
-    expect(buttonLabels(buttons)).toEqual(['新增服务', '管理分组', '数据目录', '新建查询', '新建连接']);
+    expect(buttonLabels(buttons)).toEqual(['新增服务', '管理分组', '数据目录']);
     expect(buttons.every((button) => button.props.disabled !== true)).toBe(true);
   });
 });

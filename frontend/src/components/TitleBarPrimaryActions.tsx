@@ -36,12 +36,8 @@ const ICON_GLYPH_SIZE = 18;
 const ICON_TOOLTIP_DELAY_SECONDS = 0.35;
 
 interface TitleBarPrimaryActionsProps {
-  newQueryLabel: string;
-  newConnectionLabel: string;
   newQueryShortcut?: string;
   newConnectionShortcut?: string;
-  onNewQuery: () => void;
-  onNewConnection: () => void;
   addServiceLabel?: string;
   onAddService?: () => void;
   connectionGroupLabel?: string;
@@ -82,12 +78,6 @@ const renderIconAction = ({ key, label, icon, attr, onClick }: IconActionSpec) =
 );
 
 const TitleBarPrimaryActions: React.FC<TitleBarPrimaryActionsProps> = ({
-  newQueryLabel,
-  newConnectionLabel,
-  newQueryShortcut,
-  newConnectionShortcut,
-  onNewQuery,
-  onNewConnection,
   addServiceLabel,
   onAddService,
   connectionGroupLabel,
@@ -136,28 +126,6 @@ const TitleBarPrimaryActions: React.FC<TitleBarPrimaryActionsProps> = ({
           {iconActions.map(renderIconAction)}
         </div>
       )}
-      <button
-        type="button"
-        className="gonavi-titlebar-primary-action"
-        aria-label={newQueryLabel}
-        title={getActionTitle(newQueryLabel, newQueryShortcut)}
-        data-gonavi-new-query-action="true"
-        onClick={onNewQuery}
-      >
-        <PlusOutlined className="gonavi-titlebar-action-icon" />
-        <span>{newQueryLabel}</span>
-      </button>
-      <button
-        type="button"
-        className="gonavi-titlebar-primary-action"
-        aria-label={newConnectionLabel}
-        title={getActionTitle(newConnectionLabel, newConnectionShortcut)}
-        data-gonavi-create-connection-action="true"
-        onClick={onNewConnection}
-      >
-        <ApiOutlined className="gonavi-titlebar-action-icon" />
-        <span>{newConnectionLabel}</span>
-      </button>
     </div>
   );
 };

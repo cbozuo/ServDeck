@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AppstoreOutlined, FolderOpenOutlined, MenuUnfoldOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, FolderOpenOutlined, FolderOutlined, MenuUnfoldOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button, Empty, Input, Modal, Tooltip, Tree } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import type { InputRef } from 'antd';
@@ -39,7 +39,9 @@ type ContextMenuState = {
 
 const folderIcon = (
   <span className="gn-v2-tree-folder-icon" data-sidebar-tree-folder-icon="true">
-    <FolderOpenOutlined />
+    {/* 收起=闭合文件夹、展开=打开文件夹：两个都渲染，由 switcher 状态类切显隐 */}
+    <FolderOutlined className="gn-folder-state-closed" />
+    <FolderOpenOutlined className="gn-folder-state-open" />
   </span>
 );
 
@@ -85,6 +87,7 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
   const [renameDraft, setRenameDraft] = useState('');
   const searchInputRef = useRef<InputRef | null>(null);
   const contextMenuPortalRef = useRef<HTMLDivElement | null>(null);
+  const doubleClickGuardRef = useRef<{ key: string; time: number } | null>(null);
 
   const tree = useMemo(() => buildServiceTree(services, groups, filter), [services, groups, filter]);
   const hasAnyService = services.length > 0;
@@ -217,6 +220,45 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
     setContextMenu({ x: event.clientX, y: event.clientY, target });
   }, [tree]);
 
+  /**
+   * 展开交互对齐数据库树：展开/收起只由行首箭头单击承担；行主体双击才切换分组开合。
+   * 双击落在箭头上时直接忽略（箭头自身的逐击切换已生效，再切换会叠加成偶数次翻转），
+   * 另以 300ms 幂等守卫兜底同一分组的重复双击。
+   */
+  const handleNodeDoubleClick = useCallback((
+    event: React.MouseEvent,
+    node: { key?: React.Key },
+  ) => {
+    if ((event.target as HTMLElement | null)?.closest?.('.ant-tree-switcher')) return;
+    const rowKey = String(node?.key ?? '');
+    const target = findServiceTreeTarget(tree, rowKey);
+    // 服务是叶子节点，双击暂无动作（后续接服务详情）。
+    if (target?.kind !== 'group') return;
+    const now = Date.now();
+    if (doubleClickGuardRef.current
+      && doubleClickGuardRef.current.key === rowKey
+      && now - doubleClickGuardRef.current.time < 300) {
+      return;
+    }
+    doubleClickGuardRef.current = { key: rowKey, time: now };
+    setExpandedKeys((prev) => (prev.includes(rowKey)
+      ? prev.filter((item) => item !== rowKey)
+      : [...prev, rowKey]));
+  }, [tree]);
+
+  /**
+   * 箭头点击也要获得与双击行一致的选中背景：展开/收起由 antd 处理，
+   * 这里只把选中态同步到被点的行（事件捕获阶段，不拦截 antd 的展开动作）。
+   */
+  const handleTreeClickCapture = useCallback((event: React.MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest?.('.ant-tree-switcher')) return;
+    const rowKey = resolveSidebarTreeRowKey(target);
+    if (rowKey) {
+      setSelectedKey(rowKey);
+    }
+  }, []);
+
   const emptyState = !hasAnyService
     ? (
       <div className="gst-empty" data-service-tree-empty="true">
@@ -339,6 +381,7 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
         <div
           className="sidebar-tree-scroll-shell gn-v2-explorer-tree-shell"
           style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}
+          onClickCapture={handleTreeClickCapture}
         >
           <div className="sidebar-tree-scroll-content">
             {emptyState}
@@ -346,22 +389,22 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
               <Tree
                 showIcon
                 blockNode
-                expandAction="click"
                 motion={false}
                 treeData={treeData}
                 selectedKeys={selectedKey ? [selectedKey] : []}
                 onSelect={(keys) => setSelectedKey(keys.length > 0 ? String(keys[0]) : '')}
                 expandedKeys={expandedKeys}
                 onExpand={(keys) => setExpandedKeys(keys)}
+                onDoubleClick={handleNodeDoubleClick}
                 onContextMenu={handleContextMenu}
                 titleRender={(node) => {
                   const target = (node as { nodeRef?: ServiceTreeMenuTarget }).nodeRef;
                   if (!target) {
-                    return <span className="gst-node-title">{String(node.title)}</span>;
+                    return <span className="gn-v2-tree-title gst-node-title">{String(node.title)}</span>;
                   }
                   if (target.kind === 'group') {
                     return (
-                      <span className="gst-node-title" data-service-tree-group-title="true">
+                      <span className="gn-v2-tree-title gst-node-title" data-service-tree-group-title="true">
                         <span className="gst-node-name">{target.group.name}</span>
                         <span className="gst-node-count">
                           {t('service.tree.groups.count', { count: services.filter((item) => item.groupId === target.group.id).length })}
@@ -370,7 +413,7 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
                     );
                   }
                   return (
-                    <span className="gst-node-title" data-service-tree-service-title="true">
+                    <span className="gn-v2-tree-title gst-node-title" data-service-tree-service-title="true">
                       <span className="gst-node-name">
                         {target.service.displayName?.trim() || target.service.name}
                       </span>

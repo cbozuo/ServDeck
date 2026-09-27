@@ -69,6 +69,7 @@ import {
   shouldDetachTabByDrag,
 } from '../utils/detachedWindow';
 import { openNativeWorkbenchTabWindow } from '../utils/nativeDetachedWindowHost';
+import { ServiceHome } from './home/ServiceHome';
 import { useWorkbenchTabs } from '../hooks/useWorkbenchTabs';
 import { resolveConnectionEnvironmentPresentation } from '../utils/connectionEnvironment';
 import { createSidebarResizeAwareFrameScheduler } from '../utils/sidebarResizeLifecycle';
@@ -866,10 +867,11 @@ const DraggableTabNode: React.FC<DraggableTabNodeProps> = ({ node }) => {
 };
 
 type TabManagerProps = {
+  onAddService?: () => void;
   onFocusSidebarSearch?: () => void;
 };
 
-const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onFocusSidebarSearch }) => {
+const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onFocusSidebarSearch, onAddService }) => {
   const tabs = useWorkbenchTabs();
   const detachedWorkbenchWindows = useStore(state => state.detachedWorkbenchWindows);
   const connections = useStore(state => state.connections);
@@ -1774,184 +1776,8 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onF
     }
   }, [addTab, connectionById, externalSQLDirectories]);
 
-  const EmptyWorkbench = (
-    <div className="gn-v2-empty-workbench">
-      <section className="gn-v2-empty-hero" aria-label={t('tab_manager.empty.aria.start_workbench')}>
-        <div className="gn-v2-empty-eyebrow">
-          <span>{t('tab_manager.empty.eyebrow.workbench')}</span>
-          <span>{t('tab_manager.empty.eyebrow.connections', { count: connections.length })}</span>
-        </div>
-        <h1>{t('tab_manager.empty.hero.title')}</h1>
-        <p>{t('tab_manager.empty.hero.description')}</p>
-        <div className="gn-v2-empty-actions">
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenConnectionModal}>
-            {t('connection.new')}
-          </Button>
-          <Button icon={<ConsoleSqlOutlined />} onClick={() => window.dispatchEvent(new CustomEvent('gonavi:create-query-tab'))}>
-            {t('query.new')}
-          </Button>
-          <Tooltip title={t('tab_manager.empty.quick.search.description')}>
-            <Button icon={<SearchOutlined />} onClick={handleFocusObjectSearch}>
-              {t('tab_manager.empty.quick.search.title')}
-            </Button>
-          </Tooltip>
-        </div>
-      </section>
-      <section className="gn-v2-empty-recent" aria-label={t('tab_manager.empty.recent.aria')}>
-        <section className="gn-v2-empty-recent-card">
-          <div className="gn-v2-empty-recent-heading">
-            <span><HistoryOutlined />{t('tab_manager.empty.recent.connection.heading')}</span>
-            <em>{recentConnectionShortcuts.length}</em>
-          </div>
-          {recentConnectionShortcuts.length > 0 ? (
-            <div className="gn-v2-empty-recent-list">
-              {recentConnectionShortcuts.map((shortcut) => (
-                <RecentConnectionShortcutItem
-                  key={`${shortcut.connection.id}::${shortcut.dbName || ''}`}
-                  shortcut={shortcut}
-                  onOpen={handleOpenRecentConnection}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="gn-v2-empty-recent-empty">{t('tab_manager.empty.recent.connection.empty')}</p>
-          )}
-        </section>
-        <section className="gn-v2-empty-recent-card">
-          <div className="gn-v2-empty-recent-heading">
-            <span><FileTextOutlined />{t('tab_manager.empty.recent.saved_query.heading')}</span>
-            <em>{recentSavedQueries.length}</em>
-          </div>
-          {recentSavedQueries.length > 0 ? (
-            <div className="gn-v2-empty-recent-list">
-              {recentSavedQueries.map((query) => {
-                const connection = connectionById.get(query.connectionId);
-                return (
-                  <button
-                    key={query.id}
-                    type="button"
-                    className="gn-v2-empty-recent-item"
-                    onClick={() => handleOpenSavedQuery(query)}
-                  >
-                    <FileTextOutlined />
-                    <span>
-                      <strong title={query.name || t('sidebar.tree.untitled_query')}>
-                        {query.name || t('sidebar.tree.untitled_query')}
-                      </strong>
-                      <small>{`${connection?.name || query.connectionId} · ${query.dbName || t('tab_manager.empty.recent.connection.default_database')}`}</small>
-                    </span>
-                    <RightOutlined className="gn-v2-empty-recent-arrow" />
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="gn-v2-empty-recent-empty">{t('tab_manager.empty.recent.saved_query.empty')}</p>
-          )}
-        </section>
-        <section className="gn-v2-empty-recent-card">
-          <div className="gn-v2-empty-recent-heading">
-            <span><ConsoleSqlOutlined />{t('tab_manager.empty.recent.sql_file.heading')}</span>
-            <em>{recentSQLFileShortcuts.length}</em>
-          </div>
-          {recentSQLFileShortcuts.length > 0 ? (
-            <div className="gn-v2-empty-recent-list">
-              {recentSQLFileShortcuts.map((file) => {
-                const connection = connectionById.get(file.connectionId);
-                const openKey = `${file.connectionId}::${file.dbName || ''}::${file.filePath}`;
-                return (
-                  <button
-                    key={openKey}
-                    type="button"
-                    className="gn-v2-empty-recent-item"
-                    disabled={openingRecentSQLFileKey === openKey}
-                    onClick={() => void handleOpenRecentSQLFile(file)}
-                  >
-                    <FileTextOutlined />
-                    <span>
-                      <strong title={file.fileName}>{file.fileName}</strong>
-                      <small>{`${connection?.name || file.connectionId} · ${file.dbName || t('tab_manager.empty.recent.connection.default_database')}`}</small>
-                    </span>
-                    <RightOutlined className="gn-v2-empty-recent-arrow" />
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="gn-v2-empty-recent-empty">{t('tab_manager.empty.recent.sql_file.empty')}</p>
-          )}
-        </section>
-      </section>
-      <section className="gn-v2-empty-resources" aria-label={t('tab_manager.empty.recent.aria')}>
-        <section className="gn-v2-empty-resource-card">
-          <div className="gn-v2-empty-recent-heading">
-            <span><PushpinOutlined />{t('sidebar.action.pin_table')}</span>
-            <em>{pinnedTableShortcuts.length}</em>
-          </div>
-          {pinnedTableShortcuts.length > 0 ? (
-            <div className="gn-v2-empty-recent-list">
-              {pinnedTableShortcuts.map((shortcut) => {
-                const displayName = shortcut.schemaName
-                  ? `${shortcut.schemaName}.${shortcut.tableName}`
-                  : shortcut.tableName;
-                return (
-                  <button
-                    key={`${shortcut.connection.id}::${shortcut.dbName}::${shortcut.schemaName || ''}::${shortcut.tableName}`}
-                    type="button"
-                    className="gn-v2-empty-recent-item"
-                    onClick={() => handleOpenPinnedTable(shortcut)}
-                  >
-                    <DatabaseOutlined />
-                    <span>
-                      <strong title={displayName}>{displayName}</strong>
-                      <small>{`${shortcut.connection.name} · ${shortcut.dbName}`}</small>
-                    </span>
-                    <RightOutlined className="gn-v2-empty-recent-arrow" />
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="gn-v2-empty-resource-empty">
-              <PushpinOutlined />
-              <p>{t('tab_manager.empty.resource.pinned_tables.empty')}</p>
-              <Button type="link" onClick={handleFocusObjectSearch}>{t('sidebar.command_search.label')}</Button>
-            </div>
-          )}
-        </section>
-        <section className="gn-v2-empty-resource-card">
-          <div className="gn-v2-empty-recent-heading">
-            <span><FolderOpenOutlined />{t('sidebar.external_sql.root')}</span>
-            <em>{linkedExternalSQLDirectoryShortcuts.length}</em>
-          </div>
-          {linkedExternalSQLDirectoryShortcuts.length > 0 ? (
-            <div className="gn-v2-empty-recent-list">
-              {linkedExternalSQLDirectoryShortcuts.map((shortcut) => (
-                <button
-                  key={shortcut.directory.id}
-                  type="button"
-                  className="gn-v2-empty-recent-item"
-                  onClick={() => handleCreateQueryForConnection(shortcut)}
-                >
-                  <FolderOpenOutlined />
-                  <span>
-                    <strong title={shortcut.directory.name}>{shortcut.directory.name}</strong>
-                    <small>{`${shortcut.connection.name} · ${shortcut.dbName || t('tab_manager.empty.recent.connection.default_database')}`}</small>
-                  </span>
-                  <RightOutlined className="gn-v2-empty-recent-arrow" />
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="gn-v2-empty-resource-empty">
-              <FolderOpenOutlined />
-              <p>{t('tab_manager.empty.resource.sql_directory.empty')}</p>
-              <Button type="link" onClick={handleAddExternalSQLDirectory}>{t('sidebar.menu.add_sql_directory')}</Button>
-            </div>
-          )}
-        </section>
-      </section>
-    </div>
+  const ServiceHomeElement = (
+    <ServiceHome onAddService={onAddService} />
   );
 
   return (
@@ -2157,7 +1983,7 @@ body[data-theme='dark'] .main-tabs .ant-tabs-tab.ant-tabs-tab-active {
             }
         `}</style>
         {!hasTabs ? (
-          EmptyWorkbench
+          ServiceHomeElement
         ) : !hasDockedTabs ? (
           // All tabs are floating: keep empty docked area; floating host still shows content.
           <div className="gn-detached-only-workbench" style={{ flex: 1, minHeight: 0 }} />

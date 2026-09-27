@@ -950,6 +950,10 @@ export function ListSQLDirectory(arg1) {
   return window['go']['app']['App']['ListSQLDirectory'](arg1);
 }
 
+export function ListWindowsServices() {
+  return window['go']['app']['App']['ListWindowsServices']();
+}
+
 export function LoadConnectionSidebarLayout() {
   return window['go']['app']['App']['LoadConnectionSidebarLayout']();
 }
@@ -1404,6 +1408,10 @@ export function RevealSavedConnectionPrimaryPassword(arg1) {
 
 export function RevealSavedQueryInFolder(arg1) {
   return window['go']['app']['App']['RevealSavedQueryInFolder'](arg1);
+}
+
+export function SampleHostResources() {
+  return window['go']['app']['App']['SampleHostResources']();
 }
 
 export function SaveCloudBackupConfig(arg1) {

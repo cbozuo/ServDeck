@@ -2609,9 +2609,6 @@ function App() {
       titlebarContext.databaseName,
       titlebarContext.tableName,
   ]);
-  const primaryActionIsMessageQueue = isMessageQueueDataSource(
-      currentPrimaryActionConnection?.config,
-  );
   const applicationQuitConfirmRef = useRef<{ destroy: () => void } | null>(null);
   const applicationQuitHandlingRef = useRef(false);
   const openSecurityUpdateSettings = useCallback((focusTarget?: SecurityUpdateSettingsFocusTarget | null) => {
@@ -7838,14 +7835,6 @@ function App() {
                       </button>
                   </Tooltip>
                   <TitleBarPrimaryActions
-                    newQueryLabel={t(primaryActionIsMessageQueue
-                      ? 'message_queue_workbench.action.open'
-                      : 'query.new')}
-                    newConnectionLabel={t('connection.new')}
-                    newQueryShortcut={titleBarNewQueryShortcut}
-                    newConnectionShortcut={titleBarNewConnectionShortcut}
-                    onNewQuery={handleNewQuery}
-                    onNewConnection={handleCreateConnection}
                     addServiceLabel={t('service.modal.entry')}
                     onAddService={() => setIsAddServiceModalOpen(true)}
                     connectionGroupLabel={t('service.tree.groups.manage_title')}

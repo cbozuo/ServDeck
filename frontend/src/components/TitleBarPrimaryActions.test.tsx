@@ -15,6 +15,11 @@ const appCss = readFileSync(new URL('../App.css', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
 const v2ThemeCss = readFileSync(new URL('../v2-theme.css', import.meta.url), 'utf8');
 
+// Tooltip 走 rc-resize-observer，需要真实 DOM；这里只关心按钮结构，直接透传 children。
+vi.mock('antd', () => ({
+  Tooltip: ({ children }: { children?: React.ReactNode }) => children,
+}));
+
 vi.mock('@ant-design/icons', () => {
   const Icon = () => <span data-icon="true" />;
   return {
@@ -25,6 +30,24 @@ vi.mock('@ant-design/icons', () => {
     SettingOutlined: Icon,
   };
 });
+
+const buttonLabels = (buttons: any[]): string[] => buttons.map((button) => button.props['aria-label']);
+
+const renderPrimaryActions = (overrides: Record<string, unknown> = {}) => create(
+  <TitleBarPrimaryActions
+    newQueryLabel="新建查询"
+    newConnectionLabel="新建连接"
+    onNewQuery={vi.fn()}
+    onNewConnection={vi.fn()}
+    connectionGroupLabel="管理分组"
+    onConnectionGroupManagement={vi.fn()}
+    addServiceLabel="新增服务"
+    onAddService={vi.fn()}
+    dataRootLabel="数据目录"
+    onDataRoot={vi.fn()}
+    {...overrides}
+  />,
+);
 
 describe('TitleBarPrimaryActions', () => {
   it('keeps the shared ghost treatment for every primary action', () => {
@@ -41,11 +64,38 @@ describe('TitleBarPrimaryActions', () => {
     expect(appCss).not.toMatch(
       /\[(?:data-gonavi-new-query-action|data-gonavi-create-connection-action|data-gonavi-connection-group-management-action)[^\]]*\]/,
     );
-    expect(appCss).not.toMatch(/body\[data-ui-version="v2"\] \.gonavi-titlebar-primary-actions::after\s*\{[^}]*display:\s*none;/s);
     expect(appSource).toContain('data-titlebar-brand-toggle="true"');
     expect(appSource).toContain('brand/servdeck-icon.svg');
     expect(appSource).not.toContain('<span>ServDeck</span>');
-    expect(appSource).toContain('gonavi-titlebar-brand-divider');
+  });
+
+  it('drops every titlebar divider and groups actions with spacing only', () => {
+    // 品牌后的竖线元素与主操作区右侧的 ::after 分隔线都已移除
+    expect(appSource).not.toContain('gonavi-titlebar-brand-divider');
+    expect(appCss).not.toMatch(/\.gonavi-titlebar-brand-divider\s*\{/s);
+    expect(appCss).not.toMatch(/\.gonavi-titlebar-primary-actions::after\s*\{/s);
+    // 分组改由间距承担：图标组内 2px，容器级 8px
+    const iconGroupMatch = appCss.match(/\.gonavi-titlebar-icon-actions\s*\{(?<body>[^}]*)\}/s);
+    expect(iconGroupMatch?.groups?.body).toContain('gap: 2px;');
+    const actionsMatch = appCss.match(/\.gonavi-titlebar-primary-actions\s*\{(?<body>[^}]*)\}/s);
+    expect(actionsMatch?.groups?.body).toContain('gap: 8px;');
+    expect(actionsMatch?.groups?.body).toContain('margin-left: 8px;');
+  });
+
+  it('sizes icon actions to match the text actions and the brand logo', () => {
+    const match = appCss.match(/\.gonavi-titlebar-icon-action\s*\{(?<body>[^}]*)\}/s);
+    expect(match, 'Missing icon action rule').not.toBeNull();
+    const body = match?.groups?.body ?? '';
+    expect(body).toContain('width: 32px;');
+    expect(body).toContain('height: 32px;');
+    expect(body).toContain('border-radius: 7px;');
+    expect(body).toContain('background: transparent');
+    expect(body).toContain('-webkit-app-region: no-drag;');
+    // 窄屏那条 width:auto 只该作用于文字按钮，图标按钮不能被压扁
+    const narrowStart = appCss.indexOf('@media (max-width: 420px)');
+    const narrowCss = appCss.slice(narrowStart);
+    expect(narrowCss).toContain('.gonavi-titlebar-primary-action');
+    expect(narrowCss).not.toContain('.gonavi-titlebar-icon-action');
   });
 
   it('keeps the custom window controls borderless under the v2 button theme', () => {
@@ -146,93 +196,114 @@ describe('TitleBarPrimaryActions', () => {
     expect(v2ThemeCss).not.toContain('.gn-v2-titlebar-live');
   });
 
-  it('shows both labels in query-first order and invokes their actions', () => {
+  it('renders the three icon actions ahead of both text actions', () => {
+    const onAddService = vi.fn();
+    const onConnectionGroupManagement = vi.fn();
+    const onDataRoot = vi.fn();
     const onNewQuery = vi.fn();
     const onNewConnection = vi.fn();
-    const onConnectionGroupManagement = vi.fn();
     const shortcutOptions = cloneShortcutOptions(DEFAULT_SHORTCUT_OPTIONS);
-    const renderer = create(
-      <TitleBarPrimaryActions
-        newQueryLabel="新建查询"
-        newConnectionLabel="新建连接"
-        newQueryShortcut={resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newQueryTab', 'mac')}
-        newConnectionShortcut={resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'mac')}
-        onNewQuery={onNewQuery}
-        onNewConnection={onNewConnection}
-        connectionGroupLabel="管理分组"
-        onConnectionGroupManagement={onConnectionGroupManagement}
-      />,
-    );
+    const renderer = renderPrimaryActions({
+      newQueryShortcut: resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newQueryTab', 'mac'),
+      newConnectionShortcut: resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'mac'),
+      onAddService,
+      onConnectionGroupManagement,
+      onDataRoot,
+      onNewQuery,
+      onNewConnection,
+    });
 
     const actions = renderer.root.findByProps({ 'data-titlebar-primary-actions': 'true' });
-    const buttons = actions.findAllByType('button');
     expect(actions.props['data-no-titlebar-toggle']).toBe('true');
-    expect(buttons.map((button) => button.props['aria-label'])).toEqual(['新建查询', '新建连接', '管理分组']);
+    const buttons = actions.findAllByType('button');
+    expect(buttonLabels(buttons)).toEqual(['新增服务', '管理分组', '数据目录', '新建查询', '新建连接']);
     expect(buttons.map((button) => button.props.className)).toEqual([
-      'gonavi-titlebar-primary-action',
+      'gonavi-titlebar-icon-action',
+      'gonavi-titlebar-icon-action',
+      'gonavi-titlebar-icon-action',
       'gonavi-titlebar-primary-action',
       'gonavi-titlebar-primary-action',
     ]);
-    expect(buttons.map((button) => button.props['data-titlebar-action-kind'])).toEqual([undefined, undefined, undefined]);
-    expect(buttons.map((button) => button.props.title)).toEqual([
-      '新建查询 · ⌘N',
-      '新建连接 · ⌘⇧N',
+    expect(buttons.map((button) => button.props['data-gonavi-titlebar-icon-action'])).toEqual([
+      'add-service',
+      'connection-group',
+      'data-root',
+      undefined,
       undefined,
     ]);
-    const spanLabels = buttons.map((button) => {
-        const spans = button.findAllByType('span');
-        return spans[spans.length - 1]?.props?.children;
-    });
-    expect(spanLabels).toEqual(['新建查询', '新建连接', '管理分组']);
+    expect(buttons.map((button) => button.props.title)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      '新建查询 · ⌘N',
+      '新建连接 · ⌘⇧N',
+    ]);
+
+    // 图标组是独立的一簇，靠 2px 间距收紧
+    const iconGroup = actions.findAllByProps({ 'data-titlebar-icon-actions': 'true' });
+    expect(iconGroup).toHaveLength(1);
+    expect(iconGroup[0].findAllByType('button')).toHaveLength(3);
 
     buttons[0].props.onClick();
     buttons[1].props.onClick();
     buttons[2].props.onClick();
+    buttons[3].props.onClick();
+    buttons[4].props.onClick();
+    expect(onAddService).toHaveBeenCalledTimes(1);
+    expect(onConnectionGroupManagement).toHaveBeenCalledTimes(1);
+    expect(onDataRoot).toHaveBeenCalledTimes(1);
     expect(onNewQuery).toHaveBeenCalledTimes(1);
     expect(onNewConnection).toHaveBeenCalledTimes(1);
-    expect(onConnectionGroupManagement).toHaveBeenCalledTimes(1);
   });
 
-  it('shows both Windows shortcut labels', () => {
-    const shortcutOptions = cloneShortcutOptions(DEFAULT_SHORTCUT_OPTIONS);
+  it('hides icon actions whose label or handler is absent', () => {
     const renderer = create(
       <TitleBarPrimaryActions
-        newQueryLabel="New Query"
-        newConnectionLabel="New Connection"
-        newQueryShortcut={resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newQueryTab', 'windows')}
-        newConnectionShortcut={resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'windows')}
-        onNewQuery={vi.fn()}
-        onNewConnection={vi.fn()}
-      />,
-    );
-
-    const buttons = renderer.root.findAllByType('button');
-    expect(buttons.map((button) => button.props.title)).toEqual([
-      'New Query · Ctrl+N',
-      'New Connection · Ctrl+Shift+N',
-    ]);
-  });
-
-  it('renders an icon and a text span for every primary titlebar action', () => {
-    const renderer = create(
-      <TitleBarPrimaryActions
-        newQueryLabel="消息工作台"
+        newQueryLabel="新建查询"
         newConnectionLabel="新建连接"
         onNewQuery={vi.fn()}
         onNewConnection={vi.fn()}
         connectionGroupLabel="管理分组"
         onConnectionGroupManagement={vi.fn()}
+        dataRootLabel="数据目录"
       />,
     );
+    const actions = renderer.root.findByProps({ 'data-titlebar-primary-actions': 'true' });
+    expect(buttonLabels(actions.findAllByType('button'))).toEqual(['管理分组', '新建查询', '新建连接']);
+  });
+
+  it('exposes a glyph for every icon action and a text span for every text action', () => {
+    const renderer = renderPrimaryActions();
+    const actions = renderer.root.findByProps({ 'data-titlebar-primary-actions': 'true' });
+    const buttons = actions.findAllByType('button');
+    expect(buttons).toHaveLength(5);
+    // 两枚自定义 SVG 走 data-titlebar-glyph，管理分组沿用 antd 的 FolderOutlined
+    expect(renderer.root.findAllByProps({ 'data-titlebar-glyph': 'true' })).toHaveLength(2);
+    expect(buttons[1].findAllByProps({ 'data-icon': 'true' })).toHaveLength(1);
+    const spanLabels = buttons.slice(3).map((button) => {
+      const spans = button.findAllByType('span').filter((span) => typeof span.props?.children === 'string');
+      return spans[spans.length - 1]?.props?.children;
+    });
+    expect(spanLabels).toEqual(['新建查询', '新建连接']);
+  });
+
+  it('shows both Windows shortcut labels', () => {
+    const shortcutOptions = cloneShortcutOptions(DEFAULT_SHORTCUT_OPTIONS);
+    const renderer = renderPrimaryActions({
+      newQueryLabel: 'New Query',
+      newConnectionLabel: 'New Connection',
+      newQueryShortcut: resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newQueryTab', 'windows'),
+      newConnectionShortcut: resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'windows'),
+    });
 
     const buttons = renderer.root.findAllByType('button');
-    expect(buttons).toHaveLength(3);
-    expect(buttons.flatMap((button) => button.findAllByProps({ 'data-icon': 'true' }))).toHaveLength(3);
-    const spanLabels = buttons.map((button) => {
-        const spans = button.findAllByType('span').filter((span) => typeof span.props?.children === 'string');
-        return spans[spans.length - 1]?.props?.children;
-    });
-    expect(spanLabels).toEqual(['消息工作台', '新建连接', '管理分组']);
+    expect(buttons.map((button) => button.props.title)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      'New Query · Ctrl+N',
+      'New Connection · Ctrl+Shift+N',
+    ]);
   });
 
   it('uses current platform custom bindings and hides disabled shortcuts', () => {
@@ -247,23 +318,20 @@ describe('TitleBarPrimaryActions', () => {
     expect(resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'mac')).toBeUndefined();
     expect(resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'windows')).toBe('Ctrl+Alt+C');
 
-    const renderer = create(
-      <TitleBarPrimaryActions
-        newQueryLabel="新建查询"
-        newConnectionLabel="新建连接"
-        newQueryShortcut={resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newQueryTab', 'mac')}
-        newConnectionShortcut={resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'mac')}
-        onNewQuery={vi.fn()}
-        onNewConnection={vi.fn()}
-      />,
-    );
+    const renderer = renderPrimaryActions({
+      newQueryShortcut: resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newQueryTab', 'mac'),
+      newConnectionShortcut: resolveTitleBarPrimaryActionShortcut(shortcutOptions, 'newConnection', 'mac'),
+    });
 
     const buttons = renderer.root.findAllByType('button');
     expect(buttons.map((button) => button.props.title)).toEqual([
+      undefined,
+      undefined,
+      undefined,
       '新建查询 · ⌘⌥Q',
       '新建连接',
     ]);
-    expect(buttons.map((button) => button.props['aria-label'])).toEqual(['新建查询', '新建连接']);
+    expect(buttonLabels(buttons)).toEqual(['新增服务', '管理分组', '数据目录', '新建查询', '新建连接']);
     expect(buttons.every((button) => button.props.disabled !== true)).toBe(true);
   });
 });

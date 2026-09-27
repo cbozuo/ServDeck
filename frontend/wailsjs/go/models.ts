@@ -1,5 +1,39 @@
 export namespace app {
 	
+	export class AddServiceRequest {
+	    mode: string;
+	    serviceType: string;
+	    name: string;
+	    displayName: string;
+	    description: string;
+	    programFile: string;
+	    params: string;
+	    workDir: string;
+	    startType: string;
+	    restart: boolean;
+	    confName: string;
+	    confContent: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AddServiceRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.serviceType = source["serviceType"];
+	        this.name = source["name"];
+	        this.displayName = source["displayName"];
+	        this.description = source["description"];
+	        this.programFile = source["programFile"];
+	        this.params = source["params"];
+	        this.workDir = source["workDir"];
+	        this.startType = source["startType"];
+	        this.restart = source["restart"];
+	        this.confName = source["confName"];
+	        this.confContent = source["confContent"];
+	    }
+	}
 	export class CloudBackupConnectionSummary {
 	    id: string;
 	    name: string;

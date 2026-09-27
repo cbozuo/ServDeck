@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServDeck 高保真 — 服务详情（概览 / 配置文件 / 日志 / 事件）</title>
+<style>
+  /* ===== 主题 Token（对齐 v2-theme.css，与首页/注册弹框同套） ===== */
+  :root, [data-theme="light"], [data-theme="custom"] {
+    --gn-bg-app:      rgb(246 246 244);
+    --gn-bg-chrome:   rgb(236 236 234);
+    --gn-bg-titlebar: rgb(250 250 248);
+    --gn-bg-panel:    rgb(255 255 255);
+    --gn-bg-panel-2:  rgb(250 250 248);
+    --gn-bg-input:    rgb(255 255 255);
+    --gn-bg-hover:    rgba(15, 23, 42, 0.045);
+    --gn-bg-active:   rgba(15, 23, 42, 0.075);
+    --gn-bg-selected: color-mix(in srgb, var(--gn-accent) 14%, transparent);
+    --gn-fg-1: #0c1322; --gn-fg-2: #1f2937; --gn-fg-3: #4b5563;
+    --gn-fg-4: #6b7280; --gn-fg-5: #9ca3af;
+    --gn-br-1: rgba(15, 23, 42, 0.08);
+    --gn-br-2: rgba(15, 23, 42, 0.12);
+    --gn-br-3: rgba(15, 23, 42, 0.18);
+    --gn-accent:       #15803d;
+    --gn-accent-2:     #166534;
+    --gn-accent-soft:  color-mix(in srgb, var(--gn-accent) 16%, var(--gn-bg-panel));
+    --gn-accent-strong: #15803d;
+    --gn-accent-strong-hover: #126634;
+    --gn-on-accent: #ffffff;
+    --gn-info:  #0369a1;
+    --gn-warn:  #d97706;
+    --gn-danger: #dc2626;
+    --gn-shadow-md:  0 4px 14px rgba(15, 23, 42, 0.08);
+    --gn-shadow-lg:  0 12px 40px rgba(15, 23, 42, 0.14);
+    --gn-shadow-card: 0 0 0 0.5px rgba(15, 23, 42, 0.10), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --gn-font-sans: "Inter", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+    --gn-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  [data-theme="custom"] {
+    --gn-accent: #6d28d9; --gn-accent-2: #5b21b6;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 14%, var(--gn-bg-panel));
+    --gn-accent-strong: #6d28d9; --gn-accent-strong-hover: #5b21b6;
+  }
+  [data-theme="dark"] {
+    --gn-bg-app:      rgb(12 14 18);
+    --gn-bg-chrome:   rgb(20 23 28);
+    --gn-bg-titlebar: rgb(27 31 39);
+    --gn-bg-panel:    rgb(22 26 33);
+    --gn-bg-panel-2:  rgb(27 31 39);
+    --gn-bg-input:    rgb(15 18 23);
+    --gn-bg-hover:    rgba(255, 255, 255, 0.05);
+    --gn-bg-active:   rgba(255, 255, 255, 0.08);
+    --gn-bg-selected: color-mix(in srgb, var(--gn-accent) 18%, transparent);
+    --gn-fg-1: #ffffff; --gn-fg-2: #f5f5f5; --gn-fg-3: #e6e6e6;
+    --gn-fg-4: #d9d9d9; --gn-fg-5: #cccccc;
+    --gn-br-1: rgba(255, 255, 255, 0.06);
+    --gn-br-2: rgba(255, 255, 255, 0.10);
+    --gn-br-3: rgba(255, 255, 255, 0.16);
+    --gn-accent: #22c55e; --gn-accent-2: #16a34a;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 22%, transparent);
+    --gn-accent-strong: #15803d; --gn-accent-strong-hover: #126634;
+    --gn-info: #38bdf8; --gn-warn: #f59e0b; --gn-danger: #f87171;
+    --gn-shadow-md:  0 4px 14px rgba(0, 0, 0, 0.45);
+    --gn-shadow-lg:  0 12px 40px rgba(0, 0, 0, 0.55);
+    --gn-shadow-card: 0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+  :root { --t-java: #e76f00; --t-rust: #c2410c; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { font-family: var(--gn-font-sans); background: var(--gn-bg-app); color: var(--gn-fg-1); font-size: 13px; overflow: hidden; }
+  svg.ic { width: 16px; height: 16px; display: block; }
+  button { font-family: inherit; border: 0; background: transparent; color: inherit; cursor: pointer; }
+  input, textarea { font-family: inherit; color: var(--gn-fg-1); }
+  .mono { font-family: var(--gn-font-mono); }
+
+  .app { display: flex; flex-direction: column; height: 100vh; min-width: 1180px; }
+
+  /* ===== 48px 标题栏 ===== */
+  .titlebar {
+    height: 48px; flex-shrink: 0;
+    display: flex; align-items: center;
+    background: var(--gn-bg-titlebar);
+    border-bottom: 1px solid var(--gn-br-1);
+    padding-left: 11px; user-select: none;
+  }
+  .brandlogo {
+    width: 34px; height: 34px; border-radius: 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    position: relative; flex-shrink: 0; color: var(--gn-fg-4);
+  }
+  .brandlogo:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .brandlogo .bl-logo, .brandlogo .bl-fold { width: 20px; height: 20px; display: block; }
+  .brandlogo .bl-fold { display: none; position: absolute; }
+  .brandlogo:hover .bl-logo { display: none; }
+  .brandlogo:hover .bl-fold { display: block; }
+  .brandlogo svg.bl-logo path { opacity: .82; }
+  .tdivider { width: 1px; height: 20px; background: var(--gn-br-2); margin: 0 6px; flex-shrink: 0; }
+  .ghostbtn {
+    height: 32px; padding: 0 10px; border-radius: 7px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600; color: var(--gn-fg-3);
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .ghostbtn:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .ghostbtn .ic { opacity: .85; width: 15px; height: 15px; }
+  .spring { flex: 1 1 auto; min-width: 0; }
+  .gear {
+    width: 30px; height: 30px; border-radius: 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--gn-fg-4); margin-right: 12px;
+  }
+  .gear:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .winbtns { display: flex; align-items: center; gap: 2px; padding-right: 6px; }
+  .winbtn {
+    width: 40px; height: 40px; color: var(--gn-fg-4);
+    display: inline-flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .winbtn::before { content: ""; position: absolute; inset: 5px; border-radius: 7px; background: transparent; transition: background-color .15s ease; }
+  .winbtn:hover { color: var(--gn-fg-1); }
+  .winbtn:hover::before { background: var(--gn-bg-hover); }
+  .winbtn.close:hover { color: #fff; }
+  .winbtn.close:hover::before { background: #e81123; }
+  .winbtn .ic { position: relative; }
+
+  /* ===== Tab 条 ===== */
+  .tabbar {
+    display: flex; align-items: stretch; flex-shrink: 0;
+    background: var(--gn-bg-app);
+    border-bottom: 0.5px solid var(--gn-br-1);
+    padding-right: 8px; user-select: none; min-height: 37px;
+  }
+  .tab {
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 12px; position: relative;
+    font-size: 12.5px; font-weight: 500; color: var(--gn-fg-3);
+    border-right: 0.5px solid var(--gn-br-1);
+    white-space: nowrap; cursor: pointer;
+  }
+  .tab:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .tab.active { background: var(--gn-bg-panel); color: var(--gn-fg-1); font-weight: 600; }
+  .tab.active::after { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--gn-accent); }
+  .tab .t-ic { width: 13px; height: 13px; opacity: .7; }
+  .tab .t-close {
+    width: 16px; height: 16px; border-radius: 4px; margin-right: -4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--gn-fg-5);
+  }
+  .tab .t-close:hover { background: var(--gn-bg-active); color: var(--gn-fg-1); }
+  .tab .t-close .ic { width: 10px; height: 10px; }
+
+  /* ===== 主体 ===== */
+  .wbody { flex: 1; display: flex; min-height: 0; }
+  .sidebar {
+    width: 330px; flex-shrink: 0;
+    background: var(--gn-bg-panel);
+    border-right: 1px solid var(--gn-br-1);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .sb-search { padding: 12px 12px 8px; display: flex; gap: 8px; }
+  .sb-search-box {
+    flex: 1; height: 30px; border-radius: 7px;
+    background: var(--gn-bg-input); border: 1px solid var(--gn-br-2);
+    display: flex; align-items: center; gap: 6px; padding: 0 8px; color: var(--gn-fg-5);
+  }
+  .sb-search-box .ic { width: 14px; height: 14px; flex-shrink: 0; }
+  .sb-search-box input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: 12.5px; color: var(--gn-fg-1); }
+  .sb-tree { flex: 1; overflow-y: auto; padding: 4px 8px 12px; }
+  .tree-row {
+    height: 30px; padding: 0 8px; border-radius: 6px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; color: var(--gn-fg-2); cursor: pointer;
+  }
+  .tree-row:hover { background: var(--gn-bg-hover); }
+  .tree-row.selected { background: var(--gn-bg-selected); color: var(--gn-fg-1); font-weight: 600; }
+  .tree-row .ic { width: 14px; height: 14px; color: var(--gn-fg-4); flex-shrink: 0; }
+  .tree-row .cnt { margin-left: auto; font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-fg-5); }
+  .tree-group { margin-top: 2px; }
+  .tree-chev { width: 12px; height: 12px; transition: transform .15s ease; color: var(--gn-fg-5); }
+  .tree-group.collapsed .tree-chev { transform: rotate(-90deg); }
+  .tree-group.collapsed .tree-children { display: none; }
+  .tree-children { margin: 1px 0 3px; }
+  .tree-leaf { padding-left: 34px; font-weight: 400; }
+  .leaf-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .leaf-dot.run { background: var(--gn-accent); }
+  .leaf-dot.stop { background: var(--gn-fg-5); opacity: .55; }
+  .leaf-dot.err { background: var(--gn-danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gn-danger) 18%, transparent); }
+  .leaf-state { margin-left: auto; font-size: 10.5px; color: var(--gn-fg-5); }
+  .sb-engine {
+    flex-shrink: 0; border-top: 1px solid var(--gn-br-1);
+    padding: 10px 14px; display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--gn-fg-3); background: var(--gn-bg-panel-2);
+  }
+  .engine-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--gn-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gn-accent) 18%, transparent);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--gn-accent) 10%, transparent); } }
+  .sb-engine .ver { margin-left: auto; font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-fg-5); }
+
+  /* ============================================================ 详情主区 */
+  .main { flex: 1; min-width: 0; overflow-y: auto; padding: 18px 24px 40px; }
+
+  /* 头部状态卡 */
+  .svc-head {
+    background: var(--gn-bg-panel); border-radius: 12px;
+    box-shadow: var(--gn-shadow-card);
+    padding: 16px 18px; display: flex; align-items: center; gap: 14px;
+    margin-bottom: 14px;
+  }
+  .svc-ico {
+    width: 52px; height: 52px; border-radius: 13px; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: color-mix(in srgb, var(--look-color, #c2410c) 13%, var(--gn-bg-panel));
+    border: 1px solid color-mix(in srgb, var(--look-color, #c2410c) 30%, transparent);
+  }
+  .svc-ico svg { width: 28px; height: 28px; color: var(--look-color, #c2410c); }
+  .svc-title h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+  .svc-title .svc-sub { margin-top: 4px; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--gn-fg-4); flex-wrap: wrap; }
+  .svc-title .svc-sub .mono { color: var(--gn-fg-3); }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 21px; padding: 0 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+  }
+  .badge i { width: 6px; height: 6px; border-radius: 50%; }
+  .badge.run { background: var(--gn-accent-soft); color: var(--gn-accent-2); }
+  .badge.run i { background: var(--gn-accent); animation: pulse 2.4s ease-in-out infinite; }
+  .badge.stopping { background: color-mix(in srgb, var(--gn-warn) 14%, transparent); color: var(--gn-warn); }
+  .badge.stopping i { background: var(--gn-warn); }
+  .svc-actions { margin-left: auto; display: flex; gap: 8px; flex-shrink: 0; }
+  .btn {
+    height: 32px; padding: 0 14px; border-radius: 8px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600; flex-shrink: 0;
+  }
+  .btn-ghost { border: 1px solid var(--gn-br-2); color: var(--gn-fg-2); }
+  .btn-ghost:hover { background: var(--gn-bg-hover); }
+  .btn-danger-o { border: 1px solid color-mix(in srgb, var(--gn-danger) 38%, transparent); color: var(--gn-danger); }
+  .btn-danger-o:hover { background: color-mix(in srgb, var(--gn-danger) 8%, transparent); }
+  .btn-primary { background: var(--gn-accent-strong); color: var(--gn-on-accent); box-shadow: var(--gn-shadow-md); }
+  .btn-primary:hover { background: var(--gn-accent-strong-hover); }
+  .btn .ic { width: 13px; height: 13px; }
+  .icon-more {
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--gn-br-2);
+    display: inline-flex; align-items: center; justify-content: center; color: var(--gn-fg-4);
+  }
+  .icon-more:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+
+  /* Tabs（对齐真实 v2 风格） */
+  .dtabs {
+    display: flex; gap: 2px; background: var(--gn-bg-panel);
+    border-radius: 10px; box-shadow: var(--gn-shadow-card);
+    padding: 4px; margin-bottom: 14px; width: fit-content;
+  }
+  .dtab {
+    height: 30px; padding: 0 14px; border-radius: 7px;
+    font-size: 12.5px; font-weight: 600; color: var(--gn-fg-4);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .dtab:hover { color: var(--gn-fg-1); }
+  .dtab.on { background: var(--gn-bg-selected); color: var(--gn-accent-2); }
+  .dtab .dot-badge {
+    min-width: 16px; height: 16px; border-radius: 999px; padding: 0 4px;
+    background: var(--gn-danger); color: #fff;
+    font-size: 9.5px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .dpane { display: none; flex-direction: column; gap: 14px; }
+  .dpane.show { display: flex; }
+
+  /* 概览 */
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .metric-card {
+    background: var(--gn-bg-panel); border-radius: 10px;
+    box-shadow: var(--gn-shadow-card); padding: 14px 16px;
+  }
+  .metric-card .mc-label { font-size: 11.5px; color: var(--gn-fg-4); display: flex; align-items: center; gap: 6px; }
+  .metric-card .mc-val { margin-top: 6px; font-family: var(--gn-font-mono); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .metric-card .mc-val small { font-size: 12px; font-weight: 500; color: var(--gn-fg-5); margin-left: 3px; }
+  .m-bar { margin-top: 8px; height: 4px; border-radius: 2px; background: var(--gn-bg-hover); overflow: hidden; }
+  .m-bar i { display: block; height: 100%; border-radius: 2px; }
+  .panel {
+    background: var(--gn-bg-panel); border-radius: 10px;
+    box-shadow: var(--gn-shadow-card); padding: 14px 16px;
+  }
+  .panel h3 { font-size: 13px; font-weight: 700; color: var(--gn-fg-2); }
+  .p-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .legend { margin-left: auto; display: flex; gap: 14px; font-size: 11.5px; color: var(--gn-fg-4); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend .lg-line { width: 14px; height: 2.5px; border-radius: 2px; }
+  .legend b { font-family: var(--gn-font-mono); font-weight: 600; color: var(--gn-fg-2); }
+  .chart-wrap svg { display: block; width: 100%; height: auto; }
+  .info-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--gn-br-1); border-radius: 9px; overflow: hidden;
+  }
+  .info-row { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 8px 14px; font-size: 12px; border-bottom: 1px solid var(--gn-br-1); }
+  .info-row:nth-child(odd) { background: var(--gn-bg-panel-2); }
+  .info-row:nth-last-child(-n+2) { border-bottom: 0; }
+  .info-row .k { color: var(--gn-fg-4); }
+  .info-row .v { color: var(--gn-fg-1); font-family: var(--gn-font-mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .info-row .v.sans { font-family: var(--gn-font-sans); }
+
+  /* ===== 配置文件 tab ===== */
+  .conf-head {
+    background: var(--gn-bg-panel); border-radius: 10px 10px 0 0;
+    box-shadow: var(--gn-shadow-card);
+    padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .conf-head .cf-name { font-family: var(--gn-font-mono); font-size: 13px; font-weight: 700; color: var(--gn-fg-1); }
+  .conf-head .cf-path { font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-fg-5); }
+  .conf-head .cf-mode { margin-left: auto; }
+  .conf-body {
+    background: var(--gn-bg-panel); border-radius: 0 0 10px 10px;
+    box-shadow: var(--gn-shadow-card);
+    padding: 14px 16px 16px; border-top: 1px solid var(--gn-br-1);
+  }
+  .conf-body .fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--gn-fg-2); }
+  .input {
+    height: 32px; border-radius: 7px;
+    background: var(--gn-bg-input); border: 1px solid var(--gn-br-2);
+    display: flex; align-items: center; padding: 0 10px; font-size: 12.5px; min-width: 0;
+    transition: border-color .12s ease, box-shadow .12s ease;
+  }
+  .input input { flex: 1; border: 0; outline: 0; background: transparent; font-size: 12px; min-width: 0; }
+  .input input.mono { font-family: var(--gn-font-mono); }
+  .input:focus-within { border-color: var(--gn-accent); box-shadow: 0 0 0 3px var(--gn-accent-soft); }
+  .conf-body textarea {
+    width: 100%; min-height: 240px; resize: vertical;
+    background: var(--gn-bg-input); border: 1px solid var(--gn-br-2); border-radius: 8px;
+    padding: 12px 14px; outline: 0;
+    font-family: var(--gn-font-mono); font-size: 12px; line-height: 1.85; color: var(--gn-fg-2);
+  }
+  .conf-body textarea:focus { border-color: var(--gn-accent); box-shadow: 0 0 0 3px var(--gn-accent-soft); }
+  .conf-foot { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
+  .conf-foot .hint { flex: 1; font-size: 11px; color: var(--gn-fg-5); line-height: 1.55; }
+  .conf-foot .hint b { color: var(--gn-fg-4); font-weight: 600; }
+
+  /* 已修改 → 重启生效条 */
+  .restart-bar {
+    display: none; align-items: center; gap: 10px;
+    border-radius: 10px; padding: 11px 14px;
+    background: color-mix(in srgb, var(--gn-warn) 9%, var(--gn-bg-panel));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-warn) 35%, transparent);
+  }
+  .restart-bar.show { display: flex; }
+  .restart-bar .rb-ic {
+    width: 24px; height: 24px; border-radius: 8px; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: color-mix(in srgb, var(--gn-warn) 16%, transparent); color: var(--gn-warn);
+  }
+  .restart-bar .rb-ic .ic { width: 13px; height: 13px; }
+  .restart-bar .rb-text { font-size: 12.5px; font-weight: 600; color: var(--gn-fg-1); }
+  .restart-bar .rb-text small { display: block; font-weight: 400; font-size: 11px; color: var(--gn-fg-4); margin-top: 1px; }
+  .restart-bar .rb-actions { margin-left: auto; display: flex; gap: 8px; }
+  .seg { display: inline-flex; background: var(--gn-bg-hover); border-radius: 8px; padding: 3px; gap: 2px; }
+  .seg button { height: 26px; padding: 0 11px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--gn-fg-4); white-space: nowrap; }
+  .seg button:hover { color: var(--gn-fg-1); }
+  .seg button.on { background: var(--gn-bg-panel); color: var(--gn-fg-1); box-shadow: var(--gn-shadow-md); }
+  .seg.compact button { height: 24px; padding: 0 10px; font-size: 11.5px; }
+
+  /* ===== 日志 tab ===== */
+  .log-toolbar {
+    background: var(--gn-bg-panel); border-radius: 10px 10px 0 0;
+    box-shadow: var(--gn-shadow-card);
+    padding: 9px 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .log-view {
+    background: var(--gn-bg-input); border-radius: 0 0 10px 10px;
+    box-shadow: var(--gn-shadow-card);
+    padding: 12px 14px; font-family: var(--gn-font-mono); font-size: 11.5px;
+    line-height: 1.9; color: var(--gn-fg-3);
+    height: 380px; overflow-y: auto; border-top: 1px solid var(--gn-br-1);
+  }
+  .log-view .lg-t { color: var(--gn-fg-5); margin-right: 10px; }
+  .log-view .lg-lv { display: inline-block; width: 44px; font-weight: 700; }
+  .log-view .lg-info .lg-lv { color: var(--gn-info); }
+  .log-view .lg-warn .lg-lv { color: var(--gn-warn); }
+  .log-view .lg-error .lg-lv { color: var(--gn-danger); }
+  .log-view .lg-error { color: var(--gn-fg-2); }
+  .chip {
+    height: 26px; padding: 0 11px; border-radius: 7px;
+    border: 1px solid var(--gn-br-2);
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4);
+  }
+  .chip:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .chip.on { background: var(--gn-bg-selected); border-color: transparent; color: var(--gn-accent-2); }
+  .chip .ic { width: 12px; height: 12px; }
+
+  /* ===== 事件 tab ===== */
+  .events { background: var(--gn-bg-panel); border-radius: 10px; box-shadow: var(--gn-shadow-card); padding: 14px 16px; }
+  .event { display: flex; gap: 10px; position: relative; padding-bottom: 14px; }
+  .event:last-child { padding-bottom: 2px; }
+  .event::before { content: ""; position: absolute; left: 4px; top: 14px; bottom: -2px; width: 1px; background: var(--gn-br-1); }
+  .event:last-child::before { display: none; }
+  .e-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--gn-bg-panel); }
+  .e-dot.run { background: var(--gn-accent); }
+  .e-dot.warn { background: var(--gn-warn); }
+  .e-dot.err { background: var(--gn-danger); }
+  .e-dot.info { background: var(--gn-info); }
+  .e-dot.stop { background: var(--gn-fg-5); }
+  .e-time { width: 110px; flex-shrink: 0; font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-fg-5); padding-top: 1.5px; }
+  .e-body { font-size: 12.5px; color: var(--gn-fg-3); line-height: 1.45; min-width: 0; }
+  .e-body b { color: var(--gn-fg-1); font-weight: 600; }
+  .e-body .tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 10.5px; font-weight: 600; vertical-align: 1px; }
+  .tag.err { background: color-mix(in srgb, var(--gn-danger) 12%, transparent); color: var(--gn-danger); }
+  .tag.warn { background: color-mix(in srgb, var(--gn-warn) 14%, transparent); color: var(--gn-warn); }
+  .tag.ok { background: var(--gn-accent-soft); color: var(--gn-accent-2); }
+  .tag.info { background: color-mix(in srgb, var(--gn-info) 12%, transparent); color: var(--gn-info); }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--gn-br-2); border-radius: 5px; border: 2.5px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .theme-dock {
+    position: fixed; right: 18px; bottom: 12px; z-index: 99;
+    background: var(--gn-bg-panel); border-radius: 12px;
+    box-shadow: var(--gn-shadow-lg), 0 0 0 1px var(--gn-br-2);
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; align-items: center;
+  }
+  .theme-dock .td-tip { font-size: 10.5px; color: var(--gn-fg-5); letter-spacing: .02em; }
+  .td-seg { display: flex; background: var(--gn-bg-hover); border-radius: 8px; padding: 3px; gap: 2px; }
+  .td-seg button { height: 24px; padding: 0 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4); }
+  .td-seg button:hover { color: var(--gn-fg-1); }
+  .td-seg button.on { background: var(--gn-bg-panel); color: var(--gn-fg-1); box-shadow: var(--gn-shadow-md); }
+</style>
+</head>
+<body data-theme="light">
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="servyGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0.083" stop-color="#540E82"/><stop offset="0.25" stop-color="#4F2887"/>
+        <stop offset="0.417" stop-color="#4C4990"/><stop offset="0.583" stop-color="#456C9D"/>
+        <stop offset="0.75" stop-color="#398DAB"/><stop offset="0.917" stop-color="#24AEB9"/>
+      </linearGradient>
+      <symbol id="logo" viewBox="0 0 1024 1024"><path fill="url(#servyGrad)" fill-rule="evenodd" d="M466.50,76.00 520.00,75.50 579.00,82.50 643.00,99.50 695.00,121.50 740.00,147.50 783.00,179.50 821.50,216.00 843.50,242.00 852.50,257.00 853.50,337.00 850.50,344.00 846.00,348.50 836.00,352.50 732.00,352.50 724.00,348.50 703.50,322.00 670.00,290.50 632.00,265.50 598.00,249.50 556.00,236.50 510.00,230.50 479.00,230.50 436.00,236.50 414.00,242.50 379.00,255.50 349.00,271.50 320.00,291.50 283.50,326.00 265.50,348.00 249.50,372.00 233.50,403.00 220.50,442.00 213.50,474.00 210.50,519.00 214.50,561.00 223.50,598.00 236.50,631.00 253.50,663.00 284.50,703.00 318.00,734.50 347.00,754.50 386.00,773.50 426.00,786.50 467.00,793.50 516.00,793.50 569.00,785.50 573.00,786.50 580.00,791.50 660.00,870.50 682.50,893.00 685.50,899.00 685.50,906.00 681.00,910.50 640.00,927.50 577.00,943.50 519.00,950.50 470.00,950.50 431.00,946.50 394.00,939.50 342.00,924.50 301.00,907.50 262.00,885.50 231.00,864.50 198.00,837.50 156.50,795.00 134.50,767.00 109.50,727.00 92.50,694.00 80.50,665.00 67.50,623.00 57.50,570.00 54.50,534.00 54.50,491.00 56.50,482.00 57.50,456.00 66.50,409.00 80.50,363.00 92.50,333.00 112.50,294.00 133.50,262.00 159.50,229.00 199.00,188.50 223.00,168.50 268.00,137.50 310.00,115.50 341.00,102.50 383.00,89.50 431.00,79.50 466.50,76.00ZM448.50,433.00 936.00,432.50 951.00,438.50 962.50,450.00 968.50,560.00 961.50,574.00 954.00,581.50 935.00,590.50 452.00,590.50 441.00,587.50 432.00,582.50 421.50,571.00 416.50,557.00 416.50,463.00 422.50,450.00 431.00,440.50 439.00,435.50 448.50,433.00ZM652.50,672.00 839.00,671.50 843.00,673.50 851.50,684.00 851.50,721.00 853.50,729.00 947.50,824.00 952.50,836.00 953.50,848.00 946.50,866.00 877.00,933.50 861.00,938.50 848.00,937.50 840.00,933.50 832.00,927.50 630.50,724.00 624.50,709.00 626.50,695.00 636.00,680.50 641.00,676.50 652.50,672.00Z"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-min" viewBox="0 0 14 14"><path d="M3 7h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-max" viewBox="0 0 14 14"><rect x="3.2" y="3.2" width="7.6" height="7.6" rx="1.4" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+      <symbol id="i-x" viewBox="0 0 14 14"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-fold" viewBox="0 0 16 16"><rect x="1.8" y="2.8" width="12.4" height="10.4" rx="1.8" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M6 2.8v10.4" stroke="currentColor" stroke-width="1.2"/><path d="M11.4 8H8.2M9.6 6.4L8 8l1.6 1.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+      <symbol id="i-chev" viewBox="0 0 12 12"><path d="M3.5 4.8L6 7.3l2.5-2.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M10.4 10.4L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+      <symbol id="i-play" viewBox="0 0 16 16"><path d="M5.5 3.6L12.3 8l-6.8 4.4z" fill="currentColor"/></symbol>
+      <symbol id="i-stop" viewBox="0 0 16 16"><rect x="4.5" y="4.5" width="7" height="7" rx="1.2" fill="currentColor"/></symbol>
+      <symbol id="i-restart" viewBox="0 0 16 16"><path d="M13.2 8a5.2 5.2 0 1 1-1.6-3.75" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M13.4 1.8v3h-3" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="12.5" cy="8" r="1.3" fill="currentColor"/></symbol>
+      <symbol id="i-grid" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="8.9" y="2.5" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="2.5" y="8.9" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="8.9" y="8.9" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+      <symbol id="i-bolt" viewBox="0 0 16 16"><path d="M8.8 1.8L3.8 9h3.1l-.9 5.2L11.4 7H8.2z" fill="currentColor"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 1.8l5.2 2v3.6c0 3.1-2.1 5.6-5.2 6.8-3.1-1.2-5.2-3.7-5.2-6.8V3.8z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M5.9 7.9l1.6 1.6 2.8-2.9" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-java" viewBox="0 0 16 16"><path d="M4 6.9h7v3.4a3 3 0 0 1-3 3h-1a3 3 0 0 1-3-3z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M11 7.5h.8a1.7 1.7 0 0 1 0 3.4h-.9" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/><path d="M6.4 3.2c-.5.8.5 1.1 0 2M9.1 3.2c-.5.8.5 1.1 0 2" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-rust" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.1" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M8 2.2v1.7M8 12.1v1.7M13.8 8h-1.7M3.9 8H2.2M12.2 3.8l-1.2 1.2M5 11l-1.2 1.2M12.2 12.2L11 11M5 5L3.8 3.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-node" viewBox="0 0 16 16"><path d="M8 1.8l5.4 3.1v6.2L8 14.2l-5.4-3.1V4.9z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/></symbol>
+      <symbol id="i-exe" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M2.5 6h11" stroke="currentColor" stroke-width="1.2"/><circle cx="4.6" cy="4.5" r=".55" fill="currentColor"/><circle cx="6.4" cy="4.5" r=".55" fill="currentColor"/></symbol>
+      <symbol id="i-chart" viewBox="0 0 16 16"><path d="M2.5 12.5L6 8.6l3 2 4.5-6.1" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 13.8h11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".45"/></symbol>
+      <symbol id="i-import" viewBox="0 0 16 16"><path d="M8 2.5v6.5M5.5 6.8L8 9.3l2.5-2.5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.8 11.5v1.2a1 1 0 0 0 1 1h8.4a1 1 0 0 0 1-1v-1.2" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M8 5.2V8l2.1 1.4" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2L14.5 13.5h-13z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M8 6.4v3.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".8" fill="currentColor"/></symbol>
+      <symbol id="i-download" viewBox="0 0 16 16"><path d="M8 2.5v6.5M5.5 6.8L8 9.3l2.5-2.5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.8 11.5v1.2a1 1 0 0 0 1 1h8.4a1 1 0 0 0 1-1v-1.2" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="app">
+
+    <!-- ============ 48px 标题栏 ============ -->
+    <header class="titlebar">
+      <button class="brandlogo" title="折叠侧栏">
+        <svg class="bl-logo"><use href="#logo"/></svg>
+        <svg class="bl-fold"><use href="#i-fold"/></svg>
+      </button>
+      <div class="tdivider" style="margin:0 8px 0 9px"></div>
+      <button class="ghostbtn"><svg class="ic"><use href="#i-plus"/></svg>注册服务</button>
+      <div class="tdivider"></div>
+      <button class="ghostbtn"><svg class="ic"><use href="#i-grid"/></svg>服务管理<svg class="ic" style="width:11px;height:11px;opacity:.6"><use href="#i-chev"/></svg></button>
+      <button class="ghostbtn"><svg class="ic"><use href="#i-chart"/></svg>监控中心</button>
+      <div class="spring"></div>
+      <button class="gear" title="设置"><svg class="ic"><use href="#i-gear"/></svg></button>
+      <div class="winbtns">
+        <button class="winbtn"><svg class="ic"><use href="#i-min"/></svg></button>
+        <button class="winbtn"><svg class="ic"><use href="#i-max"/></svg></button>
+        <button class="winbtn close"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+    </header>
+
+    <!-- ============ Tab 条（详情是打开的工作台 tab） ============ -->
+    <div class="tabbar">
+      <div class="tab"><svg class="t-ic"><use href="#i-grid"/></svg>服务总览</div>
+      <div class="tab active">
+        <img src="../frontend/public/db-icons/rustfs.png" alt="" class="t-ic" style="color:#c2410c;opacity:1" />rustfs-service
+        <span class="t-close"><svg class="ic"><use href="#i-x"/></svg></span>
+      </div>
+      <button class="tab" style="border-right:0;padding:8px 10px"><svg class="ic" style="width:13px;height:13px"><use href="#i-plus"/></svg></button>
+    </div>
+
+    <div class="wbody">
+
+      <!-- ============ 侧栏 ============ -->
+      <aside class="sidebar">
+        <div class="sb-search">
+          <div class="sb-search-box">
+            <svg class="ic"><use href="#i-search"/></svg>
+            <input placeholder="筛选服务…" />
+          </div>
+        </div>
+        <nav class="sb-tree">
+          <div class="tree-row">
+            <svg class="ic"><use href="#i-grid"/></svg>全部服务<span class="cnt">11</span>
+          </div>
+          <div class="tree-row">
+            <svg class="ic" style="color:var(--t-rust)"><use href="#i-rust"/></svg>Rust<span class="cnt">3</span>
+          </div>
+          <div class="tree-group">
+            <div class="tree-row tree-leaf selected" style="padding-left:34px">
+              <i class="leaf-dot run"></i>rustfs-service<span class="leaf-state">运行中</span>
+            </div>
+            <div class="tree-row tree-leaf" style="padding-left:34px"><i class="leaf-dot run"></i>gateway-api<span class="leaf-state">运行中</span></div>
+            <div class="tree-row tree-leaf" style="padding-left:34px"><i class="leaf-dot stop"></i>cache-engine<span class="leaf-state">已停止</span></div>
+          </div>
+          <div class="tree-group" style="margin-top:8px">
+            <div class="tree-row">
+              <svg class="tree-chev"><use href="#i-chev"/></svg>
+              <svg class="ic" style="color:var(--t-java)"><use href="#i-java"/></svg>Java<span class="cnt">4</span>
+            </div>
+          </div>
+        </nav>
+        <div class="sb-engine">
+          <i class="engine-dot"></i>
+          <svg class="ic"><use href="#i-shield"/></svg>
+          servy-10.1.exe · 引擎就绪
+          <span class="ver">v10.1</span>
+        </div>
+      </aside>
+
+      <!-- ============ 详情主区 ============ -->
+      <main class="main">
+
+        <!-- 头部状态卡 -->
+        <div class="svc-head">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/rustfs.png" alt="" style="width:100%;height:100%" /></span>
+          <div class="svc-title">
+            <h1>RustFS 分布式存储服务</h1>
+            <div class="svc-sub">
+              <span class="badge run" id="svcBadge"><i></i><span id="svcBadgeText">运行中</span></span>
+              <span class="mono">rustfs-service</span>
+              <span>· 运行 3 天 4 小时</span>
+              <span>· PID <span class="mono" id="svcPid">8421</span></span>
+              <span>· 自动启动</span>
+            </div>
+          </div>
+          <div class="svc-actions">
+            <button class="btn btn-danger-o" id="btnStop"><svg class="ic"><use href="#i-stop"/></svg>停止</button>
+            <button class="btn btn-ghost" id="btnRestart"><svg class="ic"><use href="#i-restart"/></svg>重启</button>
+            <button class="icon-more"><svg class="ic"><use href="#i-more"/></svg></button>
+          </div>
+        </div>
+
+        <!-- 详情 Tabs -->
+        <div class="dtabs">
+          <button class="dtab on" data-tab="overview">概览</button>
+          <button class="dtab" data-tab="conf">配置文件<span class="dot-badge" id="confDirtyBadge" style="display:none">1</span></button>
+          <button class="dtab" data-tab="logs">日志</button>
+          <button class="dtab" data-tab="events">事件</button>
+        </div>
+
+        <!-- ======== 概览 ======== -->
+        <div class="dpane show" id="paneOverview">
+          <div class="metrics">
+            <div class="metric-card">
+              <div class="mc-label">CPU 使用率</div>
+              <div class="mc-val">2.1<small>%</small></div>
+              <div class="m-bar"><i style="width:21%;background:var(--gn-accent)"></i></div>
+            </div>
+            <div class="metric-card">
+              <div class="mc-label">内存占用 <span style="color:var(--gn-warn)">▎86%</span></div>
+              <div class="mc-val">486<small>MB</small></div>
+              <div class="m-bar"><i style="width:86%;background:var(--gn-warn)"></i></div>
+            </div>
+            <div class="metric-card">
+              <div class="mc-label">已处理请求（今）</div>
+              <div class="mc-val">1.83<small>万</small></div>
+              <div class="m-bar"><i style="width:46%;background:var(--gn-info)"></i></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="p-head">
+              <h3>资源趋势 · 近 30 分钟</h3>
+              <div class="legend">
+                <span><i class="lg-line" style="background:var(--gn-accent)"></i>CPU <b>2.1%</b></span>
+                <span><i class="lg-line" style="background:var(--gn-info)"></i>内存 <b>486 MB</b></span>
+              </div>
+            </div>
+            <div class="chart-wrap"><svg id="trendChart" viewBox="0 0 640 150"></svg></div>
+          </div>
+
+          <div class="panel">
+            <div class="p-head"><h3>基本信息</h3></div>
+            <div class="info-grid">
+              <div class="info-row"><span class="k">程序文件</span><span class="v">D:\rustfs\rustfs.exe</span></div>
+              <div class="info-row"><span class="k">工作目录</span><span class="v">D:\rustfs</span></div>
+              <div class="info-row"><span class="k">SCM binPath</span><span class="v">D:\rustfs\rustfs.exe server D:\rustfs\data …</span></div>
+              <div class="info-row"><span class="k">启动类型</span><span class="v sans">自动（开机自启）</span></div>
+              <div class="info-row"><span class="k">服务来源</span><span class="v sans">servy 注册（本机）</span></div>
+              <div class="info-row"><span class="k">注册时间</span><span class="v sans">2026-09-23 10:31</span></div>
+              <div class="info-row"><span class="k">进程守护</span><span class="v sans">异常退出自动重启 · 延迟 5 秒</span></div>
+              <div class="info-row"><span class="k">日志目录</span><span class="v">…\.servdeck\services\rustfs-service\logs</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======== 配置文件 ======== -->
+        <div class="dpane" id="paneConf">
+          <div class="conf-head">
+            <span class="cf-name">rustfs.conf</span>
+            <span class="cf-path">D:\rustfs\rustfs.conf</span>
+            <span class="seg compact cf-mode" id="confModeSeg">
+              <button class="on" data-m="fields">按字段编辑</button>
+              <button data-m="raw">原文编辑</button>
+            </span>
+          </div>
+          <div class="conf-body">
+            <div class="fields" id="confFields">
+              <div class="field"><label>数据目录</label><div class="input"><input class="mono" data-k="dataDir" value="D:\rustfs\data" spellcheck="false" /></div></div>
+              <div class="field"><label>API 端口</label><div class="input"><input class="mono" data-k="apiPort" value="9000" style="width:90px" /></div></div>
+              <div class="field"><label>Console 端口</label><div class="input"><input class="mono" data-k="consolePort" value="9001" style="width:90px" /></div></div>
+              <div class="field"><label>访问密钥</label><div class="input"><input class="mono" data-k="accessKey" value="rustfsadmin" /></div></div>
+              <div class="field"><label>访问密码</label><div class="input"><input class="mono" data-k="secretKey" type="password" value="rustfsadmin" /></div></div>
+              <div class="field"><label>日志级别</label><div class="input"><input class="mono" data-k="logLevel" value="info" /></div></div>
+            </div>
+            <textarea class="mono" id="confRaw" style="display:none" spellcheck="false"></textarea>
+            <div class="conf-foot">
+              <span class="hint" id="confHint">修改后点击保存写回 <b>rustfs.conf</b>；保存前自动备份到应用数据目录，可随时回滚。修改在服务<b>重启后生效</b>。</span>
+              <button class="btn btn-ghost" id="btnDiscard" style="display:none">放弃更改</button>
+              <button class="btn btn-primary" id="btnSaveConf">保存配置</button>
+            </div>
+          </div>
+
+          <div class="restart-bar" id="restartBar">
+            <span class="rb-ic"><svg class="ic"><use href="#i-restart"/></svg></span>
+            <span class="rb-text">配置已保存，需重启服务生效<small>rustfs.conf 已写回（原文件已自动备份）；重启约需 3~5 秒，期间服务短暂不可用。</small></span>
+            <span class="rb-actions">
+              <button class="btn btn-ghost" id="btnLater">稍后重启</button>
+              <button class="btn btn-primary" id="btnRestartNow"><svg class="ic"><use href="#i-restart"/></svg>立即重启</button>
+            </span>
+          </div>
+        </div>
+
+        <!-- ======== 日志 ======== -->
+        <div class="dpane" id="paneLogs">
+          <div class="log-toolbar">
+            <button class="chip on" data-log="out">stdout</button>
+            <button class="chip" data-log="err">stderr <span style="color:var(--gn-danger)">●</span></button>
+            <span style="flex:1"></span>
+            <button class="chip">自动滚动</button>
+            <button class="chip"><svg class="ic"><use href="#i-download"/></svg>下载</button>
+          </div>
+          <div class="log-view" id="logView">
+            <div class="lg-info"><span class="lg-t">10:31:04</span><span class="lg-lv">INFO</span>server started, listening on 0.0.0.0:9000</div>
+            <div class="lg-info"><span class="lg-t">10:31:04</span><span class="lg-lv">INFO</span>console enabled: http://0.0.0.0:9001</div>
+            <div class="lg-info"><span class="lg-t">10:31:05</span><span class="lg-lv">INFO</span>volume mounted: D:\rustfs\data (1.2 TB free)</div>
+            <div class="lg-info"><span class="lg-t">10:31:05</span><span class="lg-lv">INFO</span>obs log directory: D:\rustfs\logs</div>
+            <div class="lg-info"><span class="lg-t">11:02:33</span><span class="lg-lv">INFO</span>PUT /bucket-a/report.pdf 204 12ms</div>
+            <div class="lg-info"><span class="lg-t">11:05:19</span><span class="lg-lv">INFO</span>GET /bucket-a/report.pdf 200 8ms</div>
+            <div class="lg-warn"><span class="lg-t">09:47:12</span><span class="lg-lv">WARN</span>memory usage 86%, threshold 80%</div>
+            <div class="lg-info"><span class="lg-t">11:22:47</span><span class="lg-lv">INFO</span>DELETE /bucket-tmp/cache-0912 204 6ms</div>
+            <div class="lg-error"><span class="lg-t">11:24:03</span><span class="lg-lv">ERROR</span>upload aborted: client timeout (180s) — bucket-b/raw.dat</div>
+            <div class="lg-info"><span class="lg-t">11:24:03</span><span class="lg-lv">INFO</span>multipart cleanup finished, 3 parts removed</div>
+          </div>
+        </div>
+
+        <!-- ======== 事件 ======== -->
+        <div class="dpane" id="paneEvents">
+          <div class="events">
+            <div class="event">
+              <i class="e-dot info"></i><span class="e-time">今天 11:26</span>
+              <div class="e-body"><b>rustfs-service</b> 配置文件修改已保存（原文件已备份）<span class="tag warn">待重启生效</span></div>
+            </div>
+            <div class="event">
+              <i class="e-dot warn"></i><span class="e-time">今天 09:47</span>
+              <div class="e-body"><b>rustfs-service</b> 内存占用 86%，超过 80% 告警线<span class="tag warn">告警</span></div>
+            </div>
+            <div class="event">
+              <i class="e-dot run"></i><span class="e-time">3 天前 10:31</span>
+              <div class="e-body"><b>rustfs-service</b> 服务启动成功（PID 8421）<span class="tag ok">启动</span></div>
+            </div>
+            <div class="event">
+              <i class="e-dot info"></i><span class="e-time">3 天前 10:31</span>
+              <div class="e-body"><b>rustfs-service</b> 通过 servy 注册并创建 rustfs.conf<span class="tag info">注册</span></div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 原型专用：主题切换 -->
+  <div class="theme-dock">
+    <span class="td-tip">原型演示 · 全 Token 驱动</span>
+    <div class="td-seg">
+      <button data-t="light" class="on">亮色</button>
+      <button data-t="dark">暗色</button>
+      <button data-t="custom">自定义</button>
+    </div>
+  </div>
+
+<script>
+  // ---- 主题 ----
+  document.querySelectorAll('.td-seg button').forEach(b => b.addEventListener('click', () => {
+    document.body.dataset.theme = b.dataset.t;
+    document.querySelectorAll('.td-seg button').forEach(x => x.classList.toggle('on', x === b));
+  }));
+
+  // ---- 侧栏折叠 ----
+  document.querySelectorAll('.tree-group > .tree-row:not(.tree-leaf)').forEach(row =>
+    row.addEventListener('click', () => row.parentElement.classList.toggle('collapsed')));
+
+  // ---- 详情 Tabs ----
+  document.querySelectorAll('.dtab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.dtab').forEach(x => x.classList.toggle('on', x === t));
+    document.querySelectorAll('.dpane').forEach(p => p.classList.toggle('show', p.id === 'pane' + t.dataset.tab[0].toUpperCase() + t.dataset.tab.slice(1)));
+  }));
+
+  // ================================================================
+  // 配置文件：字段 ↔ 原文 双向 + 保存 → 重启生效流
+  // ================================================================
+  const $ = id => document.getElementById(id);
+  let confMode = 'fields';
+  let confDirty = false;
+
+  const renderFromFields = () => {
+    const g = k => document.querySelector(`#confFields input[data-k="${k}"]`).value;
+    return `RUSTFS_ACCESS_KEY=${g('accessKey')}\nRUSTFS_SECRET_KEY=${g('secretKey')}\nRUSTFS_VOLUMES=${g('dataDir')}\nRUSTFS_ADDRESS=0.0.0.0:${g('apiPort')}\nRUSTFS_CONSOLE_ADDRESS=0.0.0.0:${g('consolePort')}\nRUSTFS_CONSOLE_ENABLE=true\nRUST_LOG=${g('logLevel')}\nRUSTFS_OBS_LOG_DIRECTORY=D:\\rustfs\\logs`;
+  };
+  const parseRawToFields = raw => {
+    const map = {};
+    raw.split('\n').forEach(line => {
+      const m = line.match(/^([A-Z_]+)=(.*)$/);
+      if (m) map[m[1]] = m[2].trim();
+    });
+    const set = (k, v) => { const el = document.querySelector(`#confFields input[data-k="${k}"]`); if (el && v !== undefined) el.value = v; };
+    set('accessKey', map.RUSTFS_ACCESS_KEY); set('secretKey', map.RUSTFS_SECRET_KEY);
+    set('dataDir', map.RUSTFS_VOLUMES);
+    if (map.RUSTFS_ADDRESS) set('apiPort', map.RUSTFS_ADDRESS.split(':').pop());
+    if (map.RUSTFS_CONSOLE_ADDRESS) set('consolePort', map.RUSTFS_CONSOLE_ADDRESS.split(':').pop());
+    set('logLevel', map.RUST_LOG);
+  };
+
+  function setDirty(on) {
+    confDirty = on;
+    $('restartBar').classList.toggle('show', on);
+    $('btnDiscard').style.display = on ? 'inline-flex' : 'none';
+    $('btnSaveConf').textContent = on ? '保存配置' : '保存配置';
+    $('confDirtyBadge').style.display = on ? 'inline-flex' : 'none';
+    $('btnSaveConf').style.opacity = on ? '1' : '.6';
+  }
+  document.querySelectorAll('#confFields input').forEach(el =>
+    el.addEventListener('input', () => { confDirty = true; setDirty(true); }));
+  $('confRaw').addEventListener('input', () => { confDirty = true; setDirty(true); });
+
+  $('confModeSeg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    const m = b.dataset.m;
+    $('confModeSeg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    if (m === 'raw' && confMode === 'fields') $('confRaw').value = renderFromFields();
+    if (m === 'fields' && confMode === 'raw') parseRawToFields($('confRaw').value);
+    confMode = m;
+    $('confFields').style.display = m === 'fields' ? 'grid' : 'none';
+    $('confRaw').style.display = m === 'raw' ? 'block' : 'none';
+  }));
+
+  $('btnDiscard').addEventListener('click', () => setDirty(false));
+  $('btnSaveConf').addEventListener('click', () => {
+    if (confMode === 'raw') parseRawToFields($('confRaw').value);
+    setDirty(true); // 保存后进入「待重启」状态
+  });
+  $('btnLater').addEventListener('click', () => setDirty(false));
+
+  // 模拟重启：徽标变「重启中」→ 恢复运行中，脏状态清空
+  $('btnRestartNow').addEventListener('click', () => {
+    const badge = $('svcBadge');
+    badge.className = 'badge stopping';
+    $('svcBadgeText').textContent = '重启中…';
+    setTimeout(() => {
+      badge.className = 'badge run';
+      $('svcBadgeText').textContent = '运行中';
+      setDirty(false);
+    }, 1600);
+  });
+  $('btnRestart').addEventListener('click', () => $('btnRestartNow').click());
+  $('btnStop').addEventListener('click', () => {
+    const badge = $('svcBadge');
+    badge.className = 'badge stopping';
+    $('svcBadgeText').textContent = '正在停止…';
+    setTimeout(() => {
+      badge.className = 'badge stopping';
+      $('svcBadgeText').textContent = '已停止';
+    }, 1200);
+  });
+
+  // ---- 日志子视图 ----
+  document.querySelectorAll('[data-log]').forEach(c => c.addEventListener('click', () => {
+    document.querySelectorAll('[data-log]').forEach(x => x.classList.toggle('on', x === c));
+  }));
+
+  // ---- 趋势曲线（复用首页绘制逻辑） ----
+  (function drawTrend() {
+    const svg = document.getElementById('trendChart');
+    const NS = 'http://www.w3.org/2000/svg';
+    const W = 640, H = 150, L = 8, R = 8, T = 10, B = 20;
+    const iw = W - L - R, ih = H - T - B;
+    const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); svg.appendChild(n); return n; };
+    [0, 0.5, 1].forEach(f => el('line', { x1: L, y1: T + ih * f, x2: W - R, y2: T + ih * f, stroke: 'var(--gn-br-1)', 'stroke-dasharray': '3 4' }));
+    [['10:00', 0], ['10:15', .5], ['10:30', 1]].forEach(([s, f]) => {
+      const t = el('text', { x: L + iw * f, y: H - 5, 'text-anchor': f === 0 ? 'start' : f === 1 ? 'end' : 'middle', fill: 'var(--gn-fg-5)', 'font-size': 9.5, 'font-family': 'var(--gn-font-mono)' });
+      t.textContent = s;
+    });
+    const walk = (n, v0, min, max, amp) => { const a = [v0]; for (let i = 1; i < n; i++) { let v = a[i - 1] + (Math.random() - 0.5) * amp; v = Math.max(min, Math.min(max, v)); a.push(v); } return a; };
+    const cpu = walk(41, 2.2, 1.2, 5.5, 1.1); cpu[20] = 4.6;
+    const mem = walk(41, 470, 430, 520, 18);
+    const toPath = (arr, max) => { const pts = arr.map((v, i) => [L + iw * i / (arr.length - 1), T + ih * (1 - v / max)]); return { d: pts.map(([x, y], i) => (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1)).join(' '), pts }; };
+    const c = toPath(cpu, 8), m = toPath(mem, 700);
+    el('path', { d: c.d + ` L ${W - R} ${T + ih} L ${L} ${T + ih} Z`, fill: 'var(--gn-accent)', opacity: 0.09 });
+    el('path', { d: m.d, fill: 'none', stroke: 'var(--gn-info)', 'stroke-width': 1.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: .9 });
+    el('path', { d: c.d, fill: 'none', stroke: 'var(--gn-accent)', 'stroke-width': 1.8, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+    const [ex, ey] = c.pts[c.pts.length - 1];
+    el('circle', { cx: ex, cy: ey, r: 3, fill: 'var(--gn-accent)', stroke: 'var(--gn-bg-panel)', 'stroke-width': 1.5 });
+    const [mx, my] = m.pts[m.pts.length - 1];
+    el('circle', { cx: mx, cy: my, r: 3, fill: 'var(--gn-info)', stroke: 'var(--gn-bg-panel)', 'stroke-width': 1.5 });
+  })();
+</script>
+</body>
+</html>

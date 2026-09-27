@@ -1,0 +1,261 @@
+/* 纳管服务树（ServiceTreeSidebar）专属样式。
+   骨架复用 v2 侧栏类（gn-v2-object-explorer / gn-v2-rail-* / gn-v2-tree-*），
+   这里只补服务树自有节点与弹框的少量样式。 */
+
+.gst-service-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: -3px;
+}
+
+/* 头部：标题 + 计数 */
+.gst-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gn-fg-1);
+  padding-left: 2px;
+}
+
+.gst-panel-title-spring {
+  flex: 1 1 auto;
+}
+
+.gst-panel-count {
+  font-size: 11px;
+  line-height: 18px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--gn-fg-2);
+  background: var(--gn-bg-hover, rgba(128, 128, 128, 0.14));
+}
+
+/* 树节点 */
+.gst-node-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.gst-node-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gst-node-count {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: var(--gn-fg-3, var(--gn-fg-2));
+  background: var(--gn-bg-hover, rgba(128, 128, 128, 0.14));
+}
+
+/* 空态 */
+.gst-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+}
+
+.gst-empty .ant-empty {
+  margin: 0;
+}
+
+.gst-empty-hint {
+  font-size: 12px;
+  color: var(--gn-fg-3, var(--gn-fg-2));
+}
+
+/* 管理分组弹框 */
+.gst-groups-create {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* 双栏布局：左分组 / 右服务 */
+.gst-manage-layout {
+  display: flex;
+  gap: 16px;
+  min-height: 420px;
+  height: min(60vh, 560px);
+}
+
+.gst-manage-side {
+  flex: 0 0 240px;
+  border-right: 1px solid var(--gn-br-1, rgba(15, 23, 42, 0.08));
+  padding-right: 12px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gst-side-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  color: var(--gn-fg-1);
+}
+
+.gst-side-row:hover {
+  background: var(--gn-bg-hover, rgba(15, 23, 42, 0.045));
+}
+
+.gst-side-row.is-selected {
+  background: var(--gn-bg-selected, rgba(15, 23, 42, 0.08));
+}
+
+.gst-side-row-icon {
+  color: var(--gn-fg-3, var(--gn-fg-2));
+  display: inline-flex;
+}
+
+.gst-side-row-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gst-side-row-actions {
+  flex: 0 0 auto;
+  display: none;
+  align-items: center;
+}
+
+.gst-side-row:hover .gst-side-row-actions,
+.gst-side-row.is-selected .gst-side-row-actions {
+  display: inline-flex;
+}
+
+.gst-groups-empty-line {
+  padding: 10px 8px;
+  font-size: 12px;
+  color: var(--gn-fg-3, var(--gn-fg-2));
+}
+
+.gst-manage-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gst-manage-main-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 2px 10px;
+}
+
+.gst-manage-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gn-fg-1);
+}
+
+.gst-service-rows {
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.gst-service-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.gst-service-row-name {
+  font-size: 13px;
+  color: var(--gn-fg-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gst-service-row-scm {
+  font-family: var(--gn-font-mono, monospace);
+  font-size: 12px;
+  color: var(--gn-fg-4, var(--gn-fg-3));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gst-service-row-time {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--gn-fg-4, var(--gn-fg-3));
+}
+
+.gst-service-icon-fallback {
+  display: inline-block;
+  width: 16px;
+  text-align: center;
+  color: var(--gn-fg-3, var(--gn-fg-2));
+}
+
+.gst-groups-list {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.gst-groups-row {
+  padding-inline: 4px !important;
+}
+
+.gst-groups-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.gst-groups-row-name {
+  font-size: 13px;
+  color: var(--gn-fg-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gst-groups-row-count {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: var(--gn-fg-3, var(--gn-fg-2));
+  background: var(--gn-bg-hover, rgba(128, 128, 128, 0.14));
+}
+
+.gst-groups-empty {
+  margin: 18px 0;
+}
+
+.gst-groups-tip {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--gn-fg-3, var(--gn-fg-2));
+}

@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServDeck 高保真 — 添加服务弹框 v3（外观 / 模板 / 保存草稿）</title>
+<style>
+  /* ===== 主题 Token（对齐 v2-theme.css） ===== */
+  :root, [data-theme="light"], [data-theme="custom"] {
+    --gn-bg-app:      rgb(246 246 244);
+    --gn-bg-chrome:   rgb(236 236 234);
+    --gn-bg-titlebar: rgb(250 250 248);
+    --gn-bg-panel:    rgb(255 255 255);
+    --gn-bg-panel-2:  rgb(250 250 248);
+    --gn-bg-input:    rgb(255 255 255);
+    --gn-bg-hover:    rgba(15, 23, 42, 0.045);
+    --gn-bg-active:   rgba(15, 23, 42, 0.075);
+    --gn-bg-selected: color-mix(in srgb, var(--gn-accent) 14%, transparent);
+    --gn-fg-1: #0c1322; --gn-fg-2: #1f2937; --gn-fg-3: #4b5563;
+    --gn-fg-4: #6b7280; --gn-fg-5: #9ca3af;
+    --gn-br-1: rgba(15, 23, 42, 0.08);
+    --gn-br-2: rgba(15, 23, 42, 0.12);
+    --gn-br-3: rgba(15, 23, 42, 0.18);
+    --gn-accent:       #15803d;
+    --gn-accent-2:     #166534;
+    --gn-accent-soft:  color-mix(in srgb, var(--gn-accent) 16%, var(--gn-bg-panel));
+    --gn-accent-strong: #15803d;
+    --gn-accent-strong-hover: #126634;
+    --gn-on-accent: #ffffff;
+    --gn-info:  #0369a1;
+    --gn-warn:  #d97706;
+    --gn-danger: #dc2626;
+    --gn-shadow-md:  0 4px 14px rgba(15, 23, 42, 0.08);
+    --gn-shadow-lg:  0 12px 40px rgba(15, 23, 42, 0.14);
+    --gn-shadow-card: 0 0 0 0.5px rgba(15, 23, 42, 0.10), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --gn-font-sans: "Inter", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+    --gn-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  [data-theme="custom"] {
+    --gn-accent: #6d28d9; --gn-accent-2: #5b21b6;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 14%, var(--gn-bg-panel));
+    --gn-accent-strong: #6d28d9; --gn-accent-strong-hover: #5b21b6;
+  }
+  [data-theme="dark"] {
+    --gn-bg-app:      rgb(12 14 18);
+    --gn-bg-chrome:   rgb(20 23 28);
+    --gn-bg-titlebar: rgb(27 31 39);
+    --gn-bg-panel:    rgb(22 26 33);
+    --gn-bg-panel-2:  rgb(27 31 39);
+    --gn-bg-input:    rgb(15 18 23);
+    --gn-bg-hover:    rgba(255, 255, 255, 0.05);
+    --gn-bg-active:   rgba(255, 255, 255, 0.08);
+    --gn-bg-selected: color-mix(in srgb, var(--gn-accent) 18%, transparent);
+    --gn-fg-1: #ffffff; --gn-fg-2: #f5f5f5; --gn-fg-3: #e6e6e6;
+    --gn-fg-4: #d9d9d9; --gn-fg-5: #cccccc;
+    --gn-br-1: rgba(255, 255, 255, 0.06);
+    --gn-br-2: rgba(255, 255, 255, 0.10);
+    --gn-br-3: rgba(255, 255, 255, 0.16);
+    --gn-accent: #22c55e; --gn-accent-2: #16a34a;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 22%, transparent);
+    --gn-accent-strong: #15803d; --gn-accent-strong-hover: #126634;
+    --gn-info: #38bdf8; --gn-warn: #f59e0b; --gn-danger: #f87171;
+    --gn-shadow-md:  0 4px 14px rgba(0, 0, 0, 0.45);
+    --gn-shadow-lg:  0 12px 40px rgba(0, 0, 0, 0.55);
+    --gn-shadow-card: 0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { font-family: var(--gn-font-sans); background: var(--gn-bg-app); color: var(--gn-fg-1); font-size: 13px; overflow: hidden; }
+  svg.ic { width: 16px; height: 16px; display: block; }
+  button { font-family: inherit; border: 0; background: transparent; color: inherit; cursor: pointer; }
+  input, textarea { font-family: inherit; color: var(--gn-fg-1); }
+  input.mono, textarea.mono { font-family: var(--gn-font-mono); }
+
+  /* ===== 背景剪影 ===== */
+  .backdrop-app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+  .bk-titlebar { height: 48px; background: var(--gn-bg-titlebar); border-bottom: 1px solid var(--gn-br-1); display: flex; align-items: center; padding-left: 11px; }
+  .bk-logo { width: 20px; height: 20px; }
+  .bk-wbody { flex: 1; display: flex; min-height: 0; }
+  .bk-side { width: 330px; background: var(--gn-bg-panel); border-right: 1px solid var(--gn-br-1); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .bk-sk { height: 26px; border-radius: 6px; background: var(--gn-bg-hover); }
+  .bk-main { flex: 1; padding: 22px 26px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-content: start; }
+  .bk-card { height: 90px; border-radius: 10px; background: var(--gn-bg-panel); box-shadow: var(--gn-shadow-card); }
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    background: rgba(9, 12, 18, 0.44);
+    display: flex; align-items: center; justify-content: center;
+  }
+  [data-theme="dark"] .overlay { background: rgba(0, 0, 0, 0.55); }
+
+  /* ============================================================ 弹框 */
+  .modal {
+    width: 680px; max-height: 90vh;
+    background: var(--gn-bg-panel); border-radius: 14px;
+    box-shadow: var(--gn-shadow-lg), 0 0 0 1px var(--gn-br-1);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .m-head { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px 0; }
+  .m-ico {
+    width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: color-mix(in srgb, var(--look-color, #15803d) 14%, var(--gn-bg-panel));
+    border: 1px solid color-mix(in srgb, var(--look-color, #15803d) 30%, transparent);
+    transition: background .15s ease;
+  }
+  .m-ico img, .m-ico svg { width: 22px; height: 22px; display: block; }
+  .m-title h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .m-title .m-desc { margin-top: 4px; font-size: 12px; color: var(--gn-fg-4); line-height: 1.55; }
+  .m-close {
+    margin-left: auto; width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; color: var(--gn-fg-4);
+  }
+  .m-close:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .m-close .ic { width: 14px; height: 14px; }
+
+  .m-src { padding: 14px 20px 0; }
+  .seg { display: inline-flex; background: var(--gn-bg-hover); border-radius: 8px; padding: 3px; gap: 2px; width: 100%; }
+  .seg button {
+    flex: 1; height: 28px; padding: 0 12px; border-radius: 6px;
+    font-size: 12.5px; font-weight: 600; color: var(--gn-fg-4);
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+  }
+  .seg button:hover { color: var(--gn-fg-1); }
+  .seg button.on { background: var(--gn-bg-panel); color: var(--gn-fg-1); box-shadow: var(--gn-shadow-md); }
+  .seg button .ic { width: 13px; height: 13px; }
+
+  .m-body { padding: 14px 20px 4px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+
+  .sec { display: flex; flex-direction: column; gap: 8px; }
+  .sec-title { font-size: 12px; font-weight: 700; color: var(--gn-fg-3); letter-spacing: .02em; display: flex; align-items: center; gap: 6px; }
+  .sec-title::before { content: ""; width: 3px; height: 12px; border-radius: 2px; background: var(--gn-accent); }
+  .sec-title .opt { color: var(--gn-fg-5); font-weight: 400; }
+
+  /* 服务模板 chips */
+  .type-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    height: 30px; padding: 0 12px; border-radius: 8px;
+    border: 1px solid var(--gn-br-2); background: var(--gn-bg-panel);
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--gn-fg-3);
+    transition: all .12s ease;
+  }
+  .chip img, .chip .ic { width: 14px; height: 14px; }
+  .chip:hover { border-color: var(--gn-br-3); background: var(--gn-bg-hover); }
+  .chip.on { border-color: var(--gn-accent); background: var(--gn-accent-soft); color: var(--gn-fg-1); box-shadow: 0 0 0 1px var(--gn-accent); }
+
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--gn-fg-2); }
+  .field label em { font-style: normal; color: var(--gn-danger); margin-left: 2px; }
+  .input-row { display: flex; gap: 8px; }
+  .input, .select {
+    height: 32px; border-radius: 7px;
+    background: var(--gn-bg-input); border: 1px solid var(--gn-br-2);
+    display: flex; align-items: center; padding: 0 10px;
+    font-size: 12.5px; min-width: 0;
+    transition: border-color .12s ease, box-shadow .12s ease;
+  }
+  .input input, .select input {
+    flex: 1; border: 0; outline: 0; background: transparent; font-size: 12px; min-width: 0;
+  }
+  .input:focus-within { border-color: var(--gn-accent); box-shadow: 0 0 0 3px var(--gn-accent-soft); }
+  .input .ic { width: 13px; height: 13px; color: var(--gn-fg-5); flex-shrink: 0; }
+  .hint { font-size: 11px; color: var(--gn-fg-5); line-height: 1.55; }
+  .hint b { color: var(--gn-fg-4); font-weight: 600; }
+
+  .btn {
+    height: 32px; padding: 0 14px; border-radius: 8px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600; flex-shrink: 0;
+  }
+  .btn-ghost { border: 1px solid var(--gn-br-2); color: var(--gn-fg-2); }
+  .btn-ghost:hover { background: var(--gn-bg-hover); }
+  .btn-primary { background: var(--gn-accent-strong); color: var(--gn-on-accent); box-shadow: var(--gn-shadow-md); }
+  .btn-primary:hover { background: var(--gn-accent-strong-hover); }
+  .btn-primary .ic { width: 14px; height: 14px; }
+
+  /* ===== 外观选择（图标 + 颜色，对齐连接外观选择器） ===== */
+  .look-block {
+    border: 1px solid var(--gn-br-1); border-radius: 10px;
+    background: var(--gn-bg-panel-2); padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .look-row { display: flex; align-items: center; gap: 8px; }
+  .look-label { width: 34px; flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4); }
+  .icon-grid { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .icon-opt {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    border: 1.5px solid var(--gn-br-2); background: var(--gn-bg-panel);
+    display: grid; place-items: center;
+    transition: all .12s ease; position: relative;
+  }
+  .icon-opt img, .icon-opt svg { width: 20px; height: 20px; display: block; }
+  .icon-opt:hover { border-color: var(--gn-br-3); background: var(--gn-bg-hover); }
+  .icon-opt.on { border-color: var(--look-color, var(--gn-accent)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--look-color, var(--gn-accent)) 30%, transparent); background: color-mix(in srgb, var(--look-color, var(--gn-accent)) 8%, var(--gn-bg-panel)); }
+  .icon-more {
+    height: 34px; padding: 0 10px; border-radius: 9px; font-size: 11.5px; font-weight: 600;
+    color: var(--gn-fg-4); border: 1px dashed var(--gn-br-2);
+  }
+  .icon-more:hover { color: var(--gn-fg-1); background: var(--gn-bg-hover); }
+  .dot { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; border: 0; position: relative; transition: transform .1s ease; }
+  .dot:hover { transform: scale(1.12); }
+  .dot.on::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 50%;
+    border: 2px solid var(--gn-fg-1);
+  }
+
+  /* 识别条 */
+  .detect {
+    border-radius: 8px; padding: 8px 12px;
+    background: color-mix(in srgb, var(--gn-info) 7%, var(--gn-bg-panel));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-info) 25%, transparent);
+    display: flex; gap: 8px; align-items: center;
+    font-size: 12px; color: var(--gn-fg-3);
+  }
+  .detect .ic { width: 14px; height: 14px; color: var(--gn-info); flex-shrink: 0; }
+  .detect b { color: var(--gn-fg-1); font-weight: 600; }
+  .detect code { font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-info); }
+  .detect .tpl { margin-left: auto; flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--gn-info); padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--gn-info) 10%, transparent); }
+
+  .switch-row { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--gn-fg-2); }
+  .switch {
+    width: 34px; height: 19px; border-radius: 999px; flex-shrink: 0;
+    background: var(--gn-br-3); position: relative; transition: background .15s ease;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px;
+    border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    transition: transform .15s ease;
+  }
+  .switch.on { background: var(--gn-accent-strong); }
+  .switch.on::after { transform: translateX(15px); }
+
+  /* 配置文件卡 */
+  .conf-card { border: 1px solid var(--gn-br-2); border-radius: 9px; overflow: hidden; background: var(--gn-bg-panel-2); }
+  .conf-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-bottom: 1px solid var(--gn-br-1);
+    background: var(--gn-bg-panel);
+  }
+  .conf-head .cf-ic { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; background: var(--gn-bg-hover); color: var(--gn-fg-4); }
+  .conf-head .cf-ic img, .conf-head .cf-ic svg { width: 13px; height: 13px; }
+  .conf-head .cf-name { font-family: var(--gn-font-mono); font-size: 12px; font-weight: 700; color: var(--gn-fg-1); }
+  .conf-head .cf-loc { font-size: 11px; color: var(--gn-fg-5); }
+  .conf-head .cf-doc {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 600; color: var(--gn-info);
+    padding: 3px 9px; border-radius: 6px;
+  }
+  .conf-head .cf-doc:hover { background: color-mix(in srgb, var(--gn-info) 10%, transparent); }
+  .conf-head .cf-doc .ic { width: 12px; height: 12px; }
+  .conf-body { padding: 10px 12px; }
+  .conf-body textarea {
+    width: 100%; min-height: 118px; resize: vertical;
+    background: var(--gn-bg-input); border: 1px solid var(--gn-br-2); border-radius: 8px;
+    padding: 10px 12px; outline: 0;
+    font-family: var(--gn-font-mono); font-size: 11.5px; line-height: 1.8; color: var(--gn-fg-2);
+  }
+  .conf-body textarea:focus { border-color: var(--gn-accent); box-shadow: 0 0 0 3px var(--gn-accent-soft); }
+  .conf-body .conf-hint { margin-top: 7px; }
+
+  .global-note {
+    display: flex; gap: 8px; align-items: flex-start;
+    border-radius: 8px; padding: 9px 12px;
+    background: var(--gn-bg-hover);
+    font-size: 11.5px; color: var(--gn-fg-4); line-height: 1.6;
+  }
+  .global-note .ic { width: 13px; height: 13px; flex-shrink: 0; margin-top: 1px; color: var(--gn-fg-5); }
+  .global-note b { color: var(--gn-fg-2); font-weight: 600; }
+
+  /* footer + 命令折叠 */
+  .m-foot { border-top: 1px solid var(--gn-br-1); padding: 12px 20px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .foot-main { display: flex; align-items: center; gap: 10px; }
+  .cmd-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--gn-fg-4);
+    padding: 5px 9px; border-radius: 7px;
+  }
+  .cmd-toggle:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .cmd-toggle .ic { width: 12px; height: 12px; transition: transform .15s ease; }
+  .cmd-toggle.open .ic { transform: rotate(90deg); }
+  .foot-actions { margin-left: auto; display: flex; gap: 8px; }
+  .cmd-box {
+    display: none; background: var(--gn-bg-input); border: 1px solid var(--gn-br-2); border-radius: 8px;
+    padding: 10px 12px; font-family: var(--gn-font-mono); font-size: 10.5px;
+    line-height: 1.8; color: var(--gn-fg-2); white-space: pre; overflow-x: auto;
+  }
+  .cmd-box.show { display: block; }
+  .cmd-box .c-cmd { color: var(--gn-accent-2); font-weight: 700; }
+  .cmd-box .c-flag { color: var(--gn-fg-4); }
+  .cmd-box .c-val { color: var(--gn-fg-1); }
+
+  /* ===== 导入 tab ===== */
+  .import-pane { display: none; flex-direction: column; gap: 12px; }
+  .import-pane.show { display: flex; }
+  .reg-pane { display: flex; flex-direction: column; gap: 14px; }
+  .imp-search {
+    height: 32px; border-radius: 7px; background: var(--gn-bg-input);
+    border: 1px solid var(--gn-br-2); display: flex; align-items: center; gap: 7px; padding: 0 10px;
+    color: var(--gn-fg-5);
+  }
+  .imp-search input { flex: 1; border: 0; outline: 0; background: transparent; font-size: 12.5px; }
+  .imp-list { border: 1px solid var(--gn-br-1); border-radius: 9px; overflow: hidden; }
+  .imp-row { display: flex; align-items: center; gap: 11px; padding: 9px 13px; border-bottom: 1px solid var(--gn-br-1); cursor: pointer; }
+  .imp-row:last-child { border-bottom: 0; }
+  .imp-row:hover { background: var(--gn-bg-hover); }
+  .imp-row:nth-child(odd) { background: var(--gn-bg-panel-2); }
+  .imp-row:nth-child(odd):hover { background: var(--gn-bg-hover); }
+  .cbx {
+    width: 15px; height: 15px; border-radius: 4px; flex-shrink: 0;
+    border: 1.5px solid var(--gn-br-3);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: transparent; transition: all .12s ease;
+  }
+  .cbx .ic { width: 9px; height: 9px; }
+  .imp-row.on .cbx { background: var(--gn-accent-strong); border-color: var(--gn-accent-strong); color: var(--gn-on-accent); }
+  .imp-row.off .cbx { opacity: .45; }
+  .imp-name { font-size: 12.5px; font-weight: 600; color: var(--gn-fg-1); font-family: var(--gn-font-mono); }
+  .imp-desc { font-size: 11.5px; color: var(--gn-fg-4); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge {
+    margin-left: auto; flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 19px; padding: 0 8px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 600;
+  }
+  .badge i { width: 5px; height: 5px; border-radius: 50%; }
+  .badge.run { background: var(--gn-accent-soft); color: var(--gn-accent-2); }
+  .badge.run i { background: var(--gn-accent); }
+  .badge.stop { background: var(--gn-bg-hover); color: var(--gn-fg-4); }
+  .badge.stop i { background: var(--gn-fg-5); }
+  .imp-start { width: 56px; flex-shrink: 0; text-align: right; font-size: 11px; color: var(--gn-fg-5); }
+  .sys-tag { flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--gn-warn); background: color-mix(in srgb, var(--gn-warn) 12%, transparent); padding: 1px 7px; border-radius: 999px; }
+  .imp-foot { display: flex; align-items: center; font-size: 11.5px; color: var(--gn-fg-5); }
+  .imp-foot b { color: var(--gn-fg-2); }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--gn-br-2); border-radius: 5px; border: 2.5px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .theme-dock {
+    position: fixed; right: 18px; bottom: 12px; z-index: 99;
+    background: var(--gn-bg-panel); border-radius: 12px;
+    box-shadow: var(--gn-shadow-lg), 0 0 0 1px var(--gn-br-2);
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; align-items: center;
+  }
+  .theme-dock .td-tip { font-size: 10.5px; color: var(--gn-fg-5); letter-spacing: .02em; }
+  .td-seg { display: flex; background: var(--gn-bg-hover); border-radius: 8px; padding: 3px; gap: 2px; }
+  .td-seg button { height: 24px; padding: 0 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4); }
+  .td-seg button:hover { color: var(--gn-fg-1); }
+  .td-seg button.on { background: var(--gn-bg-panel); color: var(--gn-fg-1); box-shadow: var(--gn-shadow-md); }
+</style>
+</head>
+<body data-theme="light">
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="servyGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0.083" stop-color="#540E82"/><stop offset="0.25" stop-color="#4F2887"/>
+        <stop offset="0.417" stop-color="#4C4990"/><stop offset="0.583" stop-color="#456C9D"/>
+        <stop offset="0.75" stop-color="#398DAB"/><stop offset="0.917" stop-color="#24AEB9"/>
+      </linearGradient>
+      <symbol id="logo" viewBox="0 0 1024 1024"><path fill="url(#servyGrad)" fill-rule="evenodd" d="M466.50,76.00 520.00,75.50 579.00,82.50 643.00,99.50 695.00,121.50 740.00,147.50 783.00,179.50 821.50,216.00 843.50,242.00 852.50,257.00 853.50,337.00 850.50,344.00 846.00,348.50 836.00,352.50 732.00,352.50 724.00,348.50 703.50,322.00 670.00,290.50 632.00,265.50 598.00,249.50 556.00,236.50 510.00,230.50 479.00,230.50 436.00,236.50 414.00,242.50 379.00,255.50 349.00,271.50 320.00,291.50 283.50,326.00 265.50,348.00 249.50,372.00 233.50,403.00 220.50,442.00 213.50,474.00 210.50,519.00 214.50,561.00 223.50,598.00 236.50,631.00 253.50,663.00 284.50,703.00 318.00,734.50 347.00,754.50 386.00,773.50 426.00,786.50 467.00,793.50 516.00,793.50 569.00,785.50 573.00,786.50 580.00,791.50 660.00,870.50 682.50,893.00 685.50,899.00 685.50,906.00 681.00,910.50 640.00,927.50 577.00,943.50 519.00,950.50 470.00,950.50 431.00,946.50 394.00,939.50 342.00,924.50 301.00,907.50 262.00,885.50 231.00,864.50 198.00,837.50 156.50,795.00 134.50,767.00 109.50,727.00 92.50,694.00 80.50,665.00 67.50,623.00 57.50,570.00 54.50,534.00 54.50,491.00 56.50,482.00 57.50,456.00 66.50,409.00 80.50,363.00 92.50,333.00 112.50,294.00 133.50,262.00 159.50,229.00 199.00,188.50 223.00,168.50 268.00,137.50 310.00,115.50 341.00,102.50 383.00,89.50 431.00,79.50 466.50,76.00ZM448.50,433.00 936.00,432.50 951.00,438.50 962.50,450.00 968.50,560.00 961.50,574.00 954.00,581.50 935.00,590.50 452.00,590.50 441.00,587.50 432.00,582.50 421.50,571.00 416.50,557.00 416.50,463.00 422.50,450.00 431.00,440.50 439.00,435.50 448.50,433.00ZM652.50,672.00 839.00,671.50 843.00,673.50 851.50,684.00 851.50,721.00 853.50,729.00 947.50,824.00 952.50,836.00 953.50,848.00 946.50,866.00 877.00,933.50 861.00,938.50 848.00,937.50 840.00,933.50 832.00,927.50 630.50,724.00 624.50,709.00 626.50,695.00 636.00,680.50 641.00,676.50 652.50,672.00Z"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+      <symbol id="i-x" viewBox="0 0 14 14"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-check" viewBox="0 0 12 12"><path d="M2.5 6.2l2.4 2.4 4.6-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-chev" viewBox="0 0 12 12"><path d="M3.5 4.8L6 7.3l2.5-2.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M10.4 10.4L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+      <symbol id="i-import" viewBox="0 0 16 16"><path d="M8 2.5v6.5M5.5 6.8L8 9.3l2.5-2.5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.8 11.5v1.2a1 1 0 0 0 1 1h8.4a1 1 0 0 0 1-1v-1.2" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-reg" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M2.5 6h11" stroke="currentColor" stroke-width="1.2"/><path d="M8 8.4v3M6.6 9.8L8 8.4l1.4 1.4" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-java" viewBox="0 0 16 16"><path d="M4 6.9h7v3.4a3 3 0 0 1-3 3h-1a3 3 0 0 1-3-3z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M11 7.5h.8a1.7 1.7 0 0 1 0 3.4h-.9" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/><path d="M6.4 3.2c-.5.8.5 1.1 0 2M9.1 3.2c-.5.8.5 1.1 0 2" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-rustfs" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.1" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M8 2.2v1.7M8 12.1v1.7M13.8 8h-1.7M3.9 8H2.2M12.2 3.8l-1.2 1.2M5 11l-1.2 1.2M12.2 12.2L11 11M5 5L3.8 3.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-nginx" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="3" fill="currentColor" opacity="0.14"/><path d="M5.2 11V5l5.6 6V5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-node" viewBox="0 0 16 16"><path d="M8 1.8l5.4 3.1v6.2L8 14.2l-5.4-3.1V4.9z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/></symbol>
+      <symbol id="i-exe" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M2.5 6h11" stroke="currentColor" stroke-width="1.2"/><circle cx="4.6" cy="4.5" r=".55" fill="currentColor"/><circle cx="6.4" cy="4.5" r=".55" fill="currentColor"/></symbol>
+      <symbol id="i-bulb" viewBox="0 0 16 16"><path d="M8 1.8a4.6 4.6 0 0 1 2.6 8.4c-.5.4-.8.9-.8 1.5h-3.6c0-.6-.3-1.1-.8-1.5A4.6 4.6 0 0 1 8 1.8z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M6.4 13.6h3.2M6.9 15h2.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-link" viewBox="0 0 16 16"><path d="M6.5 9.5l3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M7.5 5.2l1.2-1.2a2.6 2.6 0 0 1 3.7 3.7l-1.2 1.2M8.5 10.8l-1.2 1.2a2.6 2.6 0 0 1-3.7-3.7l1.2-1.2" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.8" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M8 7.4v3.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="5.2" r=".8" fill="currentColor"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 16 16"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h3l1.5 1.8h4.5A1.5 1.5 0 0 1 14 6.3v5.2a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5v-7Z" stroke="currentColor" stroke-width="1.3" fill="none"/></symbol>
+      <symbol id="i-play" viewBox="0 0 16 16"><path d="M5.5 3.6L12.3 8l-6.8 4.4z" fill="currentColor"/></symbol>
+      <symbol id="i-save" viewBox="0 0 16 16"><path d="M3 2.5h8.2L13.5 5v8.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M5 2.5v3.4h5.4V2.5M5 14.5v-4h6v4" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/></symbol>
+      <symbol id="i-code" viewBox="0 0 16 16"><path d="M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- 背景：工作台剪影 -->
+  <div class="backdrop-app" aria-hidden="true">
+    <div class="bk-titlebar"><svg class="bk-logo"><use href="#logo"/></svg></div>
+    <div class="bk-wbody">
+      <div class="bk-side">
+        <div class="bk-sk" style="width:100%"></div>
+        <div class="bk-sk" style="width:82%"></div>
+        <div class="bk-sk" style="width:64%"></div>
+        <div class="bk-sk" style="width:74%"></div>
+        <div class="bk-sk" style="width:56%"></div>
+      </div>
+      <div class="bk-main">
+        <div class="bk-card"></div><div class="bk-card"></div><div class="bk-card"></div><div class="bk-card"></div>
+        <div class="bk-card"></div><div class="bk-card"></div><div class="bk-card"></div><div class="bk-card"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 添加服务弹框 ============ -->
+  <div class="overlay">
+    <div class="modal">
+
+      <div class="m-head">
+        <!-- 头部图标 = 外观实时预览 -->
+        <span class="m-ico" id="headPreview"></span>
+        <div class="m-title">
+          <h2>添加服务</h2>
+          <div class="m-desc">注册新程序或导入系统已有的服务；可先保存为草稿，之后随时注册、启动、停止、重启。</div>
+        </div>
+        <button class="m-close"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+
+      <div class="m-src">
+        <div class="seg" id="srcSeg">
+          <button class="on" data-src="reg"><svg class="ic"><use href="#i-reg"/></svg>注册新程序</button>
+          <button data-src="import"><svg class="ic"><use href="#i-import"/></svg>导入系统服务</button>
+        </div>
+      </div>
+
+      <div class="m-body">
+
+        <!-- ======== 来源 1：注册新程序 ======== -->
+        <div class="reg-pane" id="paneReg">
+
+          <div class="sec">
+            <div class="sec-title">服务类型 <span class="opt">· 套用已知模板，也可改为自己手动填写</span></div>
+            <div class="type-chips" id="typeChips">
+              <button class="chip" data-t="java"><img src="../frontend/public/db-icons/java.svg" alt="" />Java 应用</button>
+              <button class="chip on" data-t="rustfs"><svg class="ic" style="color:#c2410c"><use href="#i-rustfs"/></svg>RustFS</button>
+              <button class="chip" data-t="nginx"><svg class="ic" style="color:#009639"><use href="#i-nginx"/></svg>Nginx</button>
+              <button class="chip" data-t="redis"><img src="../frontend/public/db-icons/redis.svg" alt="" />Redis</button>
+              <button class="chip" data-t="node"><svg class="ic" style="color:#2f8f4e"><use href="#i-node"/></svg>Node.js</button>
+              <button class="chip" data-t="generic"><svg class="ic" style="color:#64748b"><use href="#i-exe"/></svg>通用程序</button>
+            </div>
+            <div class="input-row">
+              <div class="input" style="flex:1">
+                <svg class="ic"><use href="#i-exe"/></svg>
+                <input class="mono" id="f-file" value="D:\rustfs\rustfs.exe" spellcheck="false" />
+              </div>
+              <button class="btn btn-ghost">浏览…</button>
+            </div>
+            <div class="detect" id="detectBar">
+              <svg class="ic"><use href="#i-bulb"/></svg>
+              <span id="detectText">已按 <b>RustFS</b> 模板预填参数与配置 · 可自由修改</span>
+              <span class="tpl">已知服务模板</span>
+            </div>
+          </div>
+
+          <div class="sec">
+            <div class="sec-title">外观 <span class="opt">· 图标与颜色将用于列表、卡片与监控页</span></div>
+            <div class="look-block">
+              <div class="look-row">
+                <span class="look-label">图标</span>
+                <div class="icon-grid" id="iconGrid"></div>
+              </div>
+              <div class="look-row">
+                <span class="look-label">颜色</span>
+                <div class="icon-grid" id="colorGrid"></div>
+              </div>
+            </div>
+            <div class="field-grid">
+              <div class="field">
+                <label>服务名<em>*</em></label>
+                <div class="input"><input class="mono" id="f-name" value="rustfs-service" spellcheck="false" /></div>
+                <div class="hint">从文件名生成 · <b>注册后不可修改</b></div>
+              </div>
+              <div class="field">
+                <label>显示名称<em>*</em></label>
+                <div class="input"><input id="f-display" value="RustFS 分布式存储服务" spellcheck="false" /></div>
+                <div class="hint">services.msc 与通知里展示的名字</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec">
+            <div class="sec-title">启动</div>
+            <div class="field-grid" style="align-items:center">
+              <div class="field">
+                <label>启动类型</label>
+                <div class="seg" id="startSeg" style="width:auto">
+                  <button class="on" data-v="Automatic">自动</button>
+                  <button data-v="Automatic (Delayed)">自动（延迟）</button>
+                  <button data-v="Manual">手动</button>
+                  <button data-v="Disabled">禁用</button>
+                </div>
+              </div>
+              <div class="field" style="justify-content:flex-end;padding-bottom:6px">
+                <div class="switch-row">
+                  <span class="switch on" id="f-restart"></span>
+                  <span>进程异常退出时<b>自动重启</b></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec">
+            <div class="sec-title">参数与配置文件</div>
+            <div class="field">
+              <label>启动参数</label>
+              <div class="input">
+                <input class="mono" id="f-params" value="server D:\rustfs\data --console-enable --console-address :9001 --address :9000" spellcheck="false" />
+              </div>
+            </div>
+
+            <div class="conf-card" id="confCard">
+              <div class="conf-head">
+                <span class="cf-ic" id="confIc"><svg class="ic"><use href="#i-rustfs"/></svg></span>
+                <span class="cf-name" id="confName">rustfs.conf</span>
+                <span class="cf-loc">· 默认在程序同目录创建</span>
+                <button class="cf-doc" id="confDoc">查看 RustFS 官方配置文档<svg class="ic"><use href="#i-link"/></svg></button>
+              </div>
+              <div class="conf-body">
+                <textarea class="mono" id="f-conf" spellcheck="false">RUSTFS_ACCESS_KEY=rustfsadmin
+RUSTFS_SECRET_KEY=rustfsadmin
+RUSTFS_VOLUMES=D:\rustfs\data
+RUSTFS_ADDRESS=0.0.0.0:9000
+RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
+RUSTFS_CONSOLE_ENABLE=true
+RUST_LOG=info
+RUSTFS_OBS_LOG_DIRECTORY=D:\rustfs\logs</textarea>
+                <div class="hint conf-hint" id="confHint">KEY=VALUE 格式，注册时以环境变量注入服务进程 · 配置文件缺失时按以上内容创建，已存在则沿用不动</div>
+              </div>
+            </div>
+
+            <div class="global-note">
+              <svg class="ic"><use href="#i-folder"/></svg>
+              <span><b>日志与运行数据由 ServDeck 统一管理</b>：写入应用数据目录 <b>…\.servdeck\services\&lt;服务名&gt;\</b>，无需逐服务配置；全局路径可在 设置 → 应用数据目录 中查看与修改。</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======== 来源 2：导入系统服务 ======== -->
+        <div class="import-pane" id="paneImport">
+          <div class="imp-search">
+            <svg class="ic" style="width:14px;height:14px"><use href="#i-search"/></svg>
+            <input placeholder="搜索本机服务（名称或描述）…" />
+          </div>
+          <div class="imp-list" id="impList">
+            <div class="imp-row on">
+              <span class="cbx"><svg class="ic"><use href="#i-check"/></svg></span>
+              <span class="imp-name">MySQL80</span><span class="imp-desc">MySQL 8.0 Database Server</span>
+              <span class="badge run"><i></i>运行中</span><span class="imp-start">自动</span>
+            </div>
+            <div class="imp-row">
+              <span class="cbx"><svg class="ic"><use href="#i-check"/></svg></span>
+              <span class="imp-name">Redis</span><span class="imp-desc">Redis key-value store (redis-server)</span>
+              <span class="badge stop"><i></i>已停止</span><span class="imp-start">手动</span>
+            </div>
+            <div class="imp-row">
+              <span class="cbx"><svg class="ic"><use href="#i-check"/></svg></span>
+              <span class="imp-name">nginx</span><span class="imp-desc">Nginx web server / reverse proxy</span>
+              <span class="badge run"><i></i>运行中</span><span class="imp-start">自动</span>
+            </div>
+            <div class="imp-row">
+              <span class="cbx"><svg class="ic"><use href="#i-check"/></svg></span>
+              <span class="imp-name">com.docker.service</span><span class="imp-desc">Docker Desktop Service</span>
+              <span class="badge stop"><i></i>已停止</span><span class="imp-start">禁用</span>
+            </div>
+            <div class="imp-row off">
+              <span class="cbx"><svg class="ic"><use href="#i-check"/></svg></span>
+              <span class="imp-name">Spooler</span><span class="imp-desc">打印后台处理程序（系统关键服务）</span>
+              <span class="sys-tag">系统</span>
+              <span class="badge run"><i></i>运行中</span><span class="imp-start">自动</span>
+            </div>
+          </div>
+          <div class="imp-foot">已选择 <b id="impCount">1</b> 项 · 导入只做纳管，不改动服务本身的任何配置</div>
+        </div>
+      </div>
+
+      <div class="m-foot">
+        <div class="cmd-box" id="cmdBox"></div>
+        <div class="foot-main">
+          <button class="cmd-toggle" id="cmdToggle"><svg class="ic"><use href="#i-code"/></svg>servy 命令</button>
+          <div class="foot-actions" id="footActions">
+            <button class="btn btn-ghost">取消</button>
+            <button class="btn btn-ghost" id="footSave"><svg class="ic" style="width:14px;height:14px"><use href="#i-save"/></svg>保存</button>
+            <button class="btn btn-primary" id="footPrimary"><svg class="ic"><use href="#i-play"/></svg>注册并启动</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 原型专用：主题切换 -->
+  <div class="theme-dock">
+    <span class="td-tip">原型演示 · 全 Token 驱动</span>
+    <div class="td-seg">
+      <button data-t="light" class="on">亮色</button>
+      <button data-t="dark">暗色</button>
+      <button data-t="custom">自定义</button>
+    </div>
+  </div>
+
+<script>
+  // ---- 主题切换 ----
+  document.querySelectorAll('.td-seg button').forEach(b => b.addEventListener('click', () => {
+    document.body.dataset.theme = b.dataset.t;
+    document.querySelectorAll('.td-seg button').forEach(x => x.classList.toggle('on', x === b));
+  }));
+
+  const $ = id => document.getElementById(id);
+  const ICON_BASE = '../frontend/public/db-icons/';
+
+  // ---- 外观：图标库（引用现有 db-icons 资产 + 自绘） ----
+  const ICONS = [
+    { id: 'mysql',    el: `<img src="${ICON_BASE}mysql.svg" alt="MySQL">` },
+    { id: 'redis',    el: `<img src="${ICON_BASE}redis.svg" alt="Redis">` },
+    { id: 'java',     el: `<img src="${ICON_BASE}java.svg" alt="Java">` },
+    { id: 'nginx',    el: `<svg class="ic" style="color:#009639;width:20px;height:20px"><use href="#i-nginx"/></svg>` },
+    { id: 'rustfs',   el: `<svg class="ic" style="color:#c2410c;width:20px;height:20px"><use href="#i-rustfs"/></svg>` },
+    { id: 'node',     el: `<svg class="ic" style="color:#2f8f4e;width:20px;height:20px"><use href="#i-node"/></svg>` },
+    { id: 'mongodb',  el: `<img src="${ICON_BASE}mongodb.svg" alt="">` },
+    { id: 'kafka',    el: `<img src="${ICON_BASE}kafka.png" alt="">` },
+    { id: 'nacos',    el: `<img src="${ICON_BASE}nacos.svg" alt="">` },
+    { id: 'rabbitmq', el: `<img src="${ICON_BASE}rabbitmq.svg" alt="">` },
+    { id: 'generic',  el: `<svg class="ic" style="color:#64748b;width:20px;height:20px"><use href="#i-exe"/></svg>` },
+  ];
+  const COLORS = ['#0d7cad', '#155e75', '#dc2626', '#15803d', '#c2410c', '#d97706',
+                  '#0ea5e9', '#7c3aed', '#db2777', '#64748b'];
+  let look = { icon: 'rustfs', color: '#c2410c' };
+
+  function renderHead() {
+    const icon = ICONS.find(i => i.id === look.icon);
+    $('headPreview').innerHTML = icon.el;
+    $('headPreview').style.setProperty('--look-color', look.color);
+  }
+  function renderLook() {
+    $('iconGrid').innerHTML = ICONS.map(i =>
+      `<button class="icon-opt${i.id === look.icon ? ' on' : ''}" data-ic="${i.id}" title="${i.id}">${i.el}</button>`
+    ).join('') + '<button class="icon-more">更多…</button>';
+    $('colorGrid').innerHTML = COLORS.map(c =>
+      `<button class="dot${c === look.color ? ' on' : ''}" data-c="${c}" style="background:${c}"></button>`
+    ).join('');
+    document.querySelectorAll('#iconGrid .icon-opt').forEach(b => b.addEventListener('click', () => {
+      look.icon = b.dataset.ic; renderLook(); renderHead();
+    }));
+    document.querySelectorAll('#colorGrid .dot').forEach(b => b.addEventListener('click', () => {
+      look.color = b.dataset.c; renderLook(); renderHead();
+    }));
+    renderHead();
+  }
+
+  // ---- 服务模板（类型 → 文件/参数/配置/标识联动） ----
+  const TEMPLATES = {
+    java: {
+      icon: 'java', color: '#d97706',
+      file: 'D:\\apps\\order\\order.jar', params: '-Xmx512m -jar order.jar --server.port=8080',
+      name: 'order-service', display: 'Order Service',
+      conf: null, doc: null, detect: '已识别 <b>Java 归档（JAR）</b> · 自动定位 JVM 与堆参数',
+    },
+    rustfs: {
+      icon: 'rustfs', color: '#c2410c',
+      file: 'D:\\rustfs\\rustfs.exe', params: 'server D:\\rustfs\\data --console-enable --console-address :9001 --address :9000',
+      name: 'rustfs-service', display: 'RustFS 分布式存储服务',
+      confName: 'rustfs.conf', confDoc: '查看 RustFS 官方配置文档',
+      conf: 'RUSTFS_ACCESS_KEY=rustfsadmin\nRUSTFS_SECRET_KEY=rustfsadmin\nRUSTFS_VOLUMES=D:\\rustfs\\data\nRUSTFS_ADDRESS=0.0.0.0:9000\nRUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001\nRUSTFS_CONSOLE_ENABLE=true\nRUST_LOG=info\nRUSTFS_OBS_LOG_DIRECTORY=D:\\rustfs\\logs',
+      detect: '已按 <b>RustFS</b> 模板预填参数与配置 · 可自由修改',
+    },
+    nginx: {
+      icon: 'nginx', color: '#009639',
+      file: 'D:\\nginx\\nginx.exe', params: '-p D:\\nginx',
+      name: 'nginx', display: 'Nginx 反向代理服务',
+      confName: 'nginx.conf', confDoc: '查看 Nginx 官方配置文档', confHint: 'Nginx 原生配置格式 · 注册时通过 --params 指定 -p 前缀目录加载',
+      conf: 'worker_processes auto;\nevents {\n  worker_connections 1024;\n}\nhttp {\n  server {\n    listen 8080;\n    location / { proxy_pass http://127.0.0.1:9000; }\n  }\n}',
+      detect: '已按 <b>Nginx</b> 模板预填 · 配置文件位于程序同目录 conf\\nginx.conf',
+    },
+    redis: {
+      icon: 'redis', color: '#dc2626',
+      file: 'D:\\redis\\redis-server.exe', params: '',
+      name: 'redis', display: 'Redis 缓存服务',
+      confName: 'redis.conf', confDoc: '查看 Redis 官方配置文档', confHint: 'Redis 原生配置格式 · 以 --conf 参数或默认路径加载',
+      conf: 'bind 0.0.0.0\nport 6379\nrequirepass changeme\nappendonly yes\ndir D:\\redis\\data\nlogfile "D:\\redis\\logs\\redis.log"',
+      detect: '已按 <b>Redis</b> 模板预填 · Windows 版以配置文件方式启动',
+    },
+    node: {
+      icon: 'node', color: '#2f8f4e',
+      file: 'D:\\apps\\console\\server.js', params: '--port 3000',
+      name: 'web-console', display: 'Web Console 服务',
+      conf: null, doc: null, detect: '已识别 <b>Node.js 入口脚本</b> · 自动定位 node 运行时',
+    },
+    generic: {
+      icon: 'generic', color: '#64748b',
+      file: 'D:\\apps\\agent\\app.exe', params: '--config app.yaml',
+      name: 'custom-agent', display: '自定义程序服务',
+      conf: null, doc: null, detect: '通用程序 · 参数与配置文件完全自定义',
+    },
+  };
+
+  function applyTemplate(t) {
+    const tpl = TEMPLATES[t];
+    $('f-file').value = tpl.file;
+    $('f-params').value = tpl.params;
+    $('f-name').value = tpl.name;
+    $('f-display').value = tpl.display;
+    $('detectText').innerHTML = tpl.detect;
+    if (tpl.conf) {
+      $('confCard').style.display = 'block';
+      $('confName').textContent = tpl.confName;
+      $('f-conf').value = tpl.conf;
+      $('confHint').textContent = tpl.confHint || 'KEY=VALUE 格式，注册时以环境变量注入服务进程 · 配置文件缺失时按以上内容创建，已存在则沿用不动';
+      $('confDoc').innerHTML = (tpl.confDoc || '查看官方配置文档') + ' <svg class="ic"><use href="#i-link"/></svg>';
+    } else {
+      $('confCard').style.display = 'none';
+    }
+    look.icon = tpl.icon; look.color = tpl.color;
+    renderLook(); renderCmd();
+  }
+  document.querySelectorAll('#typeChips .chip').forEach(c => c.addEventListener('click', () => {
+    document.querySelectorAll('#typeChips .chip').forEach(x => x.classList.toggle('on', x === c));
+    applyTemplate(c.dataset.t);
+  }));
+
+  // ---- 来源切换 ----
+  document.querySelectorAll('#srcSeg button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#srcSeg button').forEach(x => x.classList.toggle('on', x === b));
+    const reg = b.dataset.src === 'reg';
+    $('paneReg').style.display = reg ? 'flex' : 'none';
+    $('paneImport').classList.toggle('show', !reg);
+    $('footPrimary').innerHTML = reg
+      ? '<svg class="ic"><use href="#i-play"/></svg>注册并启动'
+      : '导入所选';
+    $('footSave').style.display = reg ? 'inline-flex' : 'none';
+    $('cmdToggle').style.display = reg ? 'inline-flex' : 'none';
+    if (!reg) { $('cmdBox').classList.remove('show'); $('cmdToggle').classList.remove('open'); }
+  }));
+
+  // ---- 启动类型 / 守护 ----
+  const state = { start: 'Automatic' };
+  document.querySelectorAll('#startSeg button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#startSeg button').forEach(x => x.classList.toggle('on', x === b));
+    state.start = b.dataset.v; renderCmd();
+  }));
+  let restart = true;
+  $('f-restart').addEventListener('click', () => {
+    restart = !restart;
+    $('f-restart').classList.toggle('on', restart);
+    renderCmd();
+  });
+
+  // ---- servy 命令（真实语法） ----
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  function renderCmd() {
+    const file = $('f-file').value.trim() || '<程序文件>';
+    const name = $('f-name').value.trim() || '<服务名>';
+    const display = $('f-display').value.trim() || '<显示名称>';
+    const params = $('f-params').value.trim();
+    const dir = file.replace(/[\\\/][^\\\/]*$/, '') || '<目录>';
+    const base = 'C:\\Users\\Administrator\\.servdeck\\services\\' + name + '\\logs';
+    const flags = [
+      ['-p', `"${file}"`],
+      ['--name', `"${name}"`],
+      ['--displayName', `"${display}"`],
+      ['--startupDir', `"${dir}"`],
+    ];
+    if (params) flags.push(['--params', `"${params}"`]);
+    flags.push(['--startupType', state.start]);
+    flags.push(['--stdout', `"${base}\\service-out.log"`]);
+    flags.push(['--stderr', `"${base}\\service-err.log"`]);
+    if (restart) flags.push(['--enableSizeRotation', '']);
+    const l1 = '<span class="c-cmd">servy-10.1.exe</span> <span class="c-val">install</span> ' +
+      flags.filter(([k]) => k !== '--enableSizeRotation')
+        .map(([k, v]) => `<span class="c-flag">${k}</span> <span class="c-val">${esc(v)}</span>`)
+        .join(' \\\n  ') +
+      (restart ? ' \\\n  <span class="c-flag">--enableSizeRotation</span>' : '');
+    const l2 = '<span class="c-cmd">servy-10.1.exe</span> <span class="c-val">start --name "' + esc(name) + '"</span>';
+    $('cmdBox').innerHTML = l1 + '\n' + l2;
+  }
+  ['f-file', 'f-name', 'f-display', 'f-params'].forEach(id => $(id).addEventListener('input', renderCmd));
+  $('cmdToggle').addEventListener('click', () => {
+    $('cmdBox').classList.toggle('show');
+    $('cmdToggle').classList.toggle('open');
+  });
+
+  // ---- 导入列表勾选 ----
+  document.querySelectorAll('#impList .imp-row:not(.off)').forEach(row => {
+    row.addEventListener('click', () => {
+      row.classList.toggle('on');
+      $('impCount').textContent = document.querySelectorAll('#impList .imp-row.on').length;
+    });
+  });
+
+  renderLook();
+  renderCmd();
+</script>
+</body>
+</html>

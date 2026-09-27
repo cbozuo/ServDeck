@@ -103,6 +103,8 @@ const BRAND_ASSET_CONFIGS: Record<string, BrandAssetConfig> = {
     oceanbase: { src: '/db-icons/oceanbase.png', iconScale: 0.72 },
     postgres: { src: '/db-icons/postgres.svg' },
     redis: { src: '/db-icons/redis.svg' },
+    rustfs: { src: '/db-icons/rustfs.png', iconScale: 0.72 },
+    nginx: { src: '/db-icons/nginx.svg' },
     mongodb: { src: '/db-icons/mongodb.svg' },
     elasticsearch: { src: '/db-icons/elasticsearch.svg' },
     jvm: { src: '/db-icons/java.svg', iconScale: 0.68 },

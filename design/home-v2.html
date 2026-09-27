@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServDeck 首页高保真 v2 — 服务总览（列表 / 卡片 / 空态）</title>
+<style>
+  /* ===== Token（对齐 v2-theme.css 亮色） ===== */
+  :root {
+    --gn-bg-app: rgb(246 246 244);
+    --gn-bg-panel: #fff;
+    --gn-bg-panel-2: rgb(250 250 248);
+    --gn-bg-input: #fff;
+    --gn-bg-hover: rgba(15,23,42,0.045);
+    --gn-bg-active: rgba(15,23,42,0.075);
+    --gn-fg-1: #0c1322; --gn-fg-2: #1f2937; --gn-fg-3: #4b5563;
+    --gn-fg-4: #6b7280; --gn-fg-5: #9ca3af;
+    --gn-br-1: rgba(15,23,42,0.08);
+    --gn-br-2: rgba(15,23,42,0.12);
+    --gn-br-3: rgba(15,23,42,0.18);
+    --gn-accent: #15803d;
+    --gn-accent-2: #166534;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 14%, #fff);
+    --gn-accent-strong: #15803d;
+    --gn-accent-strong-hover: #126634;
+    --gn-on-accent: #fff;
+    --gn-info: #0369a1;
+    --gn-warn: #d97706;
+    --gn-danger: #dc2626;
+    --gn-shadow-card: 0 0 0 0.5px rgba(15,23,42,0.10), 0 1px 3px rgba(15,23,42,0.06);
+    --gn-shadow-md: 0 4px 14px rgba(15,23,42,0.08);
+    --gn-font-sans: "Inter","PingFang SC","Noto Sans SC","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;
+    --gn-font-mono: "JetBrains Mono",ui-monospace,"SF Mono",Consolas,monospace;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:var(--gn-font-sans); background:var(--gn-bg-app); color:var(--gn-fg-1); font-size:13px; padding:28px 0 80px; }
+  svg.ic { width:16px; height:16px; display:block; }
+  button { font-family:inherit; border:0; background:transparent; color:inherit; cursor:pointer; }
+  img { display:block; }
+
+  /* ===== 页面说明区 ===== */
+  .page-head { max-width:1440px; margin:0 auto 26px; padding:0 24px; }
+  .page-head h1 { font-size:20px; font-weight:700; letter-spacing:-0.01em; }
+  .page-head p { margin-top:6px; font-size:12.5px; color:var(--gn-fg-4); line-height:1.7; }
+  .variant-nav { display:flex; gap:8px; margin-top:14px; }
+  .variant-nav a {
+    font-size:12px; font-weight:600; color:var(--gn-fg-3);
+    padding:5px 12px; border-radius:999px; background:var(--gn-bg-panel);
+    box-shadow:var(--gn-shadow-card); text-decoration:none;
+  }
+  .variant-nav a:hover { color:var(--gn-accent-2); }
+
+  /* ===== 画板容器 ===== */
+  .variant { max-width:1440px; margin:0 auto 44px; padding:0 24px; }
+  .variant-label {
+    display:flex; align-items:center; gap:10px; margin-bottom:12px;
+    font-size:14px; font-weight:700; color:var(--gn-fg-1);
+  }
+  .variant-label .rec {
+    font-size:10.5px; font-weight:700; color:var(--gn-accent-2);
+    background:var(--gn-accent-soft); padding:2px 9px; border-radius:999px;
+  }
+  .variant-label .note { font-size:11.5px; color:var(--gn-fg-5); font-weight:400; }
+  .frame {
+    background:var(--gn-bg-app);
+    border-radius:14px;
+    box-shadow:var(--gn-shadow-md), 0 0 0 1px var(--gn-br-1);
+    overflow:hidden;
+  }
+
+  /* ===== 首页头部 ===== */
+  .home-head { display:flex; align-items:center; gap:14px; padding:20px 24px 16px; }
+  .home-head h2 { font-size:18px; font-weight:700; letter-spacing:-0.01em; }
+  .home-head .sub { margin-top:4px; font-size:12px; color:var(--gn-fg-4); }
+  .home-head .sub b { color:var(--gn-fg-2); font-weight:600; }
+  .home-tools { margin-left:auto; display:flex; align-items:center; gap:8px; }
+  .h-search {
+    height:32px; width:200px; border-radius:8px;
+    background:var(--gn-bg-input); border:1px solid var(--gn-br-2);
+    display:flex; align-items:center; gap:6px; padding:0 10px; color:var(--gn-fg-5);
+  }
+  .h-search input { flex:1; border:0; outline:0; background:transparent; font:inherit; font-size:12.5px; color:var(--gn-fg-1); }
+  .h-viewseg { display:inline-flex; background:var(--gn-bg-hover); border-radius:8px; padding:3px; gap:2px; }
+  .h-viewseg button { height:26px; padding:0 10px; border-radius:6px; font-size:11.5px; font-weight:600; color:var(--gn-fg-4); border:0; background:transparent; cursor:pointer; }
+  .h-viewseg button.on { background:var(--gn-bg-panel); color:var(--gn-fg-1); box-shadow:var(--gn-shadow-md); }
+  .h-btn {
+    height:32px; padding:0 13px; border-radius:8px;
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12.5px; font-weight:600;
+  }
+  .h-btn-ghost { border:1px solid var(--gn-br-2); color:var(--gn-fg-2); background:var(--gn-bg-panel); }
+  .h-btn-ghost:hover { background:var(--gn-bg-hover); }
+  .h-btn-primary { background:var(--gn-accent-strong); color:var(--gn-on-accent); box-shadow:var(--gn-shadow-md); }
+  .h-btn-primary:hover { background:var(--gn-accent-strong-hover); }
+
+  /* ===== 统计条（一体分段卡） ===== */
+  .stat-strip {
+    margin:0 24px 14px;
+    background:var(--gn-bg-panel); border-radius:10px;
+    box-shadow:var(--gn-shadow-card);
+    display:grid; grid-template-columns:repeat(4,1fr);
+    overflow:hidden;
+  }
+  .stat-seg {
+    display:flex; align-items:center; gap:10px;
+    padding:13px 18px; cursor:pointer;
+    border-right:1px solid var(--gn-br-1);
+    position:relative;
+  }
+  .stat-seg:last-child { border-right:0; }
+  .stat-seg:hover { background:var(--gn-bg-hover); }
+  .stat-seg.on { background:var(--gn-accent-soft); }
+  .stat-seg.on::after { content:""; position:absolute; left:0; right:0; bottom:0; height:2.5px; background:var(--gn-accent); }
+  .stat-seg .s-num { font-family:var(--gn-font-mono); font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--gn-fg-1); }
+  .stat-seg.err .s-num { color:var(--gn-danger); }
+  .stat-seg.run .s-num { color:var(--gn-accent-2); }
+  .stat-seg .s-label { font-size:11.5px; color:var(--gn-fg-4); }
+  .s-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .s-dot.run { background:var(--gn-accent); }
+  .s-dot.stop { background:var(--gn-fg-5); }
+  .s-dot.err { background:var(--gn-danger); }
+  .s-dot.all { background:var(--gn-info); }
+
+  /* ===== 本机资源面板 ===== */
+  .res-grid {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .res-item {
+    background: var(--gn-bg-panel-2);
+    border-radius: 9px;
+    padding: 9px 11px;
+    min-width: 0;
+  }
+  .r-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: var(--gn-fg-5);
+  }
+  .r-head .r-val {
+    font-family: var(--gn-font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gn-fg-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .r-spark { margin-top: 6px; }
+  .r-spark svg { display: block; width: 100%; height: 26px; }
+  .r-bar {
+    margin-top: 8px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--gn-bg-active);
+    overflow: hidden;
+  }
+  .r-bar i { display: block; height: 100%; border-radius: 2px; }
+  .r-sub { margin-top: 4px; font-family: var(--gn-font-mono); font-size: 9.5px; color: var(--gn-fg-5); }
+  .res-warn { color: var(--gn-warn) !important; }
+
+  /* 变体二：本机资源通栏 */
+  .host-res {
+    margin-bottom: 12px;
+    background: var(--gn-bg-panel);
+    border-radius: 10px;
+    box-shadow: var(--gn-shadow-card);
+    padding: 11px 16px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    font-size: 11.5px;
+    color: var(--gn-fg-4);
+  }
+  .host-res .hr-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gn-fg-2);
+  }
+  .host-res .hr-item { display: flex; align-items: center; gap: 8px; }
+  .host-res .hr-bar {
+    width: 90px; height: 4px; border-radius: 2px;
+    background: var(--gn-bg-active); overflow: hidden;
+  }
+  .host-res .hr-bar i { display: block; height: 100%; border-radius: 2px; }
+  .host-res .hr-val { font-family: var(--gn-font-mono); font-weight: 600; color: var(--gn-fg-2); }
+
+  /* ===== 资源面板（第一列） ===== */
+  .res-col { display: flex; flex-direction: column; gap: 14px; }
+  .res-item { position: relative; }
+  .asm-tip {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 40;
+    width: 236px;
+    background: var(--gn-fg-1);
+    color: #fff;
+    border-radius: 9px;
+    padding: 9px 12px;
+    font-size: 11px;
+    line-height: 1.7;
+    box-shadow: var(--gn-shadow-lg);
+    pointer-events: none;
+  }
+  .asm-tip b { display: block; margin-bottom: 2px; }
+  .asm-tip div { opacity: 0.85; }
+  .res-item:nth-child(even) .asm-tip { left: auto; right: 0; }
+  .res-item:hover .asm-tip,
+  .ahp-item:hover .asm-tip { display: block; }
+
+  /* ===== 本机资源通栏面板 ===== */
+  .asm-host-panel {
+    margin: 0 24px 14px;
+    background: var(--gn-bg-panel);
+    border-radius: 10px;
+    box-shadow: var(--gn-shadow-card);
+    padding: 12px 16px 14px;
+  }
+  .ahp-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .ahp-title { font-size: 12.5px; font-weight: 700; color: var(--gn-fg-2); }
+  .ahp-live { font-size: 10.5px; color: var(--gn-fg-5); }
+  .ahp-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .ahp-item {
+    position: relative;
+    background: var(--gn-bg-panel-2);
+    border-radius: 9px;
+    padding: 10px 12px 11px;
+    min-width: 0;
+  }
+  .ahp-item .r-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--gn-fg-5);
+  }
+  .hp-val {
+    font-family: var(--gn-font-mono);
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--gn-fg-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .hp-val.res-warn { color: var(--gn-warn); }
+  .hp-spark svg { display: block; width: 100%; height: 30px; margin-top: 6px; }
+  .hp-bar {
+    margin-top: 10px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--gn-bg-active);
+    overflow: hidden;
+  }
+  .hp-bar i { display: block; height: 100%; border-radius: 3px; }
+  .hp-sub { margin-top: 6px; font-family: var(--gn-font-mono); font-size: 10px; color: var(--gn-fg-5); }
+  .ahp-item:hover { background: var(--gn-bg-hover); }
+
+  /* ===== 变体一：列表 + 右栏 ===== */
+  .list-layout { display:grid; grid-template-columns:1fr 340px; gap:14px; padding:0 24px 24px; align-items:start; }
+  .svc-list-card { background:var(--gn-bg-panel); border-radius:10px; box-shadow:var(--gn-shadow-card); overflow:hidden; }
+  .svc-row {
+    display:flex; align-items:center; gap:12px;
+    padding:11px 16px; border-bottom:1px solid var(--gn-br-1);
+    cursor:pointer; transition:background .1s;
+  }
+  .svc-row:last-child { border-bottom:0; }
+  .svc-row:hover { background:var(--gn-bg-hover); }
+  .svc-ico {
+    width:36px; height:36px; border-radius:9px; flex-shrink:0;
+    display:grid; place-items:center;
+    background:var(--gn-bg-panel-2); border:1px solid var(--gn-br-1);
+  }
+  .svc-ico img { width:21px; height:21px; }
+  .svc-id { min-width:0; width:230px; }
+  .svc-name { font-size:13px; font-weight:600; color:var(--gn-fg-1); display:flex; align-items:center; gap:6px; }
+  .svc-name .auto { font-size:9.5px; font-weight:700; color:var(--gn-info); background:color-mix(in srgb,var(--gn-info) 10%,transparent); padding:1px 6px; border-radius:999px; flex-shrink:0; }
+  .svc-realname { margin-top:2px; font-family:var(--gn-font-mono); font-size:10.5px; color:var(--gn-fg-5); }
+  .svc-badge {
+    display:inline-flex; align-items:center; gap:5px;
+    height:20px; padding:0 9px; border-radius:999px;
+    font-size:10.5px; font-weight:700; flex-shrink:0;
+  }
+  .svc-badge i { width:5px; height:5px; border-radius:50%; }
+  .svc-badge.run { background:var(--gn-accent-soft); color:var(--gn-accent-2); }
+  .svc-badge.run i { background:var(--gn-accent); }
+  .svc-badge.stop { background:var(--gn-bg-hover); color:var(--gn-fg-4); }
+  .svc-badge.stop i { background:var(--gn-fg-5); }
+  .svc-badge.err { background:color-mix(in srgb,var(--gn-danger) 11%,transparent); color:var(--gn-danger); }
+  .svc-badge.err i { background:var(--gn-danger); }
+  .svc-metrics { margin-left:auto; display:flex; gap:18px; flex-shrink:0; }
+  .svc-m { min-width:64px; }
+  .svc-m .m-k { font-size:10px; color:var(--gn-fg-5); }
+  .svc-m .m-v { margin-top:1px; font-family:var(--gn-font-mono); font-size:12px; font-weight:600; color:var(--gn-fg-2); font-variant-numeric:tabular-nums; }
+  .svc-ops { display:flex; gap:4px; flex-shrink:0; opacity:0; transition:opacity .12s; }
+  .svc-row:hover .svc-ops { opacity:1; }
+  .op-btn {
+    width:28px; height:28px; border-radius:7px;
+    display:grid; place-items:center; color:var(--gn-fg-4);
+  }
+  .op-btn:hover { background:var(--gn-bg-active); color:var(--gn-fg-1); }
+  .op-btn.play { color:var(--gn-accent-2); }
+  .op-btn.stopb { color:var(--gn-danger); }
+  .op-btn .ic { width:14px; height:14px; }
+
+  /* 右栏 */
+  .side-col { display:flex; flex-direction:column; gap:14px; }
+  .side-card { background:var(--gn-bg-panel); border-radius:10px; box-shadow:var(--gn-shadow-card); padding:14px 16px; }
+  .side-card h4 { font-size:12.5px; font-weight:700; color:var(--gn-fg-2); display:flex; align-items:center; }
+  .side-card .all-link { margin-left:auto; font-size:11px; color:var(--gn-fg-5); font-weight:500; }
+  .events { margin-top:10px; }
+  .event { display:flex; gap:9px; position:relative; padding-bottom:11px; }
+  .event:last-child { padding-bottom:0; }
+  .event::before { content:""; position:absolute; left:4px; top:13px; bottom:-1px; width:1px; background:var(--gn-br-1); }
+  .event:last-child::before { display:none; }
+  .e-dot { width:8px; height:8px; border-radius:50%; margin-top:4px; flex-shrink:0; position:relative; z-index:1; box-shadow:0 0 0 3px var(--gn-bg-panel); }
+  .e-dot.run { background:var(--gn-accent); }
+  .e-dot.err { background:var(--gn-danger); }
+  .e-dot.warn { background:var(--gn-warn); }
+  .e-dot.info { background:var(--gn-info); }
+  .e-time { width:52px; flex-shrink:0; font-family:var(--gn-font-mono); font-size:10px; color:var(--gn-fg-5); padding-top:2px; }
+  .e-body { font-size:11.5px; color:var(--gn-fg-3); line-height:1.5; min-width:0; }
+  .e-body b { color:var(--gn-fg-1); font-weight:600; }
+  .engine-card { display:flex; align-items:center; gap:10px; }
+  .engine-dot { width:8px; height:8px; border-radius:50%; background:var(--gn-accent); box-shadow:0 0 0 3px var(--gn-accent-soft); }
+  .engine-card .ec-text { font-size:12px; color:var(--gn-fg-2); }
+  .engine-card .ec-ver { margin-left:auto; font-family:var(--gn-font-mono); font-size:10.5px; color:var(--gn-fg-5); }
+
+  /* ===== 变体二：卡片网格 ===== */
+  .card-layout { padding:0 24px 24px; }
+  .svc-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .svc-card {
+    background:var(--gn-bg-panel); border-radius:12px;
+    box-shadow:var(--gn-shadow-card);
+    padding:14px 16px 12px;
+    display:flex; flex-direction:column; gap:10px;
+    transition:box-shadow .13s;
+  }
+  .svc-card:hover { box-shadow:0 0 0 1px var(--gn-br-2), var(--gn-shadow-md); }
+  .svc-card .c-head { display:flex; align-items:center; gap:10px; }
+  .svc-card .c-id { min-width:0; flex:1; }
+  .svc-card .c-name { font-size:13px; font-weight:600; color:var(--gn-fg-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .svc-card .c-real { margin-top:1px; font-family:var(--gn-font-mono); font-size:10.5px; color:var(--gn-fg-5); }
+  .svc-card .c-metrics { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .svc-card .c-m { background:var(--gn-bg-panel-2); border-radius:8px; padding:7px 10px; }
+  .svc-card .c-m .m-k { font-size:9.5px; color:var(--gn-fg-5); }
+  .svc-card .c-m .m-v { margin-top:1px; font-family:var(--gn-font-mono); font-size:13px; font-weight:700; color:var(--gn-fg-2); }
+  .svc-card .c-m .m-v small { font-size:10px; color:var(--gn-fg-5); font-weight:500; margin-left:2px; }
+  .svc-card .c-foot { display:flex; align-items:center; gap:6px; }
+  .c-btn {
+    flex:1; height:28px; border-radius:7px;
+    display:inline-flex; align-items:center; justify-content:center; gap:5px;
+    font-size:11.5px; font-weight:600;
+    border:1px solid var(--gn-br-2); color:var(--gn-fg-2); background:var(--gn-bg-panel);
+  }
+  .c-btn:hover { background:var(--gn-bg-hover); }
+  .c-btn.start { background:var(--gn-accent-strong); border-color:transparent; color:var(--gn-on-accent); }
+  .c-btn.start:hover { background:var(--gn-accent-strong-hover); }
+  .c-btn .ic { width:11px; height:11px; }
+  .timeline-strip {
+    margin-top:12px; background:var(--gn-bg-panel); border-radius:10px;
+    box-shadow:var(--gn-shadow-card); padding:12px 16px;
+    display:flex; gap:26px; align-items:center; overflow-x:auto;
+  }
+  .t-item { display:flex; align-items:center; gap:8px; flex-shrink:0; font-size:11.5px; color:var(--gn-fg-3); }
+  .t-item b { color:var(--gn-fg-1); font-weight:600; }
+  .t-item .e-dot { margin-top:0; }
+
+  /* ===== 变体三：空态 + 扫描发现 ===== */
+  .empty-hero {
+    margin:8px 24px 14px;
+    background:var(--gn-bg-panel); border-radius:12px;
+    box-shadow:var(--gn-shadow-card);
+    padding:34px 24px 30px; text-align:center;
+  }
+  .empty-hero .eh-ico {
+    width:64px; height:64px; border-radius:18px; margin:0 auto 14px;
+    display:grid; place-items:center;
+    background:var(--gn-accent-soft); color:var(--gn-accent-2);
+    font-size:26px;
+  }
+  .empty-hero h3 { font-size:16px; font-weight:700; }
+  .empty-hero p { margin-top:6px; font-size:12.5px; color:var(--gn-fg-4); line-height:1.7; }
+  .empty-hero .eh-actions { margin-top:16px; display:flex; gap:10px; justify-content:center; }
+  .found-card {
+    margin:0 24px 24px;
+    background:var(--gn-bg-panel); border-radius:10px;
+    box-shadow:var(--gn-shadow-card); overflow:hidden;
+  }
+  .found-head { display:flex; align-items:center; gap:9px; padding:12px 16px; border-bottom:1px solid var(--gn-br-1); }
+  .found-head h4 { font-size:12.5px; font-weight:700; color:var(--gn-fg-2); }
+  .found-head .f-hint { margin-left:auto; font-size:11px; color:var(--gn-fg-5); }
+  .found-row {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 16px; border-bottom:1px solid var(--gn-br-1);
+  }
+  .found-row:last-child { border-bottom:0; }
+  .found-row:hover { background:var(--gn-bg-hover); }
+  .f-add {
+    margin-left:auto; flex-shrink:0;
+    height:26px; padding:0 12px; border-radius:7px;
+    background:var(--gn-accent-strong); color:var(--gn-on-accent);
+    font-size:11.5px; font-weight:600;
+  }
+  .f-add:hover { background:var(--gn-accent-strong-hover); }
+  .f-added { margin-left:auto; flex-shrink:0; font-size:11px; font-weight:700; color:var(--gn-accent-2); display:inline-flex; align-items:center; gap:4px; }
+</style>
+</head>
+<body>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-play" viewBox="0 0 16 16"><path d="M5.5 3.6L12.3 8l-6.8 4.4z" fill="currentColor"/></symbol>
+      <symbol id="i-stop" viewBox="0 0 16 16"><rect x="4.5" y="4.5" width="7" height="7" rx="1.2" fill="currentColor"/></symbol>
+      <symbol id="i-restart" viewBox="0 0 16 16"><path d="M13.2 8a5.2 5.2 0 1 1-1.6-3.75" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M13.4 1.8v3h-3" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M10.4 10.4L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+      <symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="12.5" cy="8" r="1.3" fill="currentColor"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M2.8 8a5.2 5.2 0 0 1 9-3.6M13.2 8a5.2 5.2 0 0 1-9 3.6" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M11.5 2.2l.4 2.4-2.4.4M4.5 13.8l-.4-2.4 2.4-.4" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-list" viewBox="0 0 16 16"><path d="M5 4h9M5 8h9M5 12h9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="2.6" cy="4" r="1" fill="currentColor"/><circle cx="2.6" cy="8" r="1" fill="currentColor"/><circle cx="2.6" cy="12" r="1" fill="currentColor"/></symbol>
+      <symbol id="i-card" viewBox="0 0 16 16"><rect x="2" y="2" width="5.2" height="5.2" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="8.8" y="2" width="5.2" height="5.2" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="2" y="8.8" width="5.2" height="5.2" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="8.8" y="8.8" width="5.2" height="5.2" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+      <symbol id="i-check" viewBox="0 0 12 12"><path d="M2.5 6.2l2.4 2.4 4.6-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="page-head">
+    <h1>ServDeck 首页 · 服务总览（v2）</h1>
+    <p>替换现有数据库空态页。核心信息架构：统计过滤条 → 服务列表（主）→ 事件流（辅）；空态时以「扫描发现」承接冷启动，自动展示本机已有服务供一键纳管。</p>
+    <div class="variant-nav">
+      <a href="#v1">变体一 · 列表管理台（推荐）</a>
+      <a href="#v2">变体二 · 卡片仪表盘</a>
+      <a href="#v3">变体三 · 空态 + 扫描发现</a>
+    </div>
+  </div>
+
+  <!-- ================= 变体一：列表管理台 ================= -->
+  <div class="variant" id="v1">
+    <div class="variant-label">
+      变体一 · 列表管理台
+      <span class="rec">推荐</span>
+      <span class="note">信息密度高、一屏掌控全部服务；操作按钮 hover 浮现，右栏承载事件流</span>
+    </div>
+    <div class="frame">
+      <div class="home-head">
+        <div>
+          <h2>服务总览</h2>
+          <div class="sub">上午好，<b>11</b> 个服务中 <b>7</b> 个正在运行 · 每 2 秒自动刷新</div>
+        </div>
+        <div class="home-tools">
+          <div class="h-search">
+            <svg class="ic" style="width:13px;height:13px"><use href="#i-search"/></svg>
+            <input placeholder="搜索服务…" />
+          </div>
+          <div class="h-viewseg">
+            <button class="on"><svg class="ic" style="width:12px;height:12px;margin:auto"><use href="#i-list"/></svg></button>
+            <button><svg class="ic" style="width:12px;height:12px;margin:auto"><use href="#i-card"/></svg></button>
+          </div>
+          <button class="h-btn h-btn-ghost"><svg class="ic" style="width:13px;height:13px"><use href="#i-refresh"/></svg>刷新</button>
+          <button class="h-btn h-btn-primary"><svg class="ic" style="width:13px;height:13px"><use href="#i-plus"/></svg>注册服务</button>
+        </div>
+      </div>
+
+      <div class="stat-strip">
+        <div class="stat-seg on"><span class="s-dot all"></span><span class="s-num">11</span><span class="s-label">全部服务</span></div>
+        <div class="stat-seg run"><span class="s-dot run"></span><span class="s-num">7</span><span class="s-label">运行中</span></div>
+        <div class="stat-seg"><span class="s-dot stop"></span><span class="s-num">3</span><span class="s-label">已停止</span></div>
+        <div class="stat-seg err"><span class="s-dot err"></span><span class="s-num">1</span><span class="s-label">异常</span></div>
+      </div>
+
+      <div class="asm-host-panel">
+        <div class="ahp-head">
+          <span class="ahp-title">本机资源</span>
+          <span class="ahp-live">实时 · 每 2 秒刷新</span>
+        </div>
+        <div class="ahp-grid">
+          <div class="ahp-item">
+            <div class="r-head"><span>CPU</span><span class="hp-val">23%</span></div>
+            <div class="hp-spark"><svg viewBox="0 0 100 26" preserveAspectRatio="none">
+              <polyline points="0,18 8,15 16,17 24,11 32,14 40,9 48,12 56,7 64,13 72,10 80,16 88,12 100,9"
+                fill="none" stroke="var(--gn-accent)" stroke-width="1.6" stroke-linejoin="round"/>
+            </svg></div>
+            <div class="asm-tip">
+              <b>处理器</b>
+              <div>Intel Core i7-13700 · 16 线程</div>
+              <div>基础 2.1 GHz · 当前 4.1 GHz</div>
+              <div>进程 214 · 线程 3,102</div>
+            </div>
+          </div>
+          <div class="ahp-item">
+            <div class="r-head"><span>内存</span><span class="hp-val res-warn">62%</span></div>
+            <div class="hp-bar"><i style="width:62%;background:var(--gn-warn)"></i></div>
+            <div class="hp-sub">9.9 / 16 GB</div>
+            <div class="asm-tip">
+              <b>内存</b>
+              <div>已用 9.9 GB · 可用 6.1 GB</div>
+              <div>总容量 16 GB · DDR5</div>
+              <div>提交 11.2 / 24.6 GB</div>
+            </div>
+          </div>
+          <div class="ahp-item">
+            <div class="r-head"><span>磁盘 C:</span><span class="hp-val">41%</span></div>
+            <div class="hp-bar"><i style="width:41%;background:var(--gn-info)"></i></div>
+            <div class="hp-sub">412 GB / 1 TB</div>
+            <div class="asm-tip">
+              <b>系统盘 C:</b>
+              <div>已用 412 GB · 剩余 588 GB</div>
+              <div>NVMe SSD · 读 1.2 GB/s · 写 0.8 GB/s</div>
+            </div>
+          </div>
+          <div class="ahp-item">
+            <div class="r-head"><span>网络</span><span class="hp-val" style="font-size:13px">↓2.4 ↑0.3</span></div>
+            <div class="hp-sub" style="margin-top:10px">MB/s · 实时速率</div>
+            <div class="asm-tip">
+              <b>网络 · 以太网</b>
+              <div>接收 2.4 MB/s · 发送 0.3 MB/s</div>
+              <div>今日累计 收 2.1 GB / 发 0.4 GB</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="list-layout">
+        <div class="svc-list-card">        <div class="svc-list-card">
+          <!-- 运行中 -->
+          <div class="svc-row">
+            <span class="svc-ico"><img src="../frontend/public/db-icons/java.svg" alt=""></span>
+            <span class="svc-id">
+              <span class="svc-name">order-service <span class="auto">自启</span></span>
+              <span class="svc-realname">order-service · Java</span>
+            </span>
+            <span class="svc-badge run"><i></i>运行中</span>
+            <span class="svc-metrics">
+              <span class="svc-m"><span class="m-k">CPU</span><br><span class="m-v">2.1%</span></span>
+              <span class="svc-m"><span class="m-k">内存</span><br><span class="m-v">486MB</span></span>
+            </span>
+            <span class="svc-ops">
+              <button class="op-btn stopb" title="停止"><svg class="ic"><use href="#i-stop"/></svg></button>
+              <button class="op-btn" title="重启"><svg class="ic"><use href="#i-restart"/></svg></button>
+              <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+            </span>
+          </div>
+          <div class="svc-row">
+            <span class="svc-ico"><img src="../frontend/public/db-icons/mysql.svg" alt=""></span>
+            <span class="svc-id">
+              <span class="svc-name">MySQL 数据库 <span class="auto">自启</span></span>
+              <span class="svc-realname">MySQL80 · 导入纳管</span>
+            </span>
+            <span class="svc-badge run"><i></i>运行中</span>
+            <span class="svc-metrics">
+              <span class="svc-m"><span class="m-k">CPU</span><br><span class="m-v">0.8%</span></span>
+              <span class="svc-m"><span class="m-k">内存</span><br><span class="m-v">640MB</span></span>
+            </span>
+            <span class="svc-ops">
+              <button class="op-btn stopb" title="停止"><svg class="ic"><use href="#i-stop"/></svg></button>
+              <button class="op-btn" title="重启"><svg class="ic"><use href="#i-restart"/></svg></button>
+              <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+            </span>
+          </div>
+          <div class="svc-row">
+            <span class="svc-ico"><img src="../frontend/public/db-icons/rustfs.png" alt=""></span>
+            <span class="svc-id">
+              <span class="svc-name">RustFS 对象存储 <span class="auto">自启</span></span>
+              <span class="svc-realname">rustfs-service · RustFS</span>
+            </span>
+            <span class="svc-badge run"><i></i>运行中</span>
+            <span class="svc-metrics">
+              <span class="svc-m"><span class="m-k">CPU</span><br><span class="m-v">2.1%</span></span>
+              <span class="svc-m"><span class="m-k">内存</span><br><span class="m-v">302MB</span></span>
+            </span>
+            <span class="svc-ops">
+              <button class="op-btn stopb" title="停止"><svg class="ic"><use href="#i-stop"/></svg></button>
+              <button class="op-btn" title="重启"><svg class="ic"><use href="#i-restart"/></svg></button>
+              <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+            </span>
+          </div>
+          <div class="svc-row">
+            <span class="svc-ico"><img src="../frontend/public/db-icons/redis.ico" alt=""></span>
+            <span class="svc-id">
+              <span class="svc-name">Redis 缓存 A</span>
+              <span class="svc-realname">redis-a · Redis</span>
+            </span>
+            <span class="svc-badge run"><i></i>运行中</span>
+            <span class="svc-metrics">
+              <span class="svc-m"><span class="m-k">CPU</span><br><span class="m-v">0.3%</span></span>
+              <span class="svc-m"><span class="m-k">内存</span><br><span class="m-v">96MB</span></span>
+            </span>
+            <span class="svc-ops">
+              <button class="op-btn stopb" title="停止"><svg class="ic"><use href="#i-stop"/></svg></button>
+              <button class="op-btn" title="重启"><svg class="ic"><use href="#i-restart"/></svg></button>
+              <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+            </span>
+          </div>
+          <div class="svc-row">
+            <span class="svc-ico"><img src="../frontend/public/db-icons/java.svg" alt=""></span>
+            <span class="svc-id">
+              <span class="svc-name">data-sync-service <span class="auto">自启</span></span>
+              <span class="svc-realname">data-sync-service · Java</span>
+            </span>
+            <span class="svc-badge run"><i></i>运行中</span>
+            <span class="svc-metrics">
+              <span class="svc-m"><span class="m-k">CPU</span><br><span class="m-v">3.2%</span></span>
+              <span class="svc-m"><span class="m-k">内存</span><br><span class="m-v">1.2GB</span></span>
+            </span>
+            <span class="svc-ops">
+              <button class="op-btn stopb" title="停止"><svg class="ic"><use href="#i-stop"/></svg></button>
+              <button class="op-btn" title="重启"><svg class="ic"><use href="#i-restart"/></svg></button>
+              <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+            </span>
+          </div>
+          <!-- 异常 -->
+          <div class="svc-row">
+            <span class="svc-ico"><img src="../frontend/public/db-icons/java.svg" alt=""></span>
+            <span class="svc-id">
+              <span class="svc-name">report-generator</span>
+              <span class="svc-realname">report-generator · Java</span>
+            </span>
+            <span class="svc-badge err"><i></i>启动失败</span>
+            <span class="svc-metrics">
+              <span class="svc-m"><span class="m-k">退出码</span><br><span class="m-v" style="color:var(--gn-danger)">1</span></span>
+              <span class="svc-m"><span class="m-k">重试</span><br><span class="m-v">2 次</span></span>
+            </span>
+            <span class="svc-ops">
+              <button class="op-btn play" title="启动"><svg class="ic"><use href="#i-play"/></svg></button>
+              <button class="op-btn" title="日志"><svg class="ic"><use href="#i-more"/></svg></button>
+            </span>
+          </div>
+          <!-- 已停止 -->
+          <div class="svc-row">
+            <span class="svc-ico"><img src="../frontend/public/db-icons/redis.ico" alt=""></span>
+            <span class="svc-id">
+              <span class="svc-name">Redis 缓存 B</span>
+              <span class="svc-realname">redis-b · Redis</span>
+            </span>
+            <span class="svc-badge stop"><i></i>已停止</span>
+            <span class="svc-metrics">
+              <span class="svc-m"><span class="m-k">上次停止</span><br><span class="m-v">昨天 22:31</span></span>
+            </span>
+            <span class="svc-ops">
+              <button class="op-btn play" title="启动"><svg class="ic"><use href="#i-play"/></svg></button>
+              <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+            </span>
+          </div>
+          <div class="svc-row">
+            <span class="svc-ico"><img src="../frontend/public/db-icons/mysql.svg" alt=""></span>
+            <span class="svc-id">
+              <span class="svc-name">MySQL 备库</span>
+              <span class="svc-realname">mysql-slave · 导入纳管</span>
+            </span>
+            <span class="svc-badge stop"><i></i>已停止</span>
+            <span class="svc-metrics">
+              <span class="svc-m"><span class="m-k">上次停止</span><br><span class="m-v">3 天前</span></span>
+            </span>
+            <span class="svc-ops">
+              <button class="op-btn play" title="启动"><svg class="ic"><use href="#i-play"/></svg></button>
+              <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+            </span>
+          </div>
+          <div class="svc-row">
+            <span class="svc-ico"><img src="../frontend/public/db-icons/rustfs.png" alt=""></span>
+            <span class="svc-id">
+              <span class="svc-name">backup-runner</span>
+              <span class="svc-realname">backup-runner · RustFS</span>
+            </span>
+            <span class="svc-badge stop"><i></i>已停止</span>
+            <span class="svc-metrics">
+              <span class="svc-m"><span class="m-k">上次停止</span><br><span class="m-v">上周五</span></span>
+            </span>
+            <span class="svc-ops">
+              <button class="op-btn play" title="启动"><svg class="ic"><use href="#i-play"/></svg></button>
+              <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+            </span>
+          </div>
+        </div>
+
+          <div class="side-col">
+          <div class="side-card">
+            <h4>最近事件 <span class="all-link">全部 ›</span></h4>
+            <div class="events">
+              <div class="event"><i class="e-dot err"></i><span class="e-time">10:26</span><div class="e-body"><b>report-generator</b> 启动失败（退出码 1）</div></div>
+              <div class="event"><i class="e-dot info"></i><span class="e-time">10:02</span><div class="e-body"><b>MySQL80</b> 已扫描并自动纳管</div></div>
+              <div class="event"><i class="e-dot warn"></i><span class="e-time">09:47</span><div class="e-body"><b>order-service</b> 内存占用 86%，超过告警线</div></div>
+              <div class="event"><i class="e-dot run"></i><span class="e-time">09:30</span><div class="e-body"><b>rustfs-service</b> 注册并启动成功</div></div>
+              <div class="event"><i class="e-dot info"></i><span class="e-time">昨天</span><div class="e-body"><b>backup-runner</b> 手动停止</div></div>
+            </div>
+          </div>
+          <div class="side-card">
+            <h4>引擎</h4>
+            <div class="engine-card" style="margin-top:10px">
+              <i class="engine-dot"></i>
+              <span class="ec-text">servy-10.1.exe · 就绪</span>
+              <span class="ec-ver">v10.1</span>
+            </div>
+          </div>
+          <div class="side-card">
+            <h4>开机自启 <span class="all-link">5 个 ›</span></h4>
+            <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px; font-size:12px; color:var(--gn-fg-3)">
+              <div>order-service · Java</div>
+              <div>MySQL80 · 导入</div>
+              <div>rustfs-service · RustFS</div>
+              <div>data-sync-service · Java</div>
+              <div>gateway-api · RustFS</div>
+            </div>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 变体二：卡片仪表盘 ================= -->
+  <div class="variant" id="v2">
+    <div class="variant-label">
+      变体二 · 卡片仪表盘
+      <span class="note">同数据集的卡片视图；metrics 大数字更直观，适合服务数 ≤ 12 的场景，可由列表页右上角视图切换进入</span>
+    </div>
+    <div class="frame">
+      <div class="home-head">
+        <div>
+          <h2>服务总览</h2>
+          <div class="sub">卡片视图 · 每 2 秒自动刷新</div>
+        </div>
+        <div class="home-tools">
+          <div class="h-viewseg">
+            <button><svg class="ic" style="width:12px;height:12px;margin:auto"><use href="#i-list"/></svg></button>
+            <button class="on"><svg class="ic" style="width:12px;height:12px;margin:auto"><use href="#i-card"/></svg></button>
+          </div>
+          <button class="h-btn h-btn-primary"><svg class="ic" style="width:13px;height:13px"><use href="#i-plus"/></svg>注册服务</button>
+        </div>
+      </div>
+      <div class="stat-strip">
+        <div class="stat-seg on"><span class="s-dot all"></span><span class="s-num">11</span><span class="s-label">全部服务</span></div>
+        <div class="stat-seg run"><span class="s-dot run"></span><span class="s-num">7</span><span class="s-label">运行中</span></div>
+        <div class="stat-seg"><span class="s-dot stop"></span><span class="s-num">3</span><span class="s-label">已停止</span></div>
+        <div class="stat-seg err"><span class="s-dot err"></span><span class="s-num">1</span><span class="s-label">异常</span></div>
+      </div>
+      <div class="card-layout">
+        <div class="host-res">
+          <span class="hr-title">本机资源</span>
+          <span class="hr-item">CPU <span class="hr-bar"><i style="width:23%;background:var(--gn-accent)"></i></span> <span class="hr-val">23%</span></span>
+          <span class="hr-item">内存 <span class="hr-bar"><i style="width:62%;background:var(--gn-warn)"></i></span> <span class="hr-val">62%</span></span>
+          <span class="hr-item">磁盘 C: <span class="hr-bar"><i style="width:41%;background:var(--gn-info)"></i></span> <span class="hr-val">41%</span></span>
+          <span class="hr-item">网络 <span class="hr-val" style="font-size:11px">↓2.4 ↑0.3 MB/s</span></span>
+          <span class="hr-item" style="margin-left:auto;color:var(--gn-fg-5)">每 2 秒刷新</span>
+        </div>
+        <div class="svc-cards">
+          <div class="svc-card">
+            <div class="c-head">
+              <span class="svc-ico"><img src="../frontend/public/db-icons/java.svg" alt=""></span>
+              <span class="c-id">
+                <span class="c-name">order-service</span>
+                <span class="c-real">Java · 自启</span>
+              </span>
+              <span class="svc-badge run"><i></i>运行中</span>
+            </div>
+            <div class="c-metrics">
+              <div class="c-m"><div class="m-k">CPU</div><div class="m-v">2.1<small>%</small></div></div>
+              <div class="c-m"><div class="m-k">内存</div><div class="m-v">486<small>MB</small></div></div>
+            </div>
+            <div class="c-foot">
+              <button class="c-btn"><svg class="ic"><use href="#i-stop"/></svg>停止</button>
+              <button class="c-btn"><svg class="ic"><use href="#i-restart"/></svg>重启</button>
+            </div>
+          </div>
+          <div class="svc-card">
+            <div class="c-head">
+              <span class="svc-ico"><img src="../frontend/public/db-icons/mysql.svg" alt=""></span>
+              <span class="c-id">
+                <span class="c-name">MySQL 数据库</span>
+                <span class="c-real">MySQL80 · 导入纳管</span>
+              </span>
+              <span class="svc-badge run"><i></i>运行中</span>
+            </div>
+            <div class="c-metrics">
+              <div class="c-m"><div class="m-k">CPU</div><div class="m-v">0.8<small>%</small></div></div>
+              <div class="c-m"><div class="m-k">内存</div><div class="m-v">640<small>MB</small></div></div>
+            </div>
+            <div class="c-foot">
+              <button class="c-btn"><svg class="ic"><use href="#i-stop"/></svg>停止</button>
+              <button class="c-btn"><svg class="ic"><use href="#i-restart"/></svg>重启</button>
+            </div>
+          </div>
+          <div class="svc-card">
+            <div class="c-head">
+              <span class="svc-ico"><img src="../frontend/public/db-icons/rustfs.png" alt=""></span>
+              <span class="c-id">
+                <span class="c-name">RustFS 对象存储</span>
+                <span class="c-real">rustfs-service · RustFS</span>
+              </span>
+              <span class="svc-badge run"><i></i>运行中</span>
+            </div>
+            <div class="c-metrics">
+              <div class="c-m"><div class="m-k">CPU</div><div class="m-v">2.1<small>%</small></div></div>
+              <div class="c-m"><div class="m-k">内存</div><div class="m-v">302<small>MB</small></div></div>
+            </div>
+            <div class="c-foot">
+              <button class="c-btn"><svg class="ic"><use href="#i-stop"/></svg>停止</button>
+              <button class="c-btn"><svg class="ic"><use href="#i-restart"/></svg>重启</button>
+            </div>
+          </div>
+          <div class="svc-card">
+            <div class="c-head">
+              <span class="svc-ico"><img src="../frontend/public/db-icons/java.svg" alt=""></span>
+              <span class="c-id">
+                <span class="c-name">report-generator</span>
+                <span class="c-real">Java · 手动</span>
+              </span>
+              <span class="svc-badge err"><i></i>启动失败</span>
+            </div>
+            <div class="c-metrics">
+              <div class="c-m"><div class="m-k">退出码</div><div class="m-v" style="color:var(--gn-danger)">1</div></div>
+              <div class="c-m"><div class="m-k">自动重试</div><div class="m-v">2<small>次</small></div></div>
+            </div>
+            <div class="c-foot">
+              <button class="c-btn start"><svg class="ic"><use href="#i-play"/></svg>启动</button>
+              <button class="c-btn">日志</button>
+            </div>
+          </div>
+          <div class="svc-card">
+            <div class="c-head">
+              <span class="svc-ico"><img src="../frontend/public/db-icons/redis.ico" alt=""></span>
+              <span class="c-id">
+                <span class="c-name">Redis 缓存 B</span>
+                <span class="c-real">redis-b · Redis</span>
+              </span>
+              <span class="svc-badge stop"><i></i>已停止</span>
+            </div>
+            <div class="c-metrics">
+              <div class="c-m"><div class="m-k">上次停止</div><div class="m-v" style="font-size:11px">昨天</div></div>
+              <div class="c-m"><div class="m-k">启动类型</div><div class="m-v" style="font-size:11px">手动</div></div>
+            </div>
+            <div class="c-foot">
+              <button class="c-btn start"><svg class="ic"><use href="#i-play"/></svg>启动</button>
+              <button class="c-btn">更多</button>
+            </div>
+          </div>
+          <div class="svc-card">
+            <div class="c-head">
+              <span class="svc-ico"><img src="../frontend/public/db-icons/mysql.svg" alt=""></span>
+              <span class="c-id">
+                <span class="c-name">MySQL 备库</span>
+                <span class="c-real">mysql-slave · 导入纳管</span>
+              </span>
+              <span class="svc-badge stop"><i></i>已停止</span>
+            </div>
+            <div class="c-metrics">
+              <div class="c-m"><div class="m-k">上次停止</div><div class="m-v" style="font-size:11px">3 天前</div></div>
+              <div class="c-m"><div class="m-k">启动类型</div><div class="m-v" style="font-size:11px">手动</div></div>
+            </div>
+            <div class="c-foot">
+              <button class="c-btn start"><svg class="ic"><use href="#i-play"/></svg>启动</button>
+              <button class="c-btn">更多</button>
+            </div>
+          </div>
+        </div>
+        <div class="timeline-strip">
+          <span class="t-item"><i class="e-dot err"></i><span><b>report-generator</b> 启动失败 · 10:26</span></span>
+          <span class="t-item"><i class="e-dot info"></i><span><b>MySQL80</b> 自动纳管 · 10:02</span></span>
+          <span class="t-item"><i class="e-dot warn"></i><span><b>order-service</b> 内存告警 86% · 09:47</span></span>
+          <span class="t-item"><i class="e-dot run"></i><span><b>rustfs-service</b> 注册成功 · 09:30</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 变体三：空态 + 扫描发现 ================= -->
+  <div class="variant" id="v3">
+    <div class="variant-label">
+      变体三 · 空态 + 扫描发现
+      <span class="note">首次打开的冷启动承接：扫描本机服务直接给出「发现列表」，一键纳管；与自动扫描语义一致</span>
+    </div>
+    <div class="frame">
+      <div class="home-head">
+        <div>
+          <h2>服务总览</h2>
+          <div class="sub">本机已有服务会被自动扫描，无需手动导入</div>
+        </div>
+        <div class="home-tools">
+          <button class="h-btn h-btn-ghost"><svg class="ic" style="width:13px;height:13px"><use href="#i-refresh"/></svg>重新扫描</button>
+          <button class="h-btn h-btn-primary"><svg class="ic" style="width:13px;height:13px"><use href="#i-plus"/></svg>注册服务</button>
+        </div>
+      </div>
+      <div class="empty-hero">
+        <div class="eh-ico"><svg class="ic" style="width:26px;height:26px"><use href="#i-search"/></svg></div>
+        <h3>还没有受管的服务</h3>
+        <p>已扫描到本机 <b style="color:var(--gn-fg-2)">3</b> 个服务，可一键加入纳管；<br>或把一个还没有服务的程序（JAR / EXE）注册为 Windows 服务。</p>
+        <div class="eh-actions">
+          <button class="h-btn h-btn-primary"><svg class="ic" style="width:13px;height:13px"><use href="#i-check"/></svg>纳管全部发现项</button>
+          <button class="h-btn h-btn-ghost"><svg class="ic" style="width:13px;height:13px"><use href="#i-plus"/></svg>注册新程序</button>
+        </div>
+      </div>
+      <div class="found-card">
+        <div class="found-head">
+          <h4>扫描发现 · 3</h4>
+          <span class="f-hint">已存在的服务加入纳管后将被直接管理，不改动它的任何配置</span>
+        </div>
+        <div class="found-row">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/mysql.svg" alt=""></span>
+          <span class="svc-id">
+            <span class="svc-name">MySQL80</span>
+            <span class="svc-realname">MySQL 8.0 Database Server</span>
+          </span>
+          <span class="svc-badge run"><i></i>运行中</span>
+          <span class="svc-metrics"><span class="svc-m"><span class="m-k">启动类型</span><br><span class="m-v">自动</span></span></span>
+          <button class="f-add">纳管</button>
+        </div>
+        <div class="found-row">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/redis.ico" alt=""></span>
+          <span class="svc-id">
+            <span class="svc-name">Redis</span>
+            <span class="svc-realname">Redis key-value store</span>
+          </span>
+          <span class="svc-badge stop"><i></i>已停止</span>
+          <span class="svc-metrics"><span class="svc-m"><span class="m-k">启动类型</span><br><span class="m-v">手动</span></span></span>
+          <button class="f-add">纳管</button>
+        </div>
+        <div class="found-row">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/nginx.svg" alt=""></span>
+          <span class="svc-id">
+            <span class="svc-name">nginx</span>
+            <span class="svc-realname">Nginx web server / reverse proxy</span>
+          </span>
+          <span class="svc-badge run"><i></i>运行中</span>
+          <span class="svc-metrics"><span class="svc-m"><span class="m-k">启动类型</span><br><span class="m-v">自动</span></span></span>
+          <span class="f-added"><svg class="ic" style="width:11px;height:11px"><use href="#i-check"/></svg>已纳管</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

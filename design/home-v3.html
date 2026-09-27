@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServDeck 首页高保真 v3 — 服务总览</title>
+<style>
+  :root {
+    --gn-bg-app: rgb(246 246 244);
+    --gn-bg-panel: #fff;
+    --gn-bg-panel-2: rgb(250 250 248);
+    --gn-bg-hover: rgba(15,23,42,0.045);
+    --gn-bg-active: rgba(15,23,42,0.075);
+    --gn-fg-1: #0c1322; --gn-fg-2: #1f2937; --gn-fg-3: #4b5563;
+    --gn-fg-4: #6b7280; --gn-fg-5: #9ca3af;
+    --gn-br-1: rgba(15,23,42,0.08);
+    --gn-br-2: rgba(15,23,42,0.12);
+    --gn-accent: #15803d;
+    --gn-accent-2: #166534;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 14%, #fff);
+    --gn-accent-strong: #15803d;
+    --gn-accent-strong-hover: #126634;
+    --gn-on-accent: #fff;
+    --gn-info: #0369a1;
+    --gn-warn: #d97706;
+    --gn-danger: #dc2626;
+    --gn-shadow-card: 0 0 0 0.5px rgba(15,23,42,0.10), 0 1px 3px rgba(15,23,42,0.06);
+    --gn-shadow-md: 0 4px 14px rgba(15,23,42,0.08);
+    --gn-font-sans: "Inter","PingFang SC","Noto Sans SC","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;
+    --gn-font-mono: "JetBrains Mono",ui-monospace,"SF Mono",Consolas,monospace;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:var(--gn-font-sans); background:var(--gn-bg-app); color:var(--gn-fg-1); font-size:13px; }
+  svg.ic { width:16px; height:16px; display:block; }
+  button { font-family:inherit; border:0; background:transparent; color:inherit; cursor:pointer; }
+  img { display:block; }
+
+  .frame {
+    max-width:1440px; margin:0 auto;
+    min-height:100vh;
+    padding:22px 26px 32px;
+  }
+
+  /* ===== 头部 ===== */
+  .home-head { display:flex; align-items:flex-start; gap:16px; margin-bottom:20px; }
+  .home-head h1 { font-size:19px; font-weight:700; letter-spacing:-0.01em; }
+  .home-head .sub { margin-top:5px; font-size:12.5px; color:var(--gn-fg-4); }
+  .home-head .sub b { color:var(--gn-fg-2); font-weight:600; }
+  .home-tools { margin-left:auto; display:flex; align-items:center; gap:8px; }
+  .h-search {
+    height:34px; width:210px; border-radius:9px;
+    background:var(--gn-bg-panel); border:1px solid var(--gn-br-2);
+    display:flex; align-items:center; gap:7px; padding:0 11px; color:var(--gn-fg-5);
+    box-shadow:var(--gn-shadow-card);
+  }
+  .h-search input { flex:1; border:0; outline:0; background:transparent; font:inherit; font-size:12.5px; color:var(--gn-fg-1); }
+  .h-btn {
+    height:34px; padding:0 14px; border-radius:9px;
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:12.5px; font-weight:600;
+  }
+  .h-btn-ghost { background:var(--gn-bg-panel); border:1px solid var(--gn-br-2); color:var(--gn-fg-2); box-shadow:var(--gn-shadow-card); }
+  .h-btn-ghost:hover { background:var(--gn-bg-hover); }
+  .h-btn-primary { background:var(--gn-accent-strong); color:var(--gn-on-accent); box-shadow:var(--gn-shadow-md); }
+  .h-btn-primary:hover { background:var(--gn-accent-strong-hover); }
+
+  /* ===== 资源四卡（独立大卡） ===== */
+  .res-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+  .res-card {
+    background:var(--gn-bg-panel); border-radius:12px;
+    box-shadow:var(--gn-shadow-card);
+    padding:14px 16px 12px;
+    position:relative;
+    transition:box-shadow .13s;
+  }
+  .res-card:hover { box-shadow:0 0 0 1px var(--gn-br-2), var(--gn-shadow-md); }
+  .res-card .rc-top { display:flex; align-items:center; gap:8px; }
+  .res-card .rc-ico {
+    width:26px; height:26px; border-radius:8px; flex-shrink:0;
+    display:grid; place-items:center;
+  }
+  .res-card .rc-ico .ic { width:13px; height:13px; }
+  .res-card .rc-label { font-size:11.5px; font-weight:600; color:var(--gn-fg-4); }
+  .res-card .rc-val {
+    margin-top:8px;
+    font-family:var(--gn-font-mono); font-size:24px; font-weight:700;
+    color:var(--gn-fg-1); font-variant-numeric:tabular-nums; line-height:1;
+  }
+  .res-card .rc-val small { font-size:12px; font-weight:500; color:var(--gn-fg-5); margin-left:3px; }
+  .res-card .rc-sub { margin-top:5px; font-size:10.5px; color:var(--gn-fg-5); }
+  .res-card .rc-viz { margin-top:9px; }
+  .rc-viz svg { display:block; width:100%; height:34px; }
+  .rc-bar { margin-top:10px; height:5px; border-radius:3px; background:var(--gn-bg-active); overflow:hidden; }
+  .rc-bar i { display:block; height:100%; border-radius:3px; }
+  .ico-cpu { background:var(--gn-accent-soft); color:var(--gn-accent-2); }
+  .ico-mem { background:color-mix(in srgb,var(--gn-warn) 13%,#fff); color:var(--gn-warn); }
+  .ico-disk { background:color-mix(in srgb,var(--gn-info) 12%,#fff); color:var(--gn-info); }
+  .ico-net { background:color-mix(in srgb,#7c3aed 12%,#fff); color:#7c3aed; }
+
+  /* ===== 过滤 chips ===== */
+  .filter-chips { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  .chip {
+    height:30px; padding:0 13px; border-radius:999px;
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:12px; font-weight:600; color:var(--gn-fg-3);
+    background:var(--gn-bg-panel); box-shadow:var(--gn-shadow-card);
+  }
+  .chip:hover { color:var(--gn-fg-1); }
+  .chip.on { background:var(--gn-fg-1); color:#fff; box-shadow:none; }
+  .chip .n { font-family:var(--gn-font-mono); font-size:11px; opacity:.75; }
+  .chip.on .n { opacity:.9; }
+
+  /* ===== 主区两栏 ===== */
+  .main-cols { display:grid; grid-template-columns:1fr 330px; gap:16px; align-items:start; }
+
+  /* 服务列表 */
+  .svc-list { background:var(--gn-bg-panel); border-radius:12px; box-shadow:var(--gn-shadow-card); overflow:hidden; }
+  .svc-row {
+    display:flex; align-items:center; gap:14px;
+    padding:12px 18px; border-bottom:1px solid var(--gn-br-1);
+    cursor:pointer; position:relative;
+    transition:background .1s;
+  }
+  .svc-row:last-child { border-bottom:0; }
+  .svc-row:hover { background:var(--gn-bg-hover); }
+  .svc-row:hover::before {
+    content:""; position:absolute; left:0; top:10px; bottom:10px;
+    width:3px; border-radius:0 3px 3px 0; background:var(--gn-accent);
+  }
+  .svc-row.err { background:color-mix(in srgb,var(--gn-danger) 3%,transparent); }
+  .svc-ico {
+    width:40px; height:40px; border-radius:10px; flex-shrink:0;
+    display:grid; place-items:center;
+    background:var(--gn-bg-panel-2); border:1px solid var(--gn-br-1);
+  }
+  .svc-ico img { width:23px; height:23px; }
+  .svc-id { min-width:0; flex:1; }
+  .svc-name { font-size:13px; font-weight:600; color:var(--gn-fg-1); display:flex; align-items:center; gap:7px; }
+  .svc-name .auto {
+    font-size:9.5px; font-weight:700; color:var(--gn-info);
+    background:color-mix(in srgb,var(--gn-info) 10%,transparent);
+    padding:1px 6px; border-radius:999px; flex-shrink:0;
+  }
+  .svc-real { margin-top:2px; font-family:var(--gn-font-mono); font-size:10.5px; color:var(--gn-fg-5); }
+  .svc-state { width:96px; flex-shrink:0; }
+  .svc-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    height:22px; padding:0 10px; border-radius:999px;
+    font-size:11px; font-weight:700;
+  }
+  .svc-badge i { width:6px; height:6px; border-radius:50%; }
+  .svc-badge.run { background:var(--gn-accent-soft); color:var(--gn-accent-2); }
+  .svc-badge.run i { background:var(--gn-accent); animation:pulse 2.4s ease-in-out infinite; }
+  .svc-badge.stop { background:var(--gn-bg-hover); color:var(--gn-fg-4); }
+  .svc-badge.stop i { background:var(--gn-fg-5); }
+  .svc-badge.err { background:color-mix(in srgb,var(--gn-danger) 11%,transparent); color:var(--gn-danger); }
+  .svc-badge.err i { background:var(--gn-danger); }
+  @keyframes pulse { 50% { opacity:.45; } }
+  .svc-metrics { display:flex; gap:22px; flex-shrink:0; width:170px; }
+  .svc-m { min-width:56px; }
+  .svc-m .m-k { font-size:10px; color:var(--gn-fg-5); }
+  .svc-m .m-v { margin-top:2px; font-family:var(--gn-font-mono); font-size:12.5px; font-weight:600; color:var(--gn-fg-2); font-variant-numeric:tabular-nums; }
+  .svc-m .m-v.warn { color:var(--gn-warn); }
+  .svc-ops { display:flex; gap:5px; flex-shrink:0; opacity:0; transition:opacity .12s; }
+  .svc-row:hover .svc-ops { opacity:1; }
+  .op-btn {
+    width:30px; height:30px; border-radius:8px;
+    display:grid; place-items:center; color:var(--gn-fg-4);
+    background:var(--gn-bg-panel); border:1px solid var(--gn-br-2);
+  }
+  .op-btn:hover { background:var(--gn-bg-active); color:var(--gn-fg-1); }
+  .op-btn.play { color:var(--gn-accent-2); }
+  .op-btn.stopb { color:var(--gn-danger); }
+  .op-btn .ic { width:13px; height:13px; }
+
+  /* 右栏 */
+  .side-col { display:flex; flex-direction:column; gap:14px; }
+  .side-card { background:var(--gn-bg-panel); border-radius:12px; box-shadow:var(--gn-shadow-card); padding:15px 17px; }
+  .side-card h4 { font-size:12.5px; font-weight:700; color:var(--gn-fg-2); display:flex; align-items:center; }
+  .side-card .all-link { margin-left:auto; font-size:11px; color:var(--gn-fg-5); font-weight:500; cursor:pointer; }
+  .side-card .all-link:hover { color:var(--gn-accent-2); }
+  .events { margin-top:12px; }
+  .event { display:flex; gap:10px; position:relative; padding-bottom:13px; }
+  .event:last-child { padding-bottom:0; }
+  .event::before { content:""; position:absolute; left:4px; top:14px; bottom:-2px; width:1px; background:var(--gn-br-1); }
+  .event:last-child::before { display:none; }
+  .e-dot { width:8px; height:8px; border-radius:50%; margin-top:4px; flex-shrink:0; position:relative; z-index:1; box-shadow:0 0 0 3px var(--gn-bg-panel); }
+  .e-dot.run { background:var(--gn-accent); }
+  .e-dot.err { background:var(--gn-danger); }
+  .e-dot.warn { background:var(--gn-warn); }
+  .e-dot.info { background:var(--gn-info); }
+  .e-time { width:44px; flex-shrink:0; font-family:var(--gn-font-mono); font-size:10px; color:var(--gn-fg-5); padding-top:2px; }
+  .e-body { font-size:12px; color:var(--gn-fg-3); line-height:1.5; min-width:0; }
+  .e-body b { color:var(--gn-fg-1); font-weight:600; }
+
+  .engine-card { display:flex; align-items:center; gap:10px; margin-top:12px; }
+  .engine-dot { width:8px; height:8px; border-radius:50%; background:var(--gn-accent); box-shadow:0 0 0 3px var(--gn-accent-soft); }
+  .engine-card .ec-text { font-size:12px; color:var(--gn-fg-2); }
+  .engine-card .ec-ver { margin-left:auto; font-family:var(--gn-font-mono); font-size:10.5px; color:var(--gn-fg-5); }
+
+  /* ===== 空态 ===== */
+  .empty-hero {
+    background:var(--gn-bg-panel); border-radius:14px;
+    box-shadow:var(--gn-shadow-card);
+    padding:38px 24px 32px; text-align:center; margin-bottom:16px;
+  }
+  .empty-hero .eh-ico {
+    width:60px; height:60px; border-radius:17px; margin:0 auto 14px;
+    display:grid; place-items:center;
+    background:var(--gn-accent-soft); color:var(--gn-accent-2);
+  }
+  .empty-hero h3 { font-size:16px; font-weight:700; }
+  .empty-hero p { margin-top:7px; font-size:12.5px; color:var(--gn-fg-4); line-height:1.7; }
+  .empty-hero .eh-actions { margin-top:18px; display:flex; gap:10px; justify-content:center; }
+  .found-card { background:var(--gn-bg-panel); border-radius:12px; box-shadow:var(--gn-shadow-card); overflow:hidden; }
+  .found-head { display:flex; align-items:center; gap:9px; padding:13px 17px; border-bottom:1px solid var(--gn-br-1); }
+  .found-head h4 { font-size:12.5px; font-weight:700; color:var(--gn-fg-2); }
+  .found-head .f-hint { margin-left:auto; font-size:11px; color:var(--gn-fg-5); }
+  .found-row { display:flex; align-items:center; gap:12px; padding:11px 17px; border-bottom:1px solid var(--gn-br-1); }
+  .found-row:last-child { border-bottom:0; }
+  .found-row:hover { background:var(--gn-bg-hover); }
+  .f-add {
+    margin-left:auto; flex-shrink:0;
+    height:27px; padding:0 13px; border-radius:8px;
+    background:var(--gn-accent-strong); color:var(--gn-on-accent);
+    font-size:11.5px; font-weight:600;
+  }
+  .f-add:hover { background:var(--gn-accent-strong-hover); }
+  .f-added { margin-left:auto; flex-shrink:0; font-size:11px; font-weight:700; color:var(--gn-accent-2); display:inline-flex; align-items:center; gap:4px; }
+</style>
+</head>
+<body>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-play" viewBox="0 0 16 16"><path d="M5.5 3.6L12.3 8l-6.8 4.4z" fill="currentColor"/></symbol>
+      <symbol id="i-stop" viewBox="0 0 16 16"><rect x="4.5" y="4.5" width="7" height="7" rx="1.2" fill="currentColor"/></symbol>
+      <symbol id="i-restart" viewBox="0 0 16 16"><path d="M13.2 8a5.2 5.2 0 1 1-1.6-3.75" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M13.4 1.8v3h-3" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M10.4 10.4L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+      <symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="12.5" cy="8" r="1.3" fill="currentColor"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M2.8 8a5.2 5.2 0 0 1 9-3.6M13.2 8a5.2 5.2 0 0 1-9 3.6" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M11.5 2.2l.4 2.4-2.4.4M4.5 13.8l-.4-2.4 2.4-.4" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-check" viewBox="0 0 12 12"><path d="M2.5 6.2l2.4 2.4 4.6-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-cpu" viewBox="0 0 16 16"><rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6.5 1.5v2M9.5 1.5v2M6.5 12.5v2M9.5 12.5v2M1.5 6.5h2M1.5 9.5h2M12.5 6.5h2M12.5 9.5h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-mem" viewBox="0 0 16 16"><rect x="1.5" y="4" width="13" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M4.5 7v2M7 7v2M9.5 7v2M12 7v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-disk" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3" fill="none"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M12.2 3.8L9.4 6.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-net" viewBox="0 0 16 16"><path d="M2 9.5C4 6 6 4.5 8 4.5s4 1.5 6 5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M8 11.5v3M5.5 13l2.5 1.5L10.5 13" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="frame">
+
+    <!-- ===== 头部 ===== -->
+    <div class="home-head">
+      <div>
+        <h1>服务总览</h1>
+        <div class="sub">上午好，<b>11</b> 个服务中 <b>7</b> 个正在运行 · 每 2 秒自动刷新</div>
+      </div>
+      <div class="home-tools">
+        <div class="h-search">
+          <svg class="ic" style="width:13px;height:13px"><use href="#i-search"/></svg>
+          <input placeholder="搜索服务…" />
+        </div>
+        <button class="h-btn h-btn-ghost"><svg class="ic" style="width:13px;height:13px"><use href="#i-refresh"/></svg>刷新</button>
+        <button class="h-btn h-btn-primary"><svg class="ic" style="width:13px;height:13px"><use href="#i-plus"/></svg>注册服务</button>
+      </div>
+    </div>
+
+    <!-- ===== 本机资源四卡 ===== -->
+    <div class="res-row">
+      <div class="res-card">
+        <div class="rc-top">
+          <span class="rc-ico ico-cpu"><svg class="ic"><use href="#i-cpu"/></svg></span>
+          <span class="rc-label">CPU 使用率</span>
+        </div>
+        <div class="rc-val">23<small>%</small></div>
+        <div class="rc-sub">i7-13700 · 16 线程</div>
+        <div class="rc-viz"><svg viewBox="0 0 100 34" preserveAspectRatio="none">
+          <path d="M0,26 8,22 16,24 24,16 32,20 40,13 48,17 56,10 64,18 72,14 80,22 88,17 100,19 L100,34 0,34 Z"
+            fill="var(--gn-accent)" opacity="0.10"/>
+          <polyline points="0,26 8,22 16,24 24,16 32,20 40,13 48,17 56,10 64,18 72,14 80,22 88,17 100,19"
+            fill="none" stroke="var(--gn-accent)" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg></div>
+      </div>
+      <div class="res-card">
+        <div class="rc-top">
+          <span class="rc-ico ico-mem"><svg class="ic"><use href="#i-mem"/></svg></span>
+          <span class="rc-label">内存</span>
+        </div>
+        <div class="rc-val" style="color:var(--gn-warn)">62<small>%</small></div>
+        <div class="rc-sub">9.9 GB / 16 GB · 可用 6.1 GB</div>
+        <div class="rc-viz"><div class="rc-bar"><i style="width:62%;background:var(--gn-warn)"></i></div></div>
+      </div>
+      <div class="res-card">
+        <div class="rc-top">
+          <span class="rc-ico ico-disk"><svg class="ic"><use href="#i-disk"/></svg></span>
+          <span class="rc-label">磁盘 C:</span>
+        </div>
+        <div class="rc-val">41<small>%</small></div>
+        <div class="rc-sub">已用 412 GB / 1 TB · 剩余 588 GB</div>
+        <div class="rc-viz"><div class="rc-bar"><i style="width:41%;background:var(--gn-info)"></i></div></div>
+      </div>
+      <div class="res-card">
+        <div class="rc-top">
+          <span class="rc-ico ico-net"><svg class="ic"><use href="#i-net"/></svg></span>
+          <span class="rc-label">网络 · 以太网</span>
+        </div>
+        <div class="rc-val">2.4<small>MB/s</small></div>
+        <div class="rc-sub">接收 ↓2.4 · 发送 ↑0.3 MB/s</div>
+        <div class="rc-viz"><svg viewBox="0 0 100 34" preserveAspectRatio="none">
+          <path d="M0,28 10,25 20,27 30,22 40,26 50,20 60,24 70,18 80,23 90,20 100,22 L100,34 0,34 Z"
+            fill="var(--gn-info)" opacity="0.10"/>
+          <polyline points="0,28 10,25 20,27 30,22 40,26 50,20 60,24 70,18 80,23 90,20 100,22"
+            fill="none" stroke="var(--gn-info)" stroke-width="1.6" stroke-linejoin="round"/>
+        </svg></div>
+      </div>
+    </div>
+
+    <!-- ===== 过滤 chips ===== -->
+    <div class="filter-chips">
+      <button class="chip on">全部 <span class="n">11</span></button>
+      <button class="chip">运行中 <span class="n">7</span></button>
+      <button class="chip">已停止 <span class="n">3</span></button>
+      <button class="chip">异常 <span class="n">1</span></button>
+      <button class="chip">开机自启 <span class="n">5</span></button>
+    </div>
+
+    <!-- ===== 主区两栏 ===== -->
+    <div class="main-cols">
+      <div class="svc-list">
+        <div class="svc-row">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/java.svg" alt=""></span>
+          <span class="svc-id">
+            <span class="svc-name">order-service <span class="auto">自启</span></span>
+            <span class="svc-real">order-service · Java</span>
+          </span>
+          <span class="svc-state"><span class="svc-badge run"><i></i>运行中</span></span>
+          <span class="svc-metrics">
+            <span class="svc-m"><span class="m-k">CPU</span><br><span class="m-v">2.1%</span></span>
+            <span class="svc-m"><span class="m-k">内存</span><br><span class="m-v warn">486MB</span></span>
+          </span>
+          <span class="svc-ops">
+            <button class="op-btn stopb" title="停止"><svg class="ic"><use href="#i-stop"/></svg></button>
+            <button class="op-btn" title="重启"><svg class="ic"><use href="#i-restart"/></svg></button>
+            <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+          </span>
+        </div>
+        <div class="svc-row">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/mysql.svg" alt=""></span>
+          <span class="svc-id">
+            <span class="svc-name">MySQL 数据库 <span class="auto">自启</span></span>
+            <span class="svc-real">MySQL80 · 导入纳管</span>
+          </span>
+          <span class="svc-state"><span class="svc-badge run"><i></i>运行中</span></span>
+          <span class="svc-metrics">
+            <span class="svc-m"><span class="m-k">CPU</span><br><span class="m-v">0.8%</span></span>
+            <span class="svc-m"><span class="m-k">内存</span><br><span class="m-v">640MB</span></span>
+          </span>
+          <span class="svc-ops">
+            <button class="op-btn stopb" title="停止"><svg class="ic"><use href="#i-stop"/></svg></button>
+            <button class="op-btn" title="重启"><svg class="ic"><use href="#i-restart"/></svg></button>
+            <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+          </span>
+        </div>
+        <div class="svc-row">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/rustfs.png" alt=""></span>
+          <span class="svc-id">
+            <span class="svc-name">RustFS 对象存储 <span class="auto">自启</span></span>
+            <span class="svc-real">rustfs-service · RustFS</span>
+          </span>
+          <span class="svc-state"><span class="svc-badge run"><i></i>运行中</span></span>
+          <span class="svc-metrics">
+            <span class="svc-m"><span class="m-k">CPU</span><br><span class="m-v">2.1%</span></span>
+            <span class="svc-m"><span class="m-k">内存</span><br><span class="m-v">302MB</span></span>
+          </span>
+          <span class="svc-ops">
+            <button class="op-btn stopb" title="停止"><svg class="ic"><use href="#i-stop"/></svg></button>
+            <button class="op-btn" title="重启"><svg class="ic"><use href="#i-restart"/></svg></button>
+            <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+          </span>
+        </div>
+        <div class="svc-row">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/redis.ico" alt=""></span>
+          <span class="svc-id">
+            <span class="svc-name">Redis 缓存 A</span>
+            <span class="svc-real">redis-a · Redis</span>
+          </span>
+          <span class="svc-state"><span class="svc-badge run"><i></i>运行中</span></span>
+          <span class="svc-metrics">
+            <span class="svc-m"><span class="m-k">CPU</span><br><span class="m-v">0.3%</span></span>
+            <span class="svc-m"><span class="m-k">内存</span><br><span class="m-v">96MB</span></span>
+          </span>
+          <span class="svc-ops">
+            <button class="op-btn stopb" title="停止"><svg class="ic"><use href="#i-stop"/></svg></button>
+            <button class="op-btn" title="重启"><svg class="ic"><use href="#i-restart"/></svg></button>
+            <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+          </span>
+        </div>
+        <div class="svc-row">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/java.svg" alt=""></span>
+          <span class="svc-id">
+            <span class="svc-name">data-sync-service <span class="auto">自启</span></span>
+            <span class="svc-real">data-sync-service · Java</span>
+          </span>
+          <span class="svc-state"><span class="svc-badge run"><i></i>运行中</span></span>
+          <span class="svc-metrics">
+            <span class="svc-m"><span class="m-k">CPU</span><br><span class="m-v">3.2%</span></span>
+            <span class="svc-m"><span class="m-k">内存</span><br><span class="m-v">1.2GB</span></span>
+          </span>
+          <span class="svc-ops">
+            <button class="op-btn stopb" title="停止"><svg class="ic"><use href="#i-stop"/></svg></button>
+            <button class="op-btn" title="重启"><svg class="ic"><use href="#i-restart"/></svg></button>
+            <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+          </span>
+        </div>
+        <div class="svc-row err">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/java.svg" alt=""></span>
+          <span class="svc-id">
+            <span class="svc-name">report-generator</span>
+            <span class="svc-real">report-generator · Java</span>
+          </span>
+          <span class="svc-state"><span class="svc-badge err"><i></i>启动失败</span></span>
+          <span class="svc-metrics">
+            <span class="svc-m"><span class="m-k">退出码</span><br><span class="m-v" style="color:var(--gn-danger)">1</span></span>
+            <span class="svc-m"><span class="m-k">已重试</span><br><span class="m-v">2 次</span></span>
+          </span>
+          <span class="svc-ops">
+            <button class="op-btn play" title="启动"><svg class="ic"><use href="#i-play"/></svg></button>
+            <button class="op-btn" title="日志"><svg class="ic"><use href="#i-more"/></svg></button>
+          </span>
+        </div>
+        <div class="svc-row">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/redis.ico" alt=""></span>
+          <span class="svc-id">
+            <span class="svc-name">Redis 缓存 B</span>
+            <span class="svc-real">redis-b · Redis</span>
+          </span>
+          <span class="svc-state"><span class="svc-badge stop"><i></i>已停止</span></span>
+          <span class="svc-metrics">
+            <span class="svc-m"><span class="m-k">上次停止</span><br><span class="m-v">昨天 22:31</span></span>
+          </span>
+          <span class="svc-ops">
+            <button class="op-btn play" title="启动"><svg class="ic"><use href="#i-play"/></svg></button>
+            <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+          </span>
+        </div>
+        <div class="svc-row">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/mysql.svg" alt=""></span>
+          <span class="svc-id">
+            <span class="svc-name">MySQL 备库</span>
+            <span class="svc-real">mysql-slave · 导入纳管</span>
+          </span>
+          <span class="svc-state"><span class="svc-badge stop"><i></i>已停止</span></span>
+          <span class="svc-metrics">
+            <span class="svc-m"><span class="m-k">上次停止</span><br><span class="m-v">3 天前</span></span>
+          </span>
+          <span class="svc-ops">
+            <button class="op-btn play" title="启动"><svg class="ic"><use href="#i-play"/></svg></button>
+            <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+          </span>
+        </div>
+        <div class="svc-row">
+          <span class="svc-ico"><img src="../frontend/public/db-icons/rustfs.png" alt=""></span>
+          <span class="svc-id">
+            <span class="svc-name">backup-runner</span>
+            <span class="svc-real">backup-runner · RustFS</span>
+          </span>
+          <span class="svc-state"><span class="svc-badge stop"><i></i>已停止</span></span>
+          <span class="svc-metrics">
+            <span class="svc-m"><span class="m-k">上次停止</span><br><span class="m-v">上周五</span></span>
+          </span>
+          <span class="svc-ops">
+            <button class="op-btn play" title="启动"><svg class="ic"><use href="#i-play"/></svg></button>
+            <button class="op-btn" title="更多"><svg class="ic"><use href="#i-more"/></svg></button>
+          </span>
+        </div>
+      </div>
+
+      <div class="side-col">
+        <div class="side-card">
+          <h4>最近事件 <span class="all-link">全部 ›</span></h4>
+          <div class="events">
+            <div class="event"><i class="e-dot err"></i><span class="e-time">10:26</span><div class="e-body"><b>report-generator</b> 启动失败（退出码 1）</div></div>
+            <div class="event"><i class="e-dot info"></i><span class="e-time">10:02</span><div class="e-body"><b>MySQL80</b> 已扫描并自动纳管</div></div>
+            <div class="event"><i class="e-dot warn"></i><span class="e-time">09:47</span><div class="e-body"><b>order-service</b> 内存占用 86%，超过告警线</div></div>
+            <div class="event"><i class="e-dot run"></i><span class="e-time">09:30</span><div class="e-body"><b>rustfs-service</b> 注册并启动成功</div></div>
+            <div class="event"><i class="e-dot info"></i><span class="e-time">昨天</span><div class="e-body"><b>backup-runner</b> 手动停止</div></div>
+          </div>
+        </div>
+        <div class="side-card">
+          <h4>引擎</h4>
+          <div class="engine-card">
+            <i class="engine-dot"></i>
+            <span class="ec-text">servy-10.1.exe · 就绪</span>
+            <span class="ec-ver">v10.1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

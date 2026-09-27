@@ -25,7 +25,7 @@ const driverModalSource = readFileSync(
 
 describe('settings center tool entries', () => {
 
-  it('keeps the connection/database/object summary in the V2 explorer actions without the Host address', () => {
+  it('renders the managed-service explorer in place of the database tree summary', () => {
     const titlebarStart = appSource.indexOf('{/* Custom Title Bar */}');
     const titlebarEnd = appSource.indexOf('{showLinuxCJKFontBanner && (', titlebarStart);
     const titlebarSource = appSource.slice(titlebarStart, titlebarEnd);
@@ -34,22 +34,16 @@ describe('settings center tool entries', () => {
     expect(titlebarEnd).toBeGreaterThan(titlebarStart);
     expect(titlebarSource).not.toContain('className="gn-v2-titlebar-center"');
     expect(titlebarSource).not.toContain('data-titlebar-active-context');
-    expect(appSource).toContain('const v2ExplorerContext = useMemo(() => ({');
-    expect(appSource).toContain('v2ExplorerContext={v2ExplorerContext}');
-    expect(sidebarSource).toContain('className="gn-v2-explorer-context"');
-    expect(sidebarSource).toContain('{context.databaseName}');
-    expect(sidebarSource).toContain('{context.objectName}');
-    expect(appSource).toContain('onTitlebarSnapshotChange={setSidebarTitlebarSnapshot}');
-
-    const explorerContextStart = appSource.indexOf('const explorerContextConnectionName');
-    const explorerContextEnd = appSource.indexOf('const primaryActionIsMessageQueue', explorerContextStart);
-    const explorerContextSource = appSource.slice(explorerContextStart, explorerContextEnd);
-    expect(explorerContextStart).toBeGreaterThanOrEqual(0);
-    expect(explorerContextEnd).toBeGreaterThan(explorerContextStart);
-    expect(explorerContextSource).toContain('databaseName: titlebarContext.databaseName');
-    expect(explorerContextSource).toContain('objectName: titlebarContext.tableName');
-    expect(explorerContextSource).not.toContain('titlebarContext.hostSummary');
-    expect(explorerContextSource).not.toContain('detailText');
+    // 左侧树已切换为纳管服务树：数据库 Host 摘要与侧栏快照发布不再接线。
+    expect(appSource).toContain('<ServiceTreeSidebar');
+    expect(appSource).toContain('onAddService={() => setIsAddServiceModalOpen(true)}');
+    expect(appSource).not.toContain('v2ExplorerContext={v2ExplorerContext}');
+    expect(appSource).not.toContain('onTitlebarSnapshotChange={setSidebarTitlebarSnapshot}');
+    const serviceTreeSource = readFileSync(
+      fileURLToPath(new globalThis.URL('./components/serviceTree/ServiceTreeSidebar.tsx', import.meta.url)),
+      'utf8',
+    );
+    expect(serviceTreeSource).toContain('service.tree.title');
   });
 
   it('applies the V2 document scope before the first titlebar paint', () => {

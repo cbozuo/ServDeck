@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>新增服务 · 对齐 servy 10.1 CLI</title>
+<style>
+  :root {
+    --bg-app: rgb(246 246 244);
+    --bg-chrome: rgb(236 236 234);
+    --bg-panel: #ffffff;
+    --bg-panel-2: rgb(250 250 248);
+    --bg-input: #ffffff;
+    --bg-hover: rgba(15, 23, 42, 0.045);
+    --bg-selected: rgba(21, 128, 61, 0.14);
+    --fg-1: #0c1322;
+    --fg-2: #33415c;
+    --fg-4: #6b7280;
+    --fg-5: rgba(0, 0, 0, 0.4);
+    --br-1: rgba(15, 23, 42, 0.08);
+    --br-2: rgba(15, 23, 42, 0.1);
+    --accent: #15803d;
+    --accent-2: #166534;
+    --accent-strong: #15803d;
+    --accent-strong-hover: #126634;
+    --warn: #b45309;
+    --danger: #e5484d;
+    --info: #1677ff;
+    --radius: 8px;
+    --control-h: 32px;
+    --font-sans: "Inter", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  [data-theme="dark"] {
+    --bg-app: rgb(12 14 18);
+    --bg-chrome: rgb(20 23 28);
+    --bg-panel: rgb(22 26 33);
+    --bg-panel-2: rgb(27 31 39);
+    --bg-input: rgb(15 18 23);
+    --bg-hover: rgba(255, 255, 255, 0.05);
+    --bg-selected: rgba(34, 197, 94, 0.18);
+    --fg-1: #ffffff;
+    --fg-2: #c9d1d9;
+    --fg-4: #d9d9d9;
+    --fg-5: rgba(255, 255, 255, 0.45);
+    --br-1: rgba(255, 255, 255, 0.06);
+    --br-2: rgba(255, 255, 255, 0.1);
+    --accent: #22c55e;
+    --accent-2: #16a34a;
+    --accent-strong: #15803d;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --info: #60a5fa;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg-app); color: var(--fg-1); font-family: var(--font-sans); font-size: 13px; line-height: 1.5; padding: 24px 24px 60px; }
+
+  .toolbar { max-width: 1180px; margin: 0 auto 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .toolbar h1 { font-size: 15px; font-weight: 600; margin: 0 12px 0 0; }
+  .chip-btn { height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--br-2); background: var(--bg-panel); color: var(--fg-1); font: inherit; font-size: 12px; cursor: pointer; }
+  .chip-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--bg-selected); color: var(--accent); font-weight: 600; }
+  .hint { color: var(--fg-4); font-size: 12px; }
+
+  .stage { max-width: 1180px; margin: 0 auto; display: flex; gap: 28px; align-items: flex-start; }
+  .modal-shell { width: 760px; flex: 0 0 auto; background: var(--bg-panel); border: 1px solid var(--br-2); border-radius: 14px; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18); overflow: hidden; position: relative; }
+
+  .studio-header { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; column-gap: 12px; width: 100%; padding: 12px 16px; border-bottom: 1px solid var(--br-1); }
+  .studio-header.form-step { column-gap: 8px; padding: 8px 12px; }
+  .header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .type-badge { width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: var(--accent-strong); flex: 0 0 auto; }
+  .studio-title { font-size: 14px; font-weight: 700; white-space: nowrap; }
+  .studio-subtitle { font-size: 12px; color: var(--fg-4); margin-top: 1px; }
+  .steps { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-5); white-space: nowrap; }
+  .steps [data-active] { color: var(--accent); font-weight: 650; }
+  .steps [data-done] { color: var(--fg-2); }
+  .steps svg { width: 9px; height: 9px; opacity: .5; }
+  .close-btn { justify-self: end; width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--fg-4); cursor: pointer; display: grid; place-items: center; }
+
+  .picker { height: 700px; display: flex; flex-direction: column; min-height: 0; }
+  .picker-body { display: grid; grid-template-columns: minmax(200px, 24%) minmax(0, 1fr); flex: 1; min-height: 0; overflow: hidden; background: var(--bg-panel); }
+  .picker-side { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px; border-right: 1px solid var(--br-1); background: var(--bg-chrome); min-width: 0; overflow: auto; }
+  .search { display: flex; align-items: center; gap: 6px; background: var(--bg-input); border: 1px solid var(--br-2); border-radius: 10px; padding: 7px 8px 7px 10px; }
+  .search input { flex: 1 1 auto; min-width: 0; width: 0; border: 0; outline: none; background: transparent; font: inherit; font-size: 12.5px; color: var(--fg-1); }
+  kbd.shortcut { flex-shrink: 0; padding: 2px 5px; border: 1px solid var(--br-2); border-radius: 4px; background: var(--bg-panel-2); color: var(--fg-5); font-family: var(--font-mono); font-size: 10px; line-height: 1.2; }
+  .sec-label { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-5); margin: 0 0 6px 4px; font-weight: 700; }
+  .block-grow { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .side-list { display: flex; flex-direction: column; gap: 2px; overflow: auto; min-height: 0; }
+  .side-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border-radius: 8px; border: 0; background: transparent; color: inherit; font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+  .side-item:hover { background: var(--bg-hover); }
+  .side-item[aria-pressed="true"] { background: var(--bg-selected); color: var(--accent); font-weight: 650; }
+  .side-item .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .count { margin-left: auto; font-size: 11px; color: var(--fg-5); background: var(--bg-panel); padding: 1px 6px; border-radius: 999px; flex-shrink: 0; }
+  .side-item[aria-pressed="true"] .count { color: var(--accent); background: var(--bg-selected); }
+
+  .engine { margin-top: auto; padding: 6px 8px; border: 1px solid var(--br-2); border-radius: 8px; background: var(--bg-panel); font-size: 11px; color: var(--fg-4); display: flex; align-items: center; gap: 6px; }
+  .engine .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
+
+  .picker-main { padding: 14px 16px 18px; overflow: auto; min-width: 0; width: 100%; }
+  .main-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; gap: 12px; }
+  .main-h h3 { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .main-h span { font-size: 12px; color: var(--fg-5); flex-shrink: 0; }
+  .type-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; width: 100%; }
+  .type-card { position: relative; color: inherit; background: var(--bg-panel-2); border: 1px solid var(--br-2); border-radius: var(--radius); transition: border-color .15s, transform .15s, background .15s; min-width: 0; overflow: hidden; }
+  .type-card:hover { border-color: var(--accent); background: var(--bg-selected); transform: translateY(-1px); }
+  .card-select { appearance: none; display: block; width: 100%; min-height: 100%; padding: 12px 42px 12px 12px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .card-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .card-logo { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; overflow: hidden; }
+  .card-meta { min-width: 0; flex: 1; }
+  .card-name { font-size: 13.5px; font-weight: 700; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-hint { font-size: 11.5px; color: var(--fg-4); margin-top: 2px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+  .tag { padding: 2px 7px; border-radius: 999px; background: var(--bg-chrome); color: var(--fg-4); font-size: 10.5px; line-height: 1.2; }
+  .tag.cli { background: rgba(21,128,61,.12); color: var(--accent); }
+  .card-pin { position: absolute; top: 8px; right: 8px; z-index: 1; width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--fg-5); cursor: pointer; display: grid; place-items: center; }
+  .card-pin[aria-pressed="true"] { color: var(--accent); }
+
+  .form-layout { display: flex; flex-direction: column; min-height: 0; flex: 0 0 auto; max-height: min(780px, calc(100vh - 132px)); width: 100%; }
+  .form-nav { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px 12px 0; margin: 0; border-bottom: 1px solid var(--br-1); background: var(--bg-chrome); flex: 0 0 auto; }
+  .form-nav button { appearance: none; border: 0; background: transparent; text-align: center; font: inherit; font-size: 12px; font-weight: 600; color: var(--fg-4); padding: 7px 12px 8px; border-radius: 8px 8px 0 0; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .form-nav button:hover { color: var(--fg-1); background: var(--bg-hover); }
+  .form-nav button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); background: transparent; }
+  .form-main { flex: 1 1 auto; min-height: 0; width: 100%; overflow: auto; padding: 10px 2% 12px; height: 452px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .grp { margin-bottom: 14px; }
+  .grp-title { font-size: 12px; font-weight: 700; margin: 0 0 2px; display: flex; align-items: center; gap: 6px; }
+  .grp-desc { font-size: 11.5px; color: var(--fg-4); margin: 0 0 10px; }
+  .fields { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px 16px; }
+  .field { min-width: 0; }
+  .field.col-span { grid-column: 1 / -1; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--fg-2); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+  .field label .req { color: var(--danger); }
+  .field label .cli-flag { font-family: var(--font-mono); font-size: 10px; font-weight: 400; color: var(--fg-5); }
+  .ctl { width: 100%; height: var(--control-h); padding: 4px 10px; border: 1px solid var(--br-2); border-radius: 6px; background: var(--bg-input); color: var(--fg-1); font: inherit; font-size: 12.5px; outline: none; }
+  .ctl.mono { font-family: var(--font-mono); font-size: 12px; }
+  .ctl:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(21,128,61,.16); }
+  .ctl-wrap { display: flex; gap: 6px; align-items: center; }
+  .ctl-wrap .ctl { flex: 1; }
+  .mini-btn { height: var(--control-h); padding: 0 10px; flex: 0 0 auto; border: 1px solid var(--br-2); border-radius: 6px; background: var(--bg-panel-2); color: var(--fg-2); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--bg-chrome); border-radius: 8px; width: 100%; }
+  .seg button { flex: 1; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--fg-2); font: inherit; font-size: 12px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--bg-panel); color: var(--fg-1); font-weight: 600; box-shadow: 0 1px 2px rgba(15,23,42,.08); }
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border: 1px solid var(--br-2); border-radius: 8px; background: var(--bg-panel-2); margin-bottom: 8px; }
+  .switch-row .meta-title { font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .switch-row .meta-desc { font-size: 11.5px; color: var(--fg-4); }
+  .switch { width: 34px; height: 20px; border-radius: 999px; background: var(--br-2); position: relative; flex: 0 0 auto; }
+  .switch[data-on="true"] { background: var(--accent); }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .switch[data-on="true"]::after { left: 16px; }
+  .kv { border: 1px solid var(--br-2); border-radius: 8px; overflow: hidden; }
+  .kv-row { display: grid; grid-template-columns: 34% 1fr 32px; gap: 0; border-bottom: 1px solid var(--br-1); }
+  .kv-row:last-child { border-bottom: 0; }
+  .kv-row input { height: 30px; border: 0; padding: 0 10px; background: transparent; color: var(--fg-1); font: inherit; font-size: 12px; font-family: var(--font-mono); outline: none; width: 100%; }
+  .kv-row input + input { border-left: 1px solid var(--br-1); }
+  .kv-del { border: 0; background: transparent; color: var(--fg-5); cursor: pointer; font-size: 14px; }
+  .kv-add { width: 100%; border: 0; background: var(--bg-panel-2); color: var(--fg-2); font: inherit; font-size: 12px; padding: 7px; cursor: pointer; text-align: left; }
+  .code { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.65; background: var(--bg-chrome); border: 1px solid var(--br-1); border-radius: 8px; padding: 10px 12px; color: var(--fg-2); white-space: pre-wrap; word-break: break-all; }
+  .banner { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 8px; padding: 4px 8px; border: 1px solid var(--br-2); border-radius: 6px; font-size: 11.5px; line-height: 1.35; }
+  .banner.warn { border-color: rgba(180,83,9,.35); background: rgba(180,83,9,.08); color: var(--warn); }
+  .banner.info { border-color: rgba(22,119,255,.35); background: rgba(22,119,255,.08); color: var(--info); }
+  .banner.ok { border-color: rgba(21,128,61,.35); background: rgba(21,128,61,.08); color: var(--accent); }
+  .pick-list { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; }
+  .pick { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--br-2); border-radius: 8px; background: var(--bg-panel-2); font-size: 12px; cursor: pointer; }
+  .pick[data-on="true"] { border-color: var(--accent); background: var(--bg-selected); color: var(--accent); font-weight: 600; }
+
+  .foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 10px 12px; border-top: 1px solid var(--br-1); }
+  .foot-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; color: var(--fg-4); font-size: 12px; }
+  .foot-right { flex: 0 0 auto; display: flex; gap: 8px; }
+  .btn { height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--br-2); background: var(--bg-panel); color: var(--fg-1); font: inherit; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; font-weight: 600; }
+  .btn.primary:hover { background: var(--accent-strong-hover); color: #fff; }
+
+  .anno { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .15s; }
+  .anno.on { opacity: 1; }
+  .anno span { position: absolute; font-family: var(--font-mono); font-size: 10px; color: #e5484d; background: rgba(229,72,77,.1); padding: 1px 4px; border-radius: 3px; }
+  .anno i { position: absolute; border: 1px dashed #e5484d; border-radius: 4px; }
+
+  .notes { flex: 1 1 320px; min-width: 280px; }
+  .notes h2 { font-size: 13px; font-weight: 700; margin: 0 0 8px; }
+  .notes table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .notes th, .notes td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--br-1); vertical-align: top; }
+  .notes th { color: var(--fg-4); font-weight: 600; width: 96px; }
+  .notes code { font-family: var(--font-mono); font-size: 11px; background: var(--bg-chrome); padding: 1px 4px; border-radius: 3px; }
+  .notes ul { margin: 4px 0 0; padding-left: 16px; }
+  .notes li { margin-bottom: 4px; }
+  [data-step="1"] .step2 { display: none; }
+  [data-step="2"] .step1 { display: none; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3-1-6zM12 13v7" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4l8 15H4L12 4z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M12 10v4M12 16.5v.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M12 11v5M12 8v.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="currentColor" stroke-width="1.6" fill="none"/></symbol>
+
+    <symbol id="s-java" viewBox="0 0 32 32"><path d="M11 18c0 3-2 5-5 5h6c-3 0-5-2-5-5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M8 9c0-1.6 1.3-2.8 3-2.8S14 7.4 14 9" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M19 23c0 1.4 1 2.4 2.6 2.4h3.6c1.7 0 2.8-1 2.8-2.5 0-1.4-.8-2.2-2.4-2.8l-2.2-.8c-1.6-.6-2.6-1.3-2.6-2.6 0-1.4 1.1-2.4 2.7-2.4h3.2c1.5 0 2.5 1 2.5 2.3" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M12 26h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="s-mysql" viewBox="0 0 32 32"><path d="M23 26V10c0-3-2.5-5-6-5-3.4 0-6 1.6-7.6 4.4C8 12.4 7 15 7 17.6c0 3.4 1.6 5.4 4.3 5.4 1.7 0 3-1 3.6-2.6.5-1.3.4-2.6-.2-4.2-.5-1.3-.6-2.2-.4-3 .4-1.6 1.7-2.6 3.3-2.6 1.9 0 3.2 1.4 3.2 3.4V26" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="s-redis" viewBox="0 0 32 32"><ellipse cx="16" cy="10" rx="11" ry="4" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M5 10v6c0 2.2 4.9 4 11 4s11-1.8 11-4v-6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M5 16v6c0 2.2 4.9 4 11 4s11-1.8 11-4v-6" stroke="currentColor" stroke-width="1.6" fill="none"/></symbol>
+    <symbol id="s-rustfs" viewBox="0 0 32 32"><rect x="7" y="7" width="12" height="12" rx="3" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M13 13h12M13 13v12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="22" cy="22" r="4" stroke="currentColor" stroke-width="1.8" fill="none"/></symbol>
+    <symbol id="s-nginx" viewBox="0 0 32 32"><path d="M8 22L16 6l8 16v4H8v-4z" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/><path d="M16 6v20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16" cy="16" r="3" stroke="currentColor" stroke-width="1.6" fill="none"/></symbol>
+    <symbol id="s-kafka" viewBox="0 0 32 32"><circle cx="10" cy="9" r="3" stroke="currentColor" stroke-width="1.7" fill="none"/><circle cx="10" cy="23" r="3" stroke="currentColor" stroke-width="1.7" fill="none"/><circle cx="23" cy="16" r="3.4" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M13 10.4L20 14.6M13 21.6l7-4.2" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="s-rabbit" viewBox="0 0 32 32"><circle cx="14" cy="20" r="7" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M10 14c-1-5 0-8 1-9 0 3 1 5 2 6M16 13c0-5 1-8 3-9-.4 3 .2 5 1 7" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="s-node" viewBox="0 0 32 32"><path d="M16 4l11 6.5v11L16 28 5 21.5v-11L16 4z" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round"/><path d="M12 20v-7h3l3 7" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="s-go" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M4 14h6M22 18h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M11 12h7v8H11" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="s-minio" viewBox="0 0 32 32"><rect x="6" y="18" width="9" height="8" rx="2" stroke="currentColor" stroke-width="1.7" fill="none"/><rect x="17" y="18" width="9" height="8" rx="2" stroke="currentColor" stroke-width="1.7" fill="none"/><rect x="6" y="7" width="9" height="8" rx="2" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M17 11h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="s-custom" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="20" rx="5" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M12 16h8M16 12v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="toolbar">
+  <h1>新增服务 · 对齐 servy 10.1 CLI</h1>
+  <button class="chip-btn" id="step1Btn" aria-pressed="true">步骤 1 · 选择服务</button>
+  <button class="chip-btn" id="step2Btn" aria-pressed="false">步骤 2 · 服务参数</button>
+  <button class="chip-btn" id="themeBtn">切换暗色</button>
+  <button class="chip-btn" id="annoBtn" aria-pressed="false">尺寸标注</button>
+  <span class="hint">字段全部对应 <code style="font-family:var(--font-mono);font-size:11px">servy install</code> 的真实参数</span>
+</div>
+
+<div class="stage">
+  <div class="modal-shell" id="shell" data-step="1">
+    <div class="step1">
+      <div class="studio-header">
+        <div class="header-left">
+          <div class="type-badge"><svg width="18" height="18" style="color:#fff"><use href="#i-plus"/></svg></div>
+          <div>
+            <div class="studio-title">新增服务</div>
+            <div class="studio-subtitle">选择模板，ServDeck 会把参数交给 servy 注册为 Windows 服务</div>
+          </div>
+        </div>
+        <div class="steps">
+          <span data-active="true">1 选择模板</span><svg><use href="#i-right"/></svg>
+          <span>2 服务参数</span><svg><use href="#i-right"/></svg>
+          <span>3 安装并启动</span>
+        </div>
+        <button class="close-btn" aria-label="关闭"><svg width="14" height="14" style="color:currentColor"><use href="#i-close"/></svg></button>
+      </div>
+
+      <div class="picker">
+        <div class="picker-body">
+          <aside class="picker-side">
+            <div class="search">
+              <svg width="13" height="13" style="color:var(--fg-5)"><use href="#i-search"/></svg>
+              <input placeholder="搜索服务模板">
+              <kbd class="shortcut">Ctrl K</kbd>
+            </div>
+            <div class="block-grow">
+              <div class="sec-label">服务分类</div>
+              <div class="side-list" id="catList"></div>
+            </div>
+            <div class="engine">
+              <span class="dot"></span>
+              <span>servy 10.1.0 就绪<br>C:\workspace\assets\servy-10.1.exe</span>
+            </div>
+          </aside>
+
+          <main class="picker-main">
+            <div class="main-h">
+              <h3 id="gridTitle">Java 应用</h3>
+              <span>点击卡片套用模板</span>
+            </div>
+            <div class="type-grid" id="typeGrid"></div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <div class="step2">
+      <div class="studio-header form-step">
+        <div class="header-left">
+          <div class="type-badge" id="formBadge" style="background:#E76F00"><svg width="26" height="26" style="color:#fff"><use href="#s-java"/></svg></div>
+          <div>
+            <div class="studio-title" id="formTitle">新增 Java 服务</div>
+            <div class="studio-subtitle" id="formSub">Java 应用 · java</div>
+          </div>
+        </div>
+        <div class="steps">
+          <span data-done="true">1 选择模板</span><svg><use href="#i-right"/></svg>
+          <span data-active="true">2 服务参数</span><svg><use href="#i-right"/></svg>
+          <span>3 安装并启动</span>
+        </div>
+        <button class="close-btn" aria-label="关闭"><svg width="14" height="14" style="color:currentColor"><use href="#i-close"/></svg></button>
+      </div>
+
+      <div class="form-layout">
+        <div class="form-nav" id="formNav"></div>
+        <div class="form-main">
+
+          <div class="panel active" data-panel="basic">
+            <div class="banner ok"><svg width="13" height="13"><use href="#i-info"/></svg><span>已按 Java 模板预填进程与日志参数，可继续修改</span></div>
+            <div class="grp">
+              <div class="grp-title">标识</div>
+              <div class="grp-desc">服务名是 servy 与 Windows SCM 使用的唯一标识，安装后不可直接改名。</div>
+              <div class="fields">
+                <div class="field">
+                  <label>服务名 <span class="req">*</span><span class="cli-flag">--name</span></label>
+                  <input class="ctl mono" value="order-api">
+                </div>
+                <div class="field">
+                  <label>显示名<span class="cli-flag">--displayName</span></label>
+                  <input class="ctl" value="Order API (Java)">
+                </div>
+                <div class="field col-span">
+                  <label>描述<span class="cli-flag">-d --description</span></label>
+                  <input class="ctl" value="订单服务，Spring Boot 3.2，端口 8080">
+                </div>
+                <div class="field">
+                  <label>关联分组</label>
+                  <input class="ctl" value="生产环境 / 业务服务">
+                </div>
+                <div class="field">
+                  <label>标签</label>
+                  <input class="ctl" value="java, spring, 核心">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="process">
+            <div class="grp">
+              <div class="grp-title">可执行程序</div>
+              <div class="grp-desc">路径与启动目录支持环境变量展开，例如 %JAVA_HOME%\bin\java.exe。</div>
+              <div class="fields">
+                <div class="field col-span">
+                  <label>可执行文件路径 <span class="req">*</span><span class="cli-flag">-p --path</span></label>
+                  <div class="ctl-wrap"><input class="ctl mono" value="%JAVA_HOME%\bin\java.exe"><button class="mini-btn">浏览</button></div>
+                </div>
+                <div class="field col-span">
+                  <label>启动目录<span class="cli-flag">--startupDir</span></label>
+                  <div class="ctl-wrap"><input class="ctl mono" value="%PROGRAMDATA%\order-api"><button class="mini-btn">浏览</button></div>
+                </div>
+                <div class="field col-span">
+                  <label>启动参数<span class="cli-flag">--params</span></label>
+                  <input class="ctl mono" value="-Xms512m -Xmx1024m -jar "%PROGRAMDATA%\order-api\order-api.jar"">
+                </div>
+              </div>
+              <div class="banner warn"><svg width="13" height="13"><use href="#i-warn"/></svg><span>参数会出现在操作系统进程列表里。涉及密钥时改用 SERVY_PROCESS_PARAMETERS 环境变量，本弹窗会把内容写入该变量而不是命令行。</span></div>
+            </div>
+            <div class="grp">
+              <div class="grp-title">环境变量<span class="cli-flag">--envVars</span></div>
+              <div class="grp-desc">格式 varName=varValue，多条用分号分隔。敏感项建议落到 SERVY_ENVIRONMENT_VARIABLES。</div>
+              <div class="kv">
+                <div class="kv-row"><input value="SPRING_PROFILES_ACTIVE"><input value="prod"><button class="kv-del">×</button></div>
+                <div class="kv-row"><input value="JAVA_OPTS"><input value="-Dfile.encoding=UTF-8"><button class="kv-del">×</button></div>
+                <div class="kv-row"><input value="LOG_HOME"><input value="%PROGRAMDATA%\order-api\logs"><button class="kv-del">×</button></div>
+                <button class="kv-add">+ 添加变量</button>
+              </div>
+            </div>
+            <div class="grp">
+              <div class="grp-title">进程属性</div>
+              <div class="fields">
+                <div class="field">
+                  <label>进程优先级<span class="cli-flag">--priority</span></label>
+                  <input class="ctl" value="Normal（默认）">
+                </div>
+                <div class="field">
+                  <label>CPU 亲和性<span class="cli-flag">-a --cpuAffinity</span></label>
+                  <input class="ctl mono" placeholder="0-3,8 或 0xFF00">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="control">
+            <div class="grp">
+              <div class="grp-title">启动类型<span class="cli-flag">--startupType</span></div>
+              <div class="grp-desc">决定系统启动时 SCM 是否自动拉起该服务。</div>
+              <div class="pick-list">
+                <div class="pick" data-on="true">Automatic</div>
+                <div class="pick" data-on="false">AutomaticDelayedStart</div>
+                <div class="pick" data-on="false">Manual</div>
+                <div class="pick" data-on="false">Disabled</div>
+              </div>
+            </div>
+            <div class="grp">
+              <div class="grp-title">超时与依赖</div>
+              <div class="fields">
+                <div class="field">
+                  <label>启动超时（秒）<span class="cli-flag">--startTimeout</span></label>
+                  <input class="ctl mono" value="10">
+                </div>
+                <div class="field">
+                  <label>停止超时（秒）<span class="cli-flag">--stopTimeout</span></label>
+                  <input class="ctl mono" value="5">
+                </div>
+                <div class="field col-span">
+                  <label>依赖服务<span class="cli-flag">--deps</span></label>
+                  <input class="ctl mono" value="mysql-prod; redis-prod">
+                </div>
+              </div>
+            </div>
+            <div class="grp">
+              <div class="grp-title">控制台</div>
+              <div class="switch-row">
+                <div>
+                  <div class="meta-title">启用控制台界面<span class="cli-flag">--enableConsoleUI</span></div>
+                  <div class="meta-desc">开启后 stdout / stderr 重定向会被关闭</div>
+                </div>
+                <div class="switch" data-on="false"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="account">
+            <div class="grp">
+              <div class="grp-title">运行账号<span class="cli-flag">--user / --password</span></div>
+              <div class="grp-desc">留空表示 Local System。内置账号、虚拟账号与 gMSA 不需要密码。</div>
+              <div class="fields">
+                <div class="field">
+                  <label>账号<span class="cli-flag">--user</span></label>
+                  <input class="ctl mono" placeholder=".\username 或 DOMAIN\username 或 NT AUTHORITY\LocalService">
+                </div>
+                <div class="field">
+                  <label>密码<span class="cli-flag">--password</span></label>
+                  <input class="ctl" type="password" placeholder="留空表示内置账号">
+                </div>
+              </div>
+            </div>
+            <div class="banner warn"><svg width="13" height="13"><use href="#i-warn"/></svg><span>使用非 Local System 账号时，必须对该账号授予 %ProgramData%\Servy 的 Modify 权限，并执行 Set-ServyExePermissions.ps1 加固脚本，否则存在本地提权风险。密码一律走 SERVY_PASSWORD 环境变量，不写命令行。</span></div>
+            <div class="grp">
+              <div class="grp-title">调试日志</div>
+              <div class="switch-row">
+                <div>
+                  <div class="meta-title">记录环境变量与参数<span class="cli-flag">--debug</span></div>
+                  <div class="meta-desc">会写入 Servy.Service.log，生产环境不建议开启</div>
+                </div>
+                <div class="switch" data-on="false"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="logging">
+            <div class="grp">
+              <div class="grp-title">输出重定向</div>
+              <div class="fields">
+                <div class="field">
+                  <label>stdout 日志<span class="cli-flag">--stdout</span></label>
+                  <div class="ctl-wrap"><input class="ctl mono" value="%PROGRAMDATA%\order-api\logs\out.log"><button class="mini-btn">浏览</button></div>
+                </div>
+                <div class="field">
+                  <label>stderr 日志<span class="cli-flag">--stderr</span></label>
+                  <div class="ctl-wrap"><input class="ctl mono" value="%PROGRAMDATA%\order-api\logs\err.log"><button class="mini-btn">浏览</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="grp">
+              <div class="grp-title">轮转策略</div>
+              <div class="grp-desc">同时启用两种轮转时，按大小轮转优先。</div>
+              <div class="switch-row">
+                <div>
+                  <div class="meta-title">按大小轮转<span class="cli-flag">--enableSizeRotation</span></div>
+                  <div class="meta-desc">单文件达到阈值后切分</div>
+                </div>
+                <div class="switch" data-on="true"></div>
+              </div>
+              <div class="switch-row">
+                <div>
+                  <div class="meta-title">按日期轮转<span class="cli-flag">--enableDateRotation</span></div>
+                  <div class="meta-desc">Daily / Weekly / Monthly</div>
+                </div>
+                <div class="switch" data-on="true"></div>
+              </div>
+              <div class="fields">
+                <div class="field">
+                  <label>大小阈值（MB）<span class="cli-flag">--rotationSize</span></label>
+                  <input class="ctl mono" value="64">
+                </div>
+                <div class="field">
+                  <label>日期类型<span class="cli-flag">--dateRotationType</span></label>
+                  <div class="seg">
+                    <button aria-pressed="true">Daily</button>
+                    <button aria-pressed="false">Weekly</button>
+                    <button aria-pressed="false">Monthly</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>保留份数<span class="cli-flag">--maxRotations</span></label>
+                  <input class="ctl mono" value="30">
+                </div>
+                <div class="field">
+                  <label>本地时间<span class="cli-flag">--useLocalTimeForRotation</span></label>
+                  <div class="seg">
+                    <button aria-pressed="true">本地</button>
+                    <button aria-pressed="false">UTC</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="health">
+            <div class="grp">
+              <div class="grp-title">健康监控<span class="cli-flag">--enableHealth</span></div>
+              <div class="switch-row">
+                <div>
+                  <div class="meta-title">启用心跳检测</div>
+                  <div class="meta-desc">连续失败超过阈值后触发恢复动作</div>
+                </div>
+                <div class="switch" data-on="true"></div>
+              </div>
+              <div class="fields">
+                <div class="field">
+                  <label>心跳间隔（秒）<span class="cli-flag">--heartbeatInterval</span></label>
+                  <input class="ctl mono" value="30">
+                </div>
+                <div class="field">
+                  <label>最大失败次数<span class="cli-flag">--maxFailedChecks</span></label>
+                  <input class="ctl mono" value="3">
+                </div>
+                <div class="field col-span">
+                  <label>心跳 URL<span class="cli-flag">--heartbeatUrl</span></label>
+                  <input class="ctl mono" value="https://intranet.example.com/hook/order-api">
+                </div>
+                <div class="field">
+                  <label>URL 超时（秒）<span class="cli-flag">--heartbeatUrlTimeoutSeconds</span></label>
+                  <input class="ctl mono" value="10">
+                </div>
+                <div class="field">
+                  <label>附加 /start 与 /fail<span class="cli-flag">--enableHeartbeatUrlFlags</span></label>
+                  <div class="seg">
+                    <button aria-pressed="true">开启</button>
+                    <button aria-pressed="false">关闭</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="recovery">
+            <div class="grp">
+              <div class="grp-title">失败恢复<span class="cli-flag">--recoveryAction</span></div>
+              <div class="pick-list">
+                <div class="pick" data-on="false">None</div>
+                <div class="pick" data-on="true">RestartService</div>
+                <div class="pick" data-on="false">RestartProcess</div>
+                <div class="pick" data-on="false">RestartComputer</div>
+              </div>
+              <div class="banner info"><svg width="13" height="13"><use href="#i-info"/></svg><span>NetworkService、LocalService 与无权限账号下，只有 RestartProcess 可用。</span></div>
+              <div class="fields">
+                <div class="field">
+                  <label>最大重启次数<span class="cli-flag">--maxRestartAttempts</span></label>
+                  <input class="ctl mono" value="5">
+                </div>
+                <div class="field">
+                  <label>正常退出也恢复<span class="cli-flag">--recoveryOnCleanExit</span></label>
+                  <div class="seg">
+                    <button aria-pressed="false">否</button>
+                    <button aria-pressed="true">是</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="grp">
+              <div class="grp-title">兜底程序<span class="cli-flag">--failureProgramPath</span></div>
+              <div class="grp-desc">进程非零退出，或恢复重试耗尽后执行。启动失败时不执行。</div>
+              <div class="fields">
+                <div class="field col-span">
+                  <label>程序路径</label>
+                  <div class="ctl-wrap"><input class="ctl mono" value="C:\ops\notify-failure.ps1"><button class="mini-btn">浏览</button></div>
+                </div>
+                <div class="field">
+                  <label>工作目录<span class="cli-flag">--failureProgramStartupDir</span></label>
+                  <input class="ctl mono" value="C:\ops">
+                </div>
+                <div class="field">
+                  <label>参数<span class="cli-flag">--failureProgramParams</span></label>
+                  <input class="ctl mono" value="-Service order-api">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="hooks">
+            <div class="grp">
+              <div class="grp-title">启动前<span class="cli-flag">--preLaunchPath</span></div>
+              <div class="grp-desc">常用于拉取配置或密钥。失败时默认阻止服务启动。</div>
+              <div class="fields">
+                <div class="field col-span">
+                  <label>程序路径</label>
+                  <div class="ctl-wrap"><input class="ctl mono" value="C:\ops\pull-config.bat"><button class="mini-btn">浏览</button></div>
+                </div>
+                <div class="field">
+                  <label>超时（秒）<span class="cli-flag">--preLaunchTimeout</span></label>
+                  <input class="ctl mono" value="60">
+                </div>
+                <div class="field">
+                  <label>重试次数<span class="cli-flag">--preLaunchRetryAttempts</span></label>
+                  <input class="ctl mono" value="2">
+                </div>
+                <div class="field">
+                  <label>失败仍启动<span class="cli-flag">--preLaunchIgnoreFailure</span></label>
+                  <div class="seg">
+                    <button aria-pressed="false">否</button>
+                    <button aria-pressed="true">是</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>启动后程序<span class="cli-flag">--postLaunchPath</span></label>
+                  <input class="ctl mono" placeholder="进程成功启动后执行">
+                </div>
+              </div>
+            </div>
+            <div class="grp">
+              <div class="grp-title">停止前<span class="cli-flag">--preStopPath</span></div>
+              <div class="grp-desc">同步执行，运行期间会延长服务停止超时，用于优雅下线。</div>
+              <div class="fields">
+                <div class="field col-span">
+                  <label>程序路径</label>
+                  <div class="ctl-wrap"><input class="ctl mono" value="C:\ops\drain-traffic.ps1"><button class="mini-btn">浏览</button></div>
+                </div>
+                <div class="field">
+                  <label>超时（秒）<span class="cli-flag">--preStopTimeout</span></label>
+                  <input class="ctl mono" value="30">
+                </div>
+                <div class="field">
+                  <label>参数<span class="cli-flag">--preStopParams</span></label>
+                  <input class="ctl mono" value="-Grace 20">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="command">
+            <div class="grp">
+              <div class="grp-title">等价命令预览</div>
+              <div class="grp-desc">ServDeck 调用外置 servy 执行的完整命令，敏感值已替换为环境变量引用。</div>
+              <div class="code" id="cmdPreview">servy-10.1.exe install ^
+  --name order-api ^
+  --displayName "Order API (Java)" ^
+  --description "订单服务，Spring Boot 3.2，端口 8080" ^
+  --path "%JAVA_HOME%\bin\java.exe" ^
+  --startupDir "%PROGRAMDATA%\order-api" ^
+  --params "$env:SERVY_PROCESS_PARAMETERS" ^
+  --startupType Automatic ^
+  --startTimeout 10 --stopTimeout 5 ^
+  --stdout "%PROGRAMDATA%\order-api\logs\out.log" ^
+  --stderr "%PROGRAMDATA%\order-api\logs\err.log" ^
+  --enableSizeRotation --rotationSize 64 ^
+  --enableDateRotation --dateRotationType Daily --maxRotations 30 ^
+  --enableHealth --heartbeatInterval 30 --maxFailedChecks 3 ^
+  --recoveryAction RestartService --maxRestartAttempts 5 ^
+  --preLaunchPath "C:\ops\pull-config.bat" --preLaunchTimeout 60</div>
+            </div>
+            <div class="grp">
+              <div class="grp-title">导入导出</div>
+              <div class="grp-desc">配置可落成 xml / json，便于批量分发与版本化。</div>
+              <div class="code">servy-10.1.exe export --name order-api --config json --path .\order-api.json
+servy-10.1.exe import --config json --path .\order-api.json --install</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="foot">
+        <div class="foot-left">
+          <button class="btn"><svg width="11" height="11"><use href="#i-back"/></svg>上一步</button>
+          <span>servy 10.1.0 就绪 · 尚未安装</span>
+        </div>
+        <div class="foot-right">
+          <button class="btn"><svg width="12" height="12"><use href="#i-file"/></svg>预览命令</button>
+          <button class="btn">仅保存配置</button>
+          <button class="btn primary">安装并启动</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="anno" id="anno">
+      <i style="top:0;left:0;width:760px;height:100%"></i>
+      <span style="top:-18px;left:0">外壳 760</span>
+      <span style="top:60px;left:4px">侧栏 minmax(200,24%)</span>
+      <span style="top:150px;left:16px">logo 44×44 · r10</span>
+      <span style="top:400px;left:270px">卡片网格 2 列 · gap 10</span>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>与 servy CLI 的对应关系</h2>
+    <table>
+      <tr><th>引擎</th><td>外置 <code>servy-10.1.exe</code>，Servy.CLI 10.1.0，不打包进 exe。侧栏底部常驻引擎状态指示。</td></tr>
+      <tr><th>命令集</th><td><code>install / uninstall / start / stop / restart / status / export / import</code>。生命周期命令只吃 <code>-n</code> 与 <code>-q</code>。</td></tr>
+      <tr><th>必填</th><td>只有 <code>--name</code> 与 <code>--path</code> 两个，其余都有默认值，弹窗其余字段全部可留空。</td></tr>
+      <tr><th>状态</th><td>status 返回 9 态：NotInstalled、Stopped、StartPending、StopPending、Running、ContinuePending、PausePending、Paused、Unknown。卡片徽标直接映射。</td></tr>
+      <tr><th>安全约束</th><td>
+        <ul>
+          <li><code>--params</code>、<code>--envVars</code>、<code>--password</code> 会暴露在进程列表，UI 引导改用 SERVY_* 环境变量</li>
+          <li>非 Local System 账号必须给 %ProgramData%\Servy 授 Modify 并跑 Set-ServyExePermissions.ps1</li>
+        </ul>
+      </td></tr>
+      <tr><th>模板差异</th><td>
+        <ul>
+          <li>Java：<code>%JAVA_HOME%\bin\java.exe</code> + <code>-jar</code></li>
+          <li>Nginx：<code>nginx.exe</code> + <code>-p &lt;prefix&gt; -c conf\nginx.conf</code></li>
+          <li>Redis：<code>redis-server.exe redis.windows.conf</code></li>
+          <li>RustFS：<code>rustfs.exe --data-dir &lt;dir&gt; --addr :9000</code></li>
+          <li>MySQL：<code>mysqld.exe --defaults-file=&lt;my.ini&gt;</code></li>
+        </ul>
+      </td></tr>
+      <tr><th>骨架来源</th><td>760 宽外壳、36px 徽章头部、picker 分栏、2 列卡片、nav + 可滚表单、底部左右分区，全部沿用 ConnectionModal 现有数值。</td></tr>
+    </table>
+  </div>
+</div>
+
+<script>
+const CATALOG = [
+  { key: 'all', label: '全部', all: true },
+  { key: 'java', label: 'Java 应用', items: [
+    { key: 'java', name: 'Java', hint: 'JAR / Spring Boot', color: '#E76F00', bg: 'rgba(231,111,0,0.10)', icon: 's-java', tags: ['--path', 'JAVA_HOME'] },
+    { key: 'javagw', name: 'Java 网关', hint: '带 JVM 调优参数的网关', color: '#C56A00', bg: 'rgba(197,106,0,0.10)', icon: 's-java', tags: ['--params'] },
+  ]},
+  { key: 'runtime', label: '其他运行时', items: [
+    { key: 'node', name: 'Node.js', hint: 'node.exe 常驻进程', color: '#5FA04E', bg: 'rgba(95,160,78,0.10)', icon: 's-node', tags: ['--startupDir'] },
+    { key: 'go', name: 'Go 程序', hint: '单文件 exe，无外部依赖', color: '#00ADD8', bg: 'rgba(0,173,216,0.10)', icon: 's-go', tags: ['--path'] },
+  ]},
+  { key: 'web', label: 'Web 与代理', items: [
+    { key: 'nginx', name: 'Nginx', hint: 'nginx.exe -p <prefix>', color: '#009639', bg: 'rgba(0,150,57,0.10)', icon: 's-nginx', tags: ['--startupDir'] },
+  ]},
+  { key: 'database', label: '数据库', items: [
+    { key: 'mysql', name: 'MySQL', hint: 'mysqld --defaults-file', color: '#00618A', bg: 'rgba(0,97,138,0.10)', icon: 's-mysql', tags: ['--deps'] },
+  ]},
+  { key: 'cache', label: '缓存', items: [
+    { key: 'redis', name: 'Redis', hint: 'redis-server.exe <conf>', color: '#DC382D', bg: 'rgba(220,56,45,0.10)', icon: 's-redis', tags: ['--stdout'] },
+  ]},
+  { key: 'storage', label: '对象存储', items: [
+    { key: 'rustfs', name: 'RustFS', hint: 'rustfs.exe --data-dir', color: '#DD4B25', bg: 'rgba(221,75,37,0.10)', icon: 's-rustfs', tags: ['--envVars'] },
+    { key: 'minio', name: 'MinIO', hint: 'minio.exe server <dir>', color: '#C72E49', bg: 'rgba(199,46,73,0.10)', icon: 's-minio', tags: ['--envVars'] },
+  ]},
+  { key: 'mq', label: '消息队列', items: [
+    { key: 'kafka', name: 'Kafka', hint: '依赖 JVM 与 ZooKeeper', color: '#231F20', bg: 'rgba(35,31,32,0.08)', icon: 's-kafka', tags: ['--deps'] },
+    { key: 'rabbitmq', name: 'RabbitMQ', hint: 'rabbitmq-server.bat', color: '#FF6600', bg: 'rgba(255,102,0,0.10)', icon: 's-rabbit', tags: ['--startupType'] },
+  ]},
+  { key: 'custom', label: '自定义', items: [
+    { key: 'custom', name: '任意可执行程序', hint: '自行填写路径与参数', color: '#6b7280', bg: 'rgba(107,114,128,0.10)', icon: 's-custom', tags: ['--path'] },
+  ]},
+];
+
+const PRESET = {
+  java: { path: '%JAVA_HOME%\\bin\\java.exe', startupDir: '%PROGRAMDATA%\\order-api', params: '-Xms512m -Xmx1024m -jar "%PROGRAMDATA%\\order-api\\order-api.jar"', name: 'order-api', displayName: 'Order API (Java)' },
+  nginx: { path: 'C:\\nginx\\nginx.exe', startupDir: 'C:\\nginx', params: '-p C:\\nginx -c conf\\nginx.conf', name: 'nginx-gateway', displayName: 'Nginx Gateway' },
+  redis: { path: 'C:\\redis\\redis-server.exe', startupDir: 'C:\\redis', params: 'C:\\redis\\redis.windows.conf', name: 'redis-cache', displayName: 'Redis Cache' },
+  rustfs: { path: 'C:\\rustfs\\rustfs.exe', startupDir: 'C:\\rustfs', params: '--data-dir D:\\rustfs\\data --addr :9000', name: 'rustfs-obj', displayName: 'RustFS Object Store' },
+  mysql: { path: 'C:\\mysql\\bin\\mysqld.exe', startupDir: 'C:\\mysql\\bin', params: '--defaults-file=C:\\mysql\\my.ini', name: 'mysql-prod', displayName: 'MySQL Server' },
+};
+
+const PINNED = new Set(['java', 'nginx']);
+const ALL_ITEMS = CATALOG.filter(g => !g.all).flatMap(g => g.items);
+let activeCat = 'java';
+
+const catList = document.getElementById('catList');
+const grid = document.getElementById('typeGrid');
+const gridTitle = document.getElementById('gridTitle');
+
+const renderCats = () => {
+  catList.innerHTML = CATALOG.map(g => {
+    const count = g.all ? ALL_ITEMS.length : g.items.length;
+    return `<button class="side-item" data-cat="${g.key}" aria-pressed="${g.key === activeCat}">
+      <span class="label">${g.label}</span><span class="count">${count}</span></button>`;
+  }).join('');
+};
+
+const renderGrid = () => {
+  const group = CATALOG.find(g => g.key === activeCat);
+  const items = group.all ? ALL_ITEMS : group.items;
+  gridTitle.textContent = group.label;
+  grid.innerHTML = items.map(item => `
+    <div class="type-card" data-pinned="${PINNED.has(item.key)}" data-open-service="${item.key}">
+      <button class="card-select">
+        <div class="card-top">
+          <div class="card-logo" style="background:${item.bg}">
+            <svg width="34" height="34" style="color:${item.color}"><use href="#${item.icon}"/></svg>
+          </div>
+          <div class="card-meta">
+            <div class="card-name">${item.name}</div>
+            <div class="card-hint">${item.hint}</div>
+          </div>
+        </div>
+        <div class="card-tags">${item.tags.map(t => `<span class="tag cli">${t}</span>`).join('')}</div>
+      </button>
+      <button class="card-pin" aria-pressed="${PINNED.has(item.key)}" aria-label="固定">
+        <svg width="14" height="14"><use href="#i-pin"/></svg>
+      </button>
+    </div>`).join('');
+};
+
+catList.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-cat]');
+  if (!btn) return;
+  activeCat = btn.dataset.cat;
+  renderCats(); renderGrid();
+});
+
+grid.addEventListener('click', (e) => {
+  if (e.target.closest('.card-pin')) {
+    const card = e.target.closest('.type-card');
+    const key = card.dataset.openService;
+    if (PINNED.has(key)) { PINNED.delete(key); } else { PINNED.add(key); }
+    renderGrid();
+    return;
+  }
+  const card = e.target.closest('.type-card');
+  if (!card) return;
+  const key = card.dataset.openService;
+  openService(ALL_ITEMS.find(i => i.key === key), key);
+});
+
+const TABS = [
+  ['basic', '基本信息'], ['process', '进程'], ['control', '服务控制'], ['account', '运行账号'],
+  ['logging', '日志'], ['health', '健康监控'], ['recovery', '故障恢复'], ['hooks', '钩子'], ['command', '命令预览'],
+];
+const nav = document.getElementById('formNav');
+const renderNav = () => {
+  nav.innerHTML = TABS.map(([key, label], i) =>
+    `<button data-tab="${key}" aria-selected="${i === 0}">${label}</button>`).join('');
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.dataset.panel === TABS[0][0]));
+};
+nav.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-tab]');
+  if (!btn) return;
+  nav.querySelectorAll('button').forEach(b => b.setAttribute('aria-selected', b === btn));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.dataset.panel === btn.dataset.tab));
+});
+
+const openService = (item, key) => {
+  const group = CATALOG.find(g => g.items?.some(i => i.key === key));
+  document.getElementById('formTitle').textContent = `新增 ${item.name} 服务`;
+  document.getElementById('formSub').textContent = `${group ? group.label : '自定义'} · ${item.name.toLowerCase()}`;
+  const badge = document.getElementById('formBadge');
+  badge.style.background = item.color;
+  badge.innerHTML = `<svg width="26" height="26" style="color:#fff"><use href="#${item.icon}"/></svg>`;
+  const preset = PRESET[key] || PRESET[key.replace('gw', '')];
+  if (preset) {
+    const pathInput = document.querySelector('[data-panel="process"] .ctl.mono');
+    if (pathInput) { pathInput.value = preset.path; }
+    const cmd = document.getElementById('cmdPreview');
+    cmd.textContent = cmd.textContent.replace(/--name \S+/, `--name ${preset.name}`)
+      .replace(/--displayName "[^"]*"/, `--displayName "${preset.displayName}"`)
+      .replace(/--path "[^"]*"/, `--path "${preset.path}"`)
+      .replace(/--startupDir "[^"]*"/, `--startupDir "${preset.startupDir}"`)
+      .replace(/--params "[^"]*"/, `--params "${preset.params}"`);
+  }
+  renderNav();
+  goStep(2);
+};
+
+const shell = document.getElementById('shell');
+const step1Btn = document.getElementById('step1Btn');
+const step2Btn = document.getElementById('step2Btn');
+const goStep = (n) => {
+  shell.dataset.step = n;
+  step1Btn.setAttribute('aria-pressed', n === 1);
+  step2Btn.setAttribute('aria-pressed', n === 2);
+};
+step1Btn.onclick = () => goStep(1);
+step2Btn.onclick = () => goStep(2);
+document.getElementById('themeBtn').onclick = () => {
+  document.body.dataset.theme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+};
+const annoBtn = document.getElementById('annoBtn');
+annoBtn.onclick = () => {
+  const on = document.getElementById('anno').classList.toggle('on');
+  annoBtn.setAttribute('aria-pressed', on);
+};
+
+renderCats();
+renderGrid();
+renderNav();
+</script>
+</body>
+</html>

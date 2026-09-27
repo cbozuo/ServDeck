@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServDeck 高保真 — 注册服务 v7（对齐新建连接：类型选择器 / 四 Tab / 步骤指示）</title>
+<style>
+  /* ===== 主题 Token（对齐 v2-theme.css） ===== */
+  :root, [data-theme="light"], [data-theme="custom"] {
+    --gn-bg-app:      rgb(246 246 244);
+    --gn-bg-chrome:   rgb(236 236 234);
+    --gn-bg-titlebar: rgb(250 250 248);
+    --gn-bg-panel:    rgb(255 255 255);
+    --gn-bg-panel-2:  rgb(250 250 248);
+    --gn-bg-input:    rgb(255 255 255);
+    --gn-bg-hover:    rgba(15, 23, 42, 0.045);
+    --gn-bg-active:   rgba(15, 23, 42, 0.075);
+    --gn-bg-selected: color-mix(in srgb, var(--gn-accent) 14%, transparent);
+    --gn-fg-1: #0c1322; --gn-fg-2: #1f2937; --gn-fg-3: #4b5563;
+    --gn-fg-4: #6b7280; --gn-fg-5: #9ca3af;
+    --gn-br-1: rgba(15, 23, 42, 0.08);
+    --gn-br-2: rgba(15, 23, 42, 0.12);
+    --gn-br-3: rgba(15, 23, 42, 0.18);
+    --gn-accent:       #15803d;
+    --gn-accent-2:     #166534;
+    --gn-accent-soft:  color-mix(in srgb, var(--gn-accent) 16%, var(--gn-bg-panel));
+    --gn-accent-strong: #15803d;
+    --gn-accent-strong-hover: #126634;
+    --gn-on-accent: #ffffff;
+    --gn-info:  #0369a1;
+    --gn-warn:  #d97706;
+    --gn-danger: #dc2626;
+    --gn-shadow-md:  0 4px 14px rgba(15, 23, 42, 0.08);
+    --gn-shadow-lg:  0 12px 40px rgba(15, 23, 42, 0.14);
+    --gn-shadow-card: 0 0 0 0.5px rgba(15, 23, 42, 0.10), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --gn-font-sans: "Inter", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+    --gn-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  [data-theme="custom"] {
+    --gn-accent: #6d28d9; --gn-accent-2: #5b21b6;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 14%, var(--gn-bg-panel));
+    --gn-accent-strong: #6d28d9; --gn-accent-strong-hover: #5b21b6;
+  }
+  [data-theme="dark"] {
+    --gn-bg-app:      rgb(12 14 18);
+    --gn-bg-chrome:   rgb(20 23 28);
+    --gn-bg-titlebar: rgb(27 31 39);
+    --gn-bg-panel:    rgb(22 26 33);
+    --gn-bg-panel-2:  rgb(27 31 39);
+    --gn-bg-input:    rgb(15 18 23);
+    --gn-bg-hover:    rgba(255, 255, 255, 0.05);
+    --gn-bg-active:   rgba(255, 255, 255, 0.08);
+    --gn-bg-selected: color-mix(in srgb, var(--gn-accent) 18%, transparent);
+    --gn-fg-1: #ffffff; --gn-fg-2: #f5f5f5; --gn-fg-3: #e6e6e6;
+    --gn-fg-4: #d9d9d9; --gn-fg-5: #cccccc;
+    --gn-br-1: rgba(255, 255, 255, 0.06);
+    --gn-br-2: rgba(255, 255, 255, 0.10);
+    --gn-br-3: rgba(255, 255, 255, 0.16);
+    --gn-accent: #22c55e; --gn-accent-2: #16a34a;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 22%, transparent);
+    --gn-accent-strong: #15803d; --gn-accent-strong-hover: #126634;
+    --gn-info: #38bdf8; --gn-warn: #f59e0b; --gn-danger: #f87171;
+    --gn-shadow-md:  0 4px 14px rgba(0, 0, 0, 0.45);
+    --gn-shadow-lg:  0 12px 40px rgba(0, 0, 0, 0.55);
+    --gn-shadow-card: 0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { font-family: var(--gn-font-sans); background: var(--gn-bg-app); color: var(--gn-fg-1); font-size: 13px; overflow: hidden; }
+  svg.ic { width: 16px; height: 16px; display: block; }
+  button { font-family: inherit; border: 0; background: transparent; color: inherit; cursor: pointer; }
+  input, textarea { font-family: inherit; color: var(--gn-fg-1); }
+  input.mono, textarea.mono, .mono { font-family: var(--gn-font-mono); }
+
+  /* ===== 背景剪影 ===== */
+  .backdrop-app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+  .bk-titlebar { height: 48px; background: var(--gn-bg-titlebar); border-bottom: 1px solid var(--gn-br-1); display: flex; align-items: center; padding-left: 11px; }
+  .bk-logo { width: 20px; height: 20px; }
+  .bk-wbody { flex: 1; display: flex; min-height: 0; }
+  .bk-side { width: 330px; background: var(--gn-bg-panel); border-right: 1px solid var(--gn-br-1); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .bk-sk { height: 26px; border-radius: 6px; background: var(--gn-bg-hover); }
+  .bk-main { flex: 1; padding: 22px 26px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-content: start; }
+  .bk-card { height: 90px; border-radius: 10px; background: var(--gn-bg-panel); box-shadow: var(--gn-shadow-card); }
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    background: rgba(9, 12, 18, 0.44);
+    display: flex; align-items: center; justify-content: center;
+  }
+  [data-theme="dark"] .overlay { background: rgba(0, 0, 0, 0.55); }
+
+  /* ============================================================ 弹框通用 */
+  .modal {
+    background: var(--gn-bg-panel); border-radius: 14px;
+    box-shadow: var(--gn-shadow-lg), 0 0 0 1px var(--gn-br-1);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .m-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--gn-br-1); flex-shrink: 0; }
+  .m-ico {
+    width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: color-mix(in srgb, var(--look-color, var(--gn-accent)) 14%, var(--gn-bg-panel));
+    border: 1px solid color-mix(in srgb, var(--look-color, var(--gn-accent)) 30%, transparent);
+    transition: background .15s ease;
+  }
+  .m-ico.plus { background: var(--gn-accent-strong); border-color: transparent; color: var(--gn-on-accent); }
+  .m-ico img, .m-ico svg { width: 22px; height: 22px; display: block; }
+  .m-ico.plus svg { width: 18px; height: 18px; }
+  .m-title h2 { font-size: 15.5px; font-weight: 700; letter-spacing: -0.01em; }
+  .m-title .m-desc { margin-top: 3px; font-size: 11.5px; color: var(--gn-fg-4); line-height: 1.5; }
+  .m-close {
+    margin-left: auto; width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; color: var(--gn-fg-4);
+  }
+  .m-close:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .m-close .ic { width: 14px; height: 14px; }
+
+  /* 步骤指示（对齐真实实现：1 选类型 > 2 配参数 > 3 注册） */
+  .steps-ind { margin-left: auto; margin-right: 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; flex-shrink: 0; }
+  .si { display: inline-flex; align-items: center; gap: 5px; color: var(--gn-fg-5); font-weight: 500; }
+  .si.on { color: var(--gn-accent-2); font-weight: 700; }
+  .si.done { color: var(--gn-fg-4); }
+  .si-arrow { color: var(--gn-fg-5); opacity: .7; }
+
+  /* ============================================================ Step1：类型选择器（大弹框，左分类 + 两列卡片） */
+  .modal-xl { width: 1080px; height: 760px; max-height: 92vh; }
+  .sel-body { flex: 1; display: flex; min-height: 0; }
+  .sel-side {
+    width: 232px; flex-shrink: 0; border-right: 1px solid var(--gn-br-1);
+    background: var(--gn-bg-panel-2);
+    padding: 14px 12px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto;
+  }
+  .sel-search {
+    height: 32px; border-radius: 7px; background: var(--gn-bg-input);
+    border: 1px solid var(--gn-br-2); display: flex; align-items: center; gap: 7px; padding: 0 8px 0 10px;
+    color: var(--gn-fg-5); margin-bottom: 8px; flex-shrink: 0;
+  }
+  .sel-search input { flex: 1; border: 0; outline: 0; background: transparent; font-size: 12.5px; min-width: 0; }
+  .sel-search .kbd {
+    font-size: 10px; font-family: var(--gn-font-mono); color: var(--gn-fg-5);
+    border: 1px solid var(--gn-br-2); border-radius: 4px; padding: 1px 5px; flex-shrink: 0;
+  }
+  .side-label { font-size: 11px; font-weight: 700; color: var(--gn-fg-5); letter-spacing: .03em; padding: 6px 8px 2px; }
+  .side-row {
+    height: 30px; border-radius: 7px; padding: 0 8px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; color: var(--gn-fg-2); cursor: pointer;
+  }
+  .side-row:hover { background: var(--gn-bg-hover); }
+  .side-row.on { background: var(--gn-bg-selected); color: var(--gn-accent-2); font-weight: 700; }
+  .side-row .cnt {
+    margin-left: auto; font-family: var(--gn-font-mono); font-size: 10.5px;
+    color: var(--gn-fg-5); background: var(--gn-bg-hover); border-radius: 999px; padding: 1px 7px;
+  }
+  .side-row.on .cnt { background: color-mix(in srgb, var(--gn-accent) 18%, transparent); color: var(--gn-accent-2); }
+  .sel-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .sel-main-head {
+    display: flex; align-items: center; padding: 14px 20px 10px; flex-shrink: 0;
+  }
+  .sel-main-head h3 { font-size: 14px; font-weight: 700; }
+  .sel-main-head .tip { margin-left: auto; font-size: 11.5px; color: var(--gn-fg-5); }
+  .sel-scroll { flex: 1; overflow-y: auto; padding: 2px 20px 18px; }
+  .type-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .type-card {
+    border: 1px solid var(--gn-br-2); border-radius: 12px;
+    background: var(--gn-bg-panel);
+    padding: 14px 16px; text-align: left;
+    display: flex; flex-direction: column; gap: 9px;
+    transition: all .13s ease; position: relative; min-height: 108px;
+  }
+  .type-card:hover { border-color: var(--gn-accent); box-shadow: var(--gn-shadow-md); transform: translateY(-1px); }
+  .type-card .tc-top { display: flex; align-items: center; gap: 11px; }
+  .type-card .tc-ic {
+    width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: var(--gn-bg-panel-2); border: 1px solid var(--gn-br-1);
+  }
+  .type-card .tc-ic img, .type-card .tc-ic svg { width: 25px; height: 25px; }
+  .type-card .tc-name { display: block; font-size: 14px; font-weight: 700; color: var(--gn-fg-1); }
+  .type-card .tc-desc { display: block; margin-top: 2px; font-size: 11.5px; color: var(--gn-fg-4); }
+  .type-card .tc-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag-chip {
+    font-size: 10.5px; font-weight: 600; color: var(--gn-fg-4);
+    background: var(--gn-bg-hover); border-radius: 999px; padding: 2px 9px;
+  }
+  .tag-chip.hot { color: var(--gn-accent-2); background: var(--gn-accent-soft); }
+
+  /* ============================================================ Step2：配置弹框 */
+  .modal-cfg { width: 760px; max-height: 90vh; }
+  .wtabs { display: flex; border-bottom: 1px solid var(--gn-br-1); padding: 0 20px; flex-shrink: 0; background: var(--gn-bg-panel); }
+  .wtab {
+    padding: 11px 14px; font-size: 13px; font-weight: 500; color: var(--gn-fg-3);
+    position: relative;
+  }
+  .wtab:hover { color: var(--gn-fg-1); }
+  .wtab.active { color: var(--gn-accent-2); font-weight: 700; }
+  .wtab.active::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 2.5px; border-radius: 2px 2px 0 0; background: var(--gn-accent); }
+  .m-body { padding: 16px 20px 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+  .tab-pane { display: none; flex-direction: column; gap: 16px; }
+  .tab-pane.show { display: flex; }
+
+  .sec { display: flex; flex-direction: column; gap: 8px; }
+  .sec-title { font-size: 12px; font-weight: 700; color: var(--gn-fg-3); letter-spacing: .02em; display: flex; align-items: center; gap: 6px; }
+  .sec-title::before { content: ""; width: 3px; height: 12px; border-radius: 2px; background: var(--gn-accent); }
+  .sec-title .opt { color: var(--gn-fg-5); font-weight: 400; }
+  .sec-title .badge-soft {
+    font-size: 10px; font-weight: 700; color: var(--gn-accent-2);
+    background: var(--gn-accent-soft); padding: 1px 7px; border-radius: 999px;
+    letter-spacing: 0;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--gn-fg-2); }
+  .field label em { font-style: normal; color: var(--gn-danger); margin-left: 2px; }
+  /* 值很短的字段不必撑满整列：端口 4 位数字、下拉最长 7 个字符。
+     宽度按最长可能值给，与实现侧 .asm-input-narrow / .asm-input-medium 对齐。 */
+  .input.narrow { width: 104px; }
+  .select.medium { width: 140px; }
+  .input-row { display: flex; gap: 8px; }
+  .input, .select {
+    height: 34px; border-radius: 8px;
+    background: var(--gn-bg-input); border: 1px solid var(--gn-br-2);
+    display: flex; align-items: center; padding: 0 11px;
+    font-size: 12.5px; min-width: 0;
+    transition: border-color .12s ease, box-shadow .12s ease;
+  }
+  .input input, .select input {
+    flex: 1; border: 0; outline: 0; background: transparent; font-size: 12px; min-width: 0;
+  }
+  .input input.mono { font-family: var(--gn-font-mono); }
+  .input:focus-within { border-color: var(--gn-accent); box-shadow: 0 0 0 3px var(--gn-accent-soft); }
+  .input .ic { width: 13px; height: 13px; color: var(--gn-fg-5); flex-shrink: 0; }
+  /* 密码框：右侧内嵌 28×28 的眼睛按钮切换明文。容器留 34px 右内边距，长口令不会压到按钮下。
+     与实现侧 AddServiceModal.css 的 .asm-password-* 同尺寸同位置。 */
+  .input.has-eye { position: relative; padding-right: 34px; }
+  .pass-eye {
+    position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
+    width: 28px; height: 28px; display: grid; place-items: center;
+    border: 0; border-radius: 6px; background: transparent;
+    color: var(--gn-fg-5); cursor: pointer;
+    transition: background-color .12s ease, color .12s ease;
+  }
+  .pass-eye:hover { background: var(--gn-bg-hover); color: var(--gn-fg-2); }
+  .pass-eye .ic { width: 14px; height: 14px; }
+  .select .chev { margin-left: 6px; flex-shrink: 0; }
+  .hint { font-size: 11px; color: var(--gn-fg-5); line-height: 1.55; }
+  .hint b { color: var(--gn-fg-4); font-weight: 600; }
+
+  .btn {
+    height: 32px; padding: 0 14px; border-radius: 8px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600; flex-shrink: 0;
+  }
+  .btn-ghost { border: 1px solid var(--gn-br-2); color: var(--gn-fg-2); }
+  .btn-ghost:hover { background: var(--gn-bg-hover); }
+  .btn-primary { background: var(--gn-accent-strong); color: var(--gn-on-accent); box-shadow: var(--gn-shadow-md); }
+  .btn-primary:hover { background: var(--gn-accent-strong-hover); }
+  .btn-primary .ic { width: 14px; height: 14px; }
+  .btn-xs {
+    height: 26px; padding: 0 10px; border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 600; border: 1px solid var(--gn-br-2); color: var(--gn-fg-3);
+  }
+  .btn-xs:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .btn-xs .ic { width: 12px; height: 12px; }
+
+  /* 识别条 */
+  .detect {
+    border-radius: 8px; padding: 8px 12px;
+    background: color-mix(in srgb, var(--gn-info) 7%, var(--gn-bg-panel));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-info) 25%, transparent);
+    display: flex; gap: 8px; align-items: center;
+    font-size: 12px; color: var(--gn-fg-3);
+  }
+  .detect .ic { width: 14px; height: 14px; color: var(--gn-info); flex-shrink: 0; }
+  .detect b { color: var(--gn-fg-1); font-weight: 600; }
+  .detect code { font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-info); }
+  .detect .tpl { margin-left: auto; flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--gn-info); padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--gn-info) 10%, transparent); }
+
+  .switch-row { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--gn-fg-2); }
+  .switch {
+    width: 34px; height: 19px; border-radius: 999px; flex-shrink: 0;
+    background: var(--gn-br-3); position: relative; transition: background .15s ease;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px;
+    border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    transition: transform .15s ease;
+  }
+  .switch.on { background: var(--gn-accent-strong); }
+  .switch.on::after { transform: translateX(15px); }
+  .switch.small { width: 30px; height: 17px; }
+  .switch.small::after { width: 13px; height: 13px; }
+  .switch.small.on::after { transform: translateX(13px); }
+
+  /* 分段控件：灰色底槽 + 一枚滑动滑块承担选中态，切换时滑块平移过去。
+     滑块位置由 JS 按真实 DOM 量出来写成内联 transform，换语言、字体加载都不会错位。
+     高度收进 --seg-h，滑块与按钮共用。 */
+  .seg { --seg-h: 26px; position: relative; display: inline-flex; background: var(--gn-bg-hover); border-radius: 8px; padding: 3px; gap: 2px; }
+  .seg-thumb {
+    position: absolute; top: 3px; left: 0; height: var(--seg-h); border-radius: 6px;
+    background: var(--gn-bg-panel); box-shadow: var(--gn-shadow-md);
+    pointer-events: none; z-index: 0;
+  }
+  /* 只有挂上 .is-animating 才带过渡：挂载后一帧才加，首帧瞬时落位 */
+  .seg-thumb.is-animating {
+    transition: transform .34s cubic-bezier(.32,1.32,.52,1), width .34s cubic-bezier(.32,1.32,.52,1);
+  }
+  .seg button {
+    position: relative; z-index: 1;
+    height: var(--seg-h); padding: 0 11px; border-radius: 6px;
+    font-size: 12px; font-weight: 600; color: var(--gn-fg-4); white-space: nowrap;
+    transition: color .2s ease, transform .12s ease;
+  }
+  .seg button:hover { color: var(--gn-fg-1); }
+  .seg button:active { transform: scale(.96); }
+  .seg button.on { color: var(--gn-fg-1); }
+  .seg.compact { --seg-h: 24px; }
+  .seg.compact button { padding: 0 10px; font-size: 11.5px; }
+
+  /* 外观 tab（对齐连接外观：图标网格 / 颜色行 / 预览卡 + 重置为默认） */
+  .look-label { font-size: 12px; font-weight: 700; color: var(--gn-fg-2); }
+  .look-label .cur { color: var(--gn-fg-5); font-weight: 500; margin-left: 6px; }
+  .look-tabs { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .icon-grid { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+  .icon-opt {
+    width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+    border: 1.5px solid var(--gn-br-2); background: var(--gn-bg-panel);
+    display: grid; place-items: center;
+    transition: all .12s ease;
+  }
+  .icon-opt img, .icon-opt svg { width: 22px; height: 22px; display: block; }
+  .icon-opt:hover { border-color: var(--gn-br-3); background: var(--gn-bg-hover); }
+  .icon-opt.on { border-color: var(--look-color, var(--gn-accent)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--look-color, var(--gn-accent)) 30%, transparent); background: color-mix(in srgb, var(--look-color, var(--gn-accent)) 8%, var(--gn-bg-panel)); }
+  .icon-more { height: 38px; padding: 0 11px; border-radius: 10px; font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4); border: 1px dashed var(--gn-br-2); }
+  .icon-more:hover { color: var(--gn-fg-1); background: var(--gn-bg-hover); }
+  .dot { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; border: 0; position: relative; transition: transform .1s ease; }
+  .dot:hover { transform: scale(1.12); }
+  .dot.on::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--gn-fg-1); }
+  .preview-card {
+    margin-top: 12px; border-radius: 10px; padding: 12px 14px;
+    background: var(--gn-bg-panel-2); box-shadow: var(--gn-shadow-card);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .preview-card .pv-ic {
+    width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: color-mix(in srgb, var(--look-color, var(--gn-accent)) 16%, var(--gn-bg-panel));
+    border: 1px solid color-mix(in srgb, var(--look-color, var(--gn-accent)) 32%, transparent);
+  }
+  .preview-card .pv-ic img, .preview-card .pv-ic svg { width: 21px; height: 21px; }
+  .preview-card .pv-name { font-size: 13px; font-weight: 700; color: var(--gn-fg-1); }
+  .preview-card .pv-sub { margin-top: 2px; font-size: 11px; color: var(--gn-fg-5); }
+  .preview-card .btn { margin-left: auto; }
+
+  /* 配置文件卡 */
+  .conf-card { border: 1px solid var(--gn-br-2); border-radius: 9px; overflow: hidden; background: var(--gn-bg-panel-2); }
+  .conf-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; border-bottom: 1px solid var(--gn-br-1);
+    background: var(--gn-bg-panel); flex-wrap: wrap;
+  }
+  .conf-head .cf-ic { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; background: var(--gn-bg-hover); color: var(--gn-fg-4); }
+  .conf-head .cf-ic svg { width: 13px; height: 13px; }
+  .conf-head .cf-name { font-family: var(--gn-font-mono); font-size: 12px; font-weight: 700; color: var(--gn-fg-1); }
+  .conf-head .cf-gen {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 700; color: var(--gn-accent-2);
+    background: var(--gn-accent-soft); padding: 1px 7px; border-radius: 999px;
+  }
+  .conf-head .cf-gen i { width: 5px; height: 5px; border-radius: 50%; background: var(--gn-accent); }
+  .conf-head .cf-gen.manual { color: var(--gn-warn); background: color-mix(in srgb, var(--gn-warn) 12%, transparent); }
+  .conf-head .cf-gen.manual i { background: var(--gn-warn); }
+  .conf-head .cf-doc {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 600; color: var(--gn-info);
+    padding: 3px 9px; border-radius: 6px;
+  }
+  .conf-head .cf-doc:hover { background: color-mix(in srgb, var(--gn-info) 10%, transparent); }
+  .conf-head .cf-doc .ic { width: 12px; height: 12px; }
+  .conf-body { padding: 10px 12px; }
+  .conf-gen {
+    background: var(--gn-bg-input); border: 1px dashed var(--gn-br-2); border-radius: 8px;
+    padding: 10px 12px; font-family: var(--gn-font-mono); font-size: 11.5px; line-height: 1.8;
+    color: var(--gn-fg-2); white-space: pre-wrap; word-break: break-all;
+    max-height: 150px; overflow-y: auto;
+  }
+  .conf-body textarea {
+    width: 100%; min-height: 118px; resize: vertical;
+    background: var(--gn-bg-input); border: 1px solid var(--gn-br-2); border-radius: 8px;
+    padding: 10px 12px; outline: 0;
+    font-family: var(--gn-font-mono); font-size: 11.5px; line-height: 1.8; color: var(--gn-fg-2);
+  }
+  .conf-body textarea:focus { border-color: var(--gn-accent); box-shadow: 0 0 0 3px var(--gn-accent-soft); }
+  .conf-foot { margin-top: 8px; display: flex; align-items: center; gap: 10px; }
+  .conf-foot .hint { flex: 1; }
+
+  .global-note {
+    display: flex; gap: 8px; align-items: flex-start;
+    border-radius: 8px; padding: 9px 12px;
+    background: var(--gn-bg-hover);
+    font-size: 11.5px; color: var(--gn-fg-4); line-height: 1.6;
+  }
+  .global-note .ic { width: 13px; height: 13px; flex-shrink: 0; margin-top: 1px; color: var(--gn-fg-5); }
+  .global-note b { color: var(--gn-fg-2); font-weight: 600; }
+
+  /* footer */
+  .m-foot {
+    border-top: 1px solid var(--gn-br-1); padding: 12px 20px;
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0; background: var(--gn-bg-panel);
+  }
+  .foot-status { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--gn-fg-5); margin-left: 4px; }
+  .foot-status b { color: var(--gn-fg-2); font-weight: 600; }
+  .foot-spring { flex: 1; }
+  .cmd-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--gn-fg-4);
+    padding: 5px 9px; border-radius: 7px;
+  }
+  .cmd-toggle:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .cmd-toggle .ic { width: 12px; height: 12px; transition: transform .15s ease; }
+  .cmd-toggle.open .ic { transform: rotate(90deg); }
+  .foot-actions { display: flex; gap: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .btn.disabled { opacity: .5; cursor: not-allowed; }
+  .btn.disabled:hover { background: transparent; }
+  .probe-bar {
+    display: none; align-items: flex-start; gap: 10px;
+    border-radius: 9px; padding: 10px 13px;
+    font-size: 12px; line-height: 1.6;
+  }
+  .probe-bar.show { display: flex; }
+  .probe-bar .pb-ic {
+    width: 24px; height: 24px; border-radius: 8px; flex-shrink: 0;
+    display: grid; place-items: center; margin-top: 1px;
+  }
+  .probe-bar .pb-ic .ic { width: 13px; height: 13px; }
+  .probe-bar .pb-text { min-width: 0; }
+  .probe-bar .pb-text b { font-weight: 700; }
+  .probe-bar .pb-text small { display: block; color: var(--gn-fg-4); font-size: 11px; margin-top: 2px; }
+  .probe-bar .pb-link { margin-left: auto; flex-shrink: 0; align-self: center; font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 6px; white-space: nowrap; }
+  .probe-bar.ok { background: color-mix(in srgb, var(--gn-accent) 8%, var(--gn-bg-panel)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-accent) 32%, transparent); color: var(--gn-fg-2); }
+  .probe-bar.ok .pb-ic { background: var(--gn-accent-soft); color: var(--gn-accent-2); }
+  .probe-bar.ok .pb-link { color: var(--gn-accent-2); }
+  .probe-bar.ok .pb-link:hover { background: var(--gn-accent-soft); }
+  .probe-bar.warn { background: color-mix(in srgb, var(--gn-warn) 9%, var(--gn-bg-panel)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-warn) 38%, transparent); color: var(--gn-fg-2); }
+  .probe-bar.warn .pb-ic { background: color-mix(in srgb, var(--gn-warn) 16%, transparent); color: var(--gn-warn); }
+  .probe-bar.warn .pb-link { color: var(--gn-warn); }
+  .probe-bar.warn .pb-link:hover { background: color-mix(in srgb, var(--gn-warn) 12%, transparent); }
+  .probe-bar.info { background: color-mix(in srgb, var(--gn-info) 7%, var(--gn-bg-panel)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-info) 28%, transparent); color: var(--gn-fg-2); }
+  .probe-bar.info .pb-ic { background: color-mix(in srgb, var(--gn-info) 12%, transparent); color: var(--gn-info); }
+  .probe-bar.info .pb-link { color: var(--gn-info); }
+  .probe-bar.info .pb-link:hover { background: color-mix(in srgb, var(--gn-info) 10%, transparent); }
+  .probe-bar .mono { font-size: 11px; }
+  .cmd-box {
+    display: none; background: var(--gn-bg-input); border: 1px solid var(--gn-br-2); border-radius: 8px;
+    padding: 10px 12px; font-family: var(--gn-font-mono); font-size: 10.5px;
+    line-height: 1.8; color: var(--gn-fg-2); white-space: pre; overflow-x: auto;
+    margin-bottom: 10px;
+  }
+  .cmd-box.show { display: block; }
+  .cmd-box .c-cmd { color: var(--gn-accent-2); font-weight: 700; }
+  .cmd-box .c-flag { color: var(--gn-fg-4); }
+  .cmd-box .c-val { color: var(--gn-fg-1); }
+  .cmd-wrap { flex-direction: column; align-items: stretch; }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--gn-br-2); border-radius: 5px; border: 2.5px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .theme-dock {
+    position: fixed; right: 18px; bottom: 12px; z-index: 99;
+    background: var(--gn-bg-panel); border-radius: 12px;
+    box-shadow: var(--gn-shadow-lg), 0 0 0 1px var(--gn-br-2);
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; align-items: center;
+  }
+  .theme-dock .td-tip { font-size: 10.5px; color: var(--gn-fg-5); letter-spacing: .02em; }
+  .td-seg { display: flex; background: var(--gn-bg-hover); border-radius: 8px; padding: 3px; gap: 2px; }
+  .td-seg button { height: 24px; padding: 0 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4); }
+  .td-seg button:hover { color: var(--gn-fg-1); }
+  .td-seg button.on { background: var(--gn-bg-panel); color: var(--gn-fg-1); box-shadow: var(--gn-shadow-md); }
+</style>
+</head>
+<body data-theme="light">
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="servyGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0.083" stop-color="#540E82"/><stop offset="0.25" stop-color="#4F2887"/>
+        <stop offset="0.417" stop-color="#4C4990"/><stop offset="0.583" stop-color="#456C9D"/>
+        <stop offset="0.75" stop-color="#398DAB"/><stop offset="0.917" stop-color="#24AEB9"/>
+      </linearGradient>
+      <symbol id="logo" viewBox="0 0 1024 1024"><path fill="url(#servyGrad)" fill-rule="evenodd" d="M466.50,76.00 520.00,75.50 579.00,82.50 643.00,99.50 695.00,121.50 740.00,147.50 783.00,179.50 821.50,216.00 843.50,242.00 852.50,257.00 853.50,337.00 850.50,344.00 846.00,348.50 836.00,352.50 732.00,352.50 724.00,348.50 703.50,322.00 670.00,290.50 632.00,265.50 598.00,249.50 556.00,236.50 510.00,230.50 479.00,230.50 436.00,236.50 414.00,242.50 379.00,255.50 349.00,271.50 320.00,291.50 283.50,326.00 265.50,348.00 249.50,372.00 233.50,403.00 220.50,442.00 213.50,474.00 210.50,519.00 214.50,561.00 223.50,598.00 236.50,631.00 253.50,663.00 284.50,703.00 318.00,734.50 347.00,754.50 386.00,773.50 426.00,786.50 467.00,793.50 516.00,793.50 569.00,785.50 573.00,786.50 580.00,791.50 660.00,870.50 682.50,893.00 685.50,899.00 685.50,906.00 681.00,910.50 640.00,927.50 577.00,943.50 519.00,950.50 470.00,950.50 431.00,946.50 394.00,939.50 342.00,924.50 301.00,907.50 262.00,885.50 231.00,864.50 198.00,837.50 156.50,795.00 134.50,767.00 109.50,727.00 92.50,694.00 80.50,665.00 67.50,623.00 57.50,570.00 54.50,534.00 54.50,491.00 56.50,482.00 57.50,456.00 66.50,409.00 80.50,363.00 92.50,333.00 112.50,294.00 133.50,262.00 159.50,229.00 199.00,188.50 223.00,168.50 268.00,137.50 310.00,115.50 341.00,102.50 383.00,89.50 431.00,79.50 466.50,76.00ZM448.50,433.00 936.00,432.50 951.00,438.50 962.50,450.00 968.50,560.00 961.50,574.00 954.00,581.50 935.00,590.50 452.00,590.50 441.00,587.50 432.00,582.50 421.50,571.00 416.50,557.00 416.50,463.00 422.50,450.00 431.00,440.50 439.00,435.50 448.50,433.00ZM652.50,672.00 839.00,671.50 843.00,673.50 851.50,684.00 851.50,721.00 853.50,729.00 947.50,824.00 952.50,836.00 953.50,848.00 946.50,866.00 877.00,933.50 861.00,938.50 848.00,937.50 840.00,933.50 832.00,927.50 630.50,724.00 624.50,709.00 626.50,695.00 636.00,680.50 641.00,676.50 652.50,672.00Z"/></symbol>
+      <symbol id="i-x" viewBox="0 0 14 14"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></symbol>
+      <symbol id="i-check" viewBox="0 0 12 12"><path d="M2.5 6.2l2.4 2.4 4.6-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-chev" viewBox="0 0 12 12"><path d="M3.5 4.8L6 7.3l2.5-2.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.8 8c1.5-2.6 3.7-3.9 6.2-3.9S12.7 5.4 14.2 8c-1.5 2.6-3.7 3.9-6.2 3.9S3.3 10.6 1.8 8z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.85" stroke="currentColor" stroke-width="1.3" fill="none"/></symbol>
+      <symbol id="i-eye-off" viewBox="0 0 16 16"><path d="M1.8 8c1.5-2.6 3.7-3.9 6.2-3.9S12.7 5.4 14.2 8c-1.5 2.6-3.7 3.9-6.2 3.9S3.3 10.6 1.8 8z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.85" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M2.9 2.9l10.2 10.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+      <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M10.4 10.4L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+      <symbol id="i-node" viewBox="0 0 16 16"><path d="M8 1.8l5.4 3.1v6.2L8 14.2l-5.4-3.1V4.9z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/></symbol>
+      <symbol id="i-exe" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M2.5 6h11" stroke="currentColor" stroke-width="1.2"/><circle cx="4.6" cy="4.5" r=".55" fill="currentColor"/><circle cx="6.4" cy="4.5" r=".55" fill="currentColor"/></symbol>
+      <symbol id="i-link" viewBox="0 0 16 16"><path d="M6.5 9.5l3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M7.5 5.2l1.2-1.2a2.6 2.6 0 0 1 3.7 3.7l-1.2 1.2M8.5 10.8l-1.2 1.2a2.6 2.6 0 0 1-3.7-3.7l1.2-1.2" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 16 16"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h3l1.5 1.8h4.5A1.5 1.5 0 0 1 14 6.3v5.2a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5v-7Z" stroke="currentColor" stroke-width="1.3" fill="none"/></symbol>
+      <symbol id="i-play" viewBox="0 0 16 16"><path d="M5.5 3.6L12.3 8l-6.8 4.4z" fill="currentColor"/></symbol>
+      <symbol id="i-save" viewBox="0 0 16 16"><path d="M3 2.5h8.2L13.5 5v8.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M5 2.5v3.4h5.4V2.5M5 14.5v-4h6v4" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/></symbol>
+      <symbol id="i-code" viewBox="0 0 16 16"><path d="M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-magic" viewBox="0 0 16 16"><path d="M9.8 2.2l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7zM4.2 8.6l.55 1.45 1.45.55-1.45.55-.55 1.45-.55-1.45-1.45-.55 1.45-.55zM12.4 10.2l.5 1.3 1.3.5-1.3.5-.5 1.3-.5-1.3-1.3-.5 1.3-.5z" fill="currentColor"/></symbol>
+      <symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.8" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M8 7.4v3.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="5.2" r=".8" fill="currentColor"/></symbol>
+      <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2L14.5 13.5h-13z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M8 6.4v3.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".8" fill="currentColor"/></symbol>
+      <symbol id="i-target" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.2" stroke="currentColor" stroke-width="1.2" fill="none"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><path d="M8 1.2v2.2M8 12.6v2.2M1.2 8h2.2M12.6 8h2.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-arrow-l" viewBox="0 0 12 12"><path d="M9.5 6h-7M5.2 3.2L2.4 6l2.8 2.8" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-arrow-r" viewBox="0 0 12 12"><path d="M2.5 6h7M6.8 3.2L9.6 6l-2.8 2.8" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- 背景：工作台剪影 -->
+  <div class="backdrop-app" aria-hidden="true">
+    <div class="bk-titlebar"><svg class="bk-logo"><use href="#logo"/></svg></div>
+    <div class="bk-wbody">
+      <div class="bk-side">
+        <div class="bk-sk" style="width:100%"></div>
+        <div class="bk-sk" style="width:82%"></div>
+        <div class="bk-sk" style="width:64%"></div>
+        <div class="bk-sk" style="width:74%"></div>
+        <div class="bk-sk" style="width:56%"></div>
+      </div>
+      <div class="bk-main">
+        <div class="bk-card"></div><div class="bk-card"></div><div class="bk-card"></div><div class="bk-card"></div>
+        <div class="bk-card"></div><div class="bk-card"></div><div class="bk-card"></div><div class="bk-card"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay">
+
+    <!-- ============ Step 1：选择服务类型（大弹框：左分类 + 两列卡片） ============ -->
+    <div class="modal modal-xl" id="modalSelect">
+      <div class="m-head">
+        <span class="m-ico plus"><svg class="ic"><use href="#i-plus"/></svg></span>
+        <div class="m-title">
+          <h2>选择服务类型</h2>
+          <div class="m-desc">按数据库、Web 服务或应用运行时快速进入；本机已有服务会被自动扫描纳管。</div>
+        </div>
+        <div class="steps-ind">
+          <span class="si on">1 选类型</span><span class="si-arrow">›</span>
+          <span class="si">2 配参数</span><span class="si-arrow">›</span>
+          <span class="si">3 添加</span>
+        </div>
+        <button class="m-close"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+
+      <div class="sel-body">
+        <aside class="sel-side">
+          <div class="sel-search">
+            <svg class="ic" style="width:13px;height:13px"><use href="#i-search"/></svg>
+            <input id="typeSearch" placeholder="搜索服务类型…" />
+            <span class="kbd">Ctrl K</span>
+          </div>
+          <div class="side-label">最近注册</div>
+          <div class="side-row" data-cat="all" data-recent="rustfs">
+            <img src="../frontend/public/db-icons/rustfs.png" alt="" style="width:13px;height:13px;" />RustFS
+          </div>
+          <div class="side-label" style="margin-top:8px">分类</div>
+          <div class="side-row on" data-cat="all">全部<span class="cnt" id="cntAll">9</span></div>
+          <div class="side-row" data-cat="data">数据与缓存<span class="cnt">3</span></div>
+          <div class="side-row" data-cat="web">Web 与代理<span class="cnt">1</span></div>
+          <div class="side-row" data-cat="storage">存储<span class="cnt">1</span></div>
+          <div class="side-row" data-cat="runtime">应用运行时<span class="cnt">2</span></div>
+          <div class="side-row" data-cat="mq">消息队列<span class="cnt">1</span></div>
+          <div class="side-row" data-cat="misc">其他<span class="cnt">1</span></div>
+        </aside>
+
+        <div class="sel-main">
+          <div class="sel-main-head">
+            <h3 id="selCatTitle">全部</h3>
+            <span class="tip">单击进入配置表单</span>
+          </div>
+          <div class="sel-scroll">
+            <div class="type-grid2" id="typeGrid2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Step 2：配置（四 Tab） ============ -->
+    <div class="modal modal-cfg" id="modalConfig" style="display:none;max-height:92vh">
+      <div class="m-head">
+        <span class="m-ico" id="headPreview"></span>
+        <div class="m-title">
+          <h2 id="cfgTitle">RustFS 服务</h2>
+          <div class="m-desc" id="cfgDesc">填写基本信息与专属参数；探测已存在的服务将直接纳管，未存在的注册后纳管。</div>
+        </div>
+        <div class="steps-ind">
+          <span class="si done">1 选类型</span><span class="si-arrow">›</span>
+          <span class="si on">2 配参数</span><span class="si-arrow">›</span>
+          <span class="si">3 添加</span>
+        </div>
+        <button class="m-close"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+
+      <div class="wtabs">
+        <button class="wtab active" data-tab="basic">基本</button>
+        <button class="wtab" data-tab="params">参数配置<span class="badge-soft" id="tabTypeBadge" style="margin-left:6px">RustFS</span></button>
+        <button class="wtab" data-tab="look">外观</button>
+        <button class="wtab" data-tab="advanced">高级</button>
+      </div>
+
+      <div class="m-body">
+
+        <!-- Tab: 基本 -->
+        <div class="tab-pane show" id="paneBasic">
+          <div class="sec">
+            <div class="sec-title">程序文件</div>
+            <div class="input-row">
+              <div class="input" style="flex:1">
+                <svg class="ic"><use href="#i-exe"/></svg>
+                <input class="mono" id="f-file" value="D:\rustfs\rustfs.exe" spellcheck="false" />
+              </div>
+              <button class="btn btn-ghost">浏览…</button>
+            </div>
+            <div class="hint" id="fileHint">程序文件 · rustfs.conf 默认创建在同目录</div>
+            <div class="detect">
+              <svg class="ic"><use href="#i-magic"/></svg>
+              <span>已识别 <b>RustFS 对象存储</b> · 套用官方参数模板 <code>--console-enable --address :9000</code></span>
+              <span class="tpl">已知服务模板</span>
+            </div>
+          </div>
+          <div class="sec">
+            <div class="sec-title">标识</div>
+            <div class="field-grid">
+              <div class="field">
+                <label>服务名<em>*</em></label>
+                <div class="input"><input class="mono" id="f-name" value="rustfs-service" spellcheck="false" /></div>
+                <div class="hint">从文件名生成 · <b>服务名在系统中唯一</b>，纳管已有服务时以实际服务名为准</div>
+              </div>
+              <div class="field">
+                <label>显示名称<em>*</em></label>
+                <div class="input"><input id="f-display" value="RustFS 分布式存储服务" spellcheck="false" /></div>
+                <div class="hint">services.msc 与通知里展示的名字</div>
+              </div>
+            </div>
+          </div>
+          <div class="sec">
+            <div class="sec-title">启动与守护 <span class="opt">· 各类型通用</span></div>
+            <div class="field-grid" style="align-items:center">
+              <div class="field">
+                <label>启动类型</label>
+                <div class="seg" id="startSeg" style="width:auto">
+                  <button class="on" data-v="Automatic">自动</button>
+                  <button data-v="Automatic (Delayed)">自动（延迟）</button>
+                  <button data-v="Manual">手动</button>
+                  <button data-v="Disabled">禁用</button>
+                </div>
+              </div>
+              <div class="field" style="justify-content:flex-end;padding-bottom:6px">
+                <div class="switch-row">
+                  <span class="switch on" id="f-restart"></span>
+                  <span>进程异常退出时<b>自动重启</b></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: 参数配置 -->
+        <div class="tab-pane" id="paneParams">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="sec-title"><span id="tplSectionName">RustFS 参数</span><span class="badge-soft">模板专属</span></div>
+            <div id="tplFields"></div>
+          </div>
+          <div id="confSec">
+            <div class="conf-card">
+              <div class="conf-head">
+                <span class="cf-ic"><img src="../frontend/public/db-icons/rustfs.png" alt="" style="width:16px;height:16px" /></span>
+                <span class="cf-name" id="confName">rustfs.conf</span>
+                <span class="cf-gen" id="confGenBadge"><i></i>自动生成</span>
+                <div class="seg compact" id="confModeSeg" style="margin-left:6px">
+                  <button class="on" data-m="simple">按字段生成</button>
+                  <button data-m="advanced">高级编辑</button>
+                </div>
+                <button class="cf-doc" id="confDoc">官方文档<svg class="ic"><use href="#i-link"/></svg></button>
+              </div>
+              <div class="conf-body">
+                <div class="conf-gen mono" id="confGenOut"></div>
+                <textarea class="mono" id="confEdit" style="display:none" spellcheck="false"></textarea>
+                <div class="conf-foot">
+                  <span class="hint" id="confHint"></span>
+                  <button class="btn-xs" id="confReset" style="display:none"><svg class="ic"><use href="#i-magic"/></svg>重新生成</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="global-note">
+            <svg class="ic"><use href="#i-folder"/></svg>
+            <span><b>日志与运行数据由 ServDeck 统一管理</b>：写入应用数据目录 <b>…\.servdeck\services\&lt;服务名&gt;\</b>；全局路径可在 设置 → 应用数据目录 中查看与修改。</span>
+          </div>
+        </div>
+
+        <!-- Tab: 外观 -->
+        <div class="tab-pane" id="paneLook">
+          <div>
+            <div class="look-tabs">
+              <span class="look-label">图标<span class="cur" id="lookCur">当前：类型图标</span></span>
+              <div class="seg compact" id="lookSeg" style="margin-left:auto">
+                <button class="on" data-m="type">类型图标</button>
+                <button data-m="custom">自定义</button>
+              </div>
+            </div>
+            <div id="lookTypeRow" style="margin-bottom:4px">
+              <div class="hint">图标随服务类型自动设定（当前 <b id="lookTypeName">RustFS</b>），一般无需修改。</div>
+            </div>
+            <div id="lookCustom" style="display:none">
+              <div class="icon-grid" id="iconGrid" style="margin-bottom:14px"></div>
+            </div>
+            <div class="look-label" style="margin:4px 0 8px">颜色</div>
+            <div class="icon-grid" id="colorGrid"></div>
+          </div>
+          <div class="preview-card">
+            <span class="pv-ic" id="pvIcon"></span>
+            <span>
+              <span class="pv-name" id="pvName">RustFS 分布式存储服务</span>
+              <span class="pv-sub" style="display:block">预览 · 用于服务列表、首页卡片与监控页</span>
+            </span>
+            <button class="btn btn-ghost" id="lookReset">重置为默认</button>
+          </div>
+        </div>
+
+        <!-- Tab: 高级 -->
+        <div class="tab-pane" id="paneAdvanced">
+          <div class="sec">
+            <div class="sec-title">运行身份</div>
+            <div class="field-grid">
+              <div class="field">
+                <label>运行账户</label>
+                <div class="select">
+                  <input value="LocalSystem（默认）" readonly style="font-family:var(--gn-font-sans)" />
+                  <svg class="ic chev" style="width:12px;height:12px;color:var(--gn-fg-5)"><use href="#i-chev"/></svg>
+                </div>
+                <div class="hint">一般保持默认；需要访问网络共享或指定账户时再改</div>
+              </div>
+              <div class="field">
+                <label>进程优先级</label>
+                <div class="select">
+                  <input value="Normal（默认）" readonly style="font-family:var(--gn-font-sans)" />
+                  <svg class="ic chev" style="width:12px;height:12px;color:var(--gn-fg-5)"><use href="#i-chev"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="sec">
+            <div class="sec-title">环境变量</div>
+            <div class="input">
+              <input class="mono" placeholder="KEY=VALUE，多个用分号分隔，例如 TZ=Asia/Shanghai; LANG=zh_CN" spellcheck="false" />
+            </div>
+            <div class="hint">以环境变量注入服务进程；类型模板自带的配置文件变量不在此处重复。</div>
+          </div>
+          <div class="global-note">
+            <svg class="ic"><use href="#i-folder"/></svg>
+            <span>以上高级项对应 servy 的 <b>--account / --priority / --env</b> 参数，保持默认即可获得最佳兼容性。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="m-foot cmd-wrap" id="cfgFoot">
+        <div class="cmd-box" id="cmdBox"></div>
+        <div class="probe-bar" id="probeBar">
+          <span class="pb-ic" id="probeIc"></span>
+          <span class="pb-text" id="probeText"></span>
+          <button class="pb-link" id="probeLink" style="display:none">查看该服务</button>
+        </div>
+        <div class="foot-main" style="display:flex;align-items:center;gap:10px">
+          <button class="btn btn-ghost" id="btnBack"><svg class="ic" style="width:12px;height:12px"><use href="#i-arrow-l"/></svg>上一步</button>
+          <span class="foot-status" id="footStatus">未探测 · <b id="footType">RustFS</b></span>
+          <button class="cmd-toggle" id="cmdToggle"><svg class="ic"><use href="#i-code"/></svg>servy 命令</button>
+          <span class="foot-spring"></span>
+          <div class="foot-actions">
+            <button class="btn btn-ghost" id="btnProbe"><svg class="ic"><use href="#i-target"/></svg>探测</button>
+            <button class="btn btn-ghost">取消</button>
+            <button class="btn btn-primary disabled" id="footPrimary"><svg class="ic"><use href="#i-play"/></svg>加入纳管</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 原型专用：主题切换 -->
+  <div class="theme-dock">
+    <span class="td-tip">原型演示 · 全 Token 驱动</span>
+    <div class="td-seg">
+      <button data-t="light" class="on">亮色</button>
+      <button data-t="dark">暗色</button>
+      <button data-t="custom">自定义</button>
+    </div>
+  </div>
+
+<script>
+  // ================================================================
+  // v7：对齐真实「新建连接」三步模式
+  // Step1 大选择器(左分类+搜索+最近 / 右两列类型卡) → Step2 四Tab(基本|参数配置|外观|高级)
+  // 头部步骤指示「1 选类型 > 2 配参数 > 3 注册」；schema 编译配置与命令。
+  // ================================================================
+  const $ = id => document.getElementById(id);
+  const ICON_BASE = '../frontend/public/db-icons/';
+
+  // ---- 图标库（外观） ----
+  const ICONS = [
+    { id: 'mysql',    el: `<img src="${ICON_BASE}mysql.svg" alt="">` },
+    { id: 'redis',    el: `<img src="${ICON_BASE}redis.ico" alt="">` },
+    { id: 'java',     el: `<img src="${ICON_BASE}java.svg" alt="">` },
+    { id: 'nginx',    el: `<img src="../frontend/public/db-icons/nginx.svg" alt="" style="width:22px;height:22px" />` },
+    { id: 'rustfs',   el: `<img src="../frontend/public/db-icons/rustfs.png" alt="" style="width:22px;height:22px" />` },
+    { id: 'node',     el: `<svg class="ic" style="color:#2f8f4e;width:22px;height:22px"><use href="#i-node"/></svg>` },
+    { id: 'mongodb',  el: `<img src="${ICON_BASE}mongodb.svg" alt="">` },
+    { id: 'kafka',    el: `<img src="${ICON_BASE}kafka.png" alt="">` },
+    { id: 'rabbitmq', el: `<img src="${ICON_BASE}rabbitmq.svg" alt="">` },
+    { id: 'nacos',    el: `<img src="${ICON_BASE}nacos.svg" alt="">` },
+    { id: 'chroma',   el: `<img src="${ICON_BASE}chroma.svg" alt="">` },
+    { id: 'qdrant',   el: `<img src="${ICON_BASE}qdrant.svg" alt="">` },
+    { id: 'milvus',   el: `<img src="${ICON_BASE}milvus.svg" alt="">` },
+    { id: 'sphinx',   el: `<img src="${ICON_BASE}sphinx.svg" alt="">` },
+    { id: 'generic',  el: `<svg class="ic" style="color:#64748b;width:22px;height:22px"><use href="#i-exe"/></svg>` },
+  ];
+  const COLORS = ['#0d7cad', '#155e75', '#dc2626', '#15803d', '#2f8f4e', '#c2410c', '#d97706',
+                  '#0ea5e9', '#2563eb', '#7c3aed', '#db2777', '#64748b', '#0f766e', '#e11d48', '#65a30d'];
+  let look = { icon: 'rustfs', color: '#c2410c' };
+  const lookDefault = () => ({ ...curTpl().look });
+
+  function iconEl(id) { return ICONS.find(i => i.id === id).el; }
+  function renderHead() {
+    $('headPreview').innerHTML = iconEl(look.icon);
+    $('headPreview').style.setProperty('--look-color', look.color);
+  }
+  function renderLook() {
+    $('iconGrid').innerHTML = ICONS.map(i =>
+      `<button class="icon-opt${i.id === look.icon ? ' on' : ''}" data-ic="${i.id}" title="${i.id}">${i.el}</button>`
+    ).join('') + '<button class="icon-more">更多…</button>';
+    $('colorGrid').innerHTML = COLORS.map(c =>
+      `<button class="dot${c === look.color ? ' on' : ''}" data-c="${c}" style="background:${c}"></button>`
+    ).join('');
+    document.querySelectorAll('#iconGrid .icon-opt').forEach(b => b.addEventListener('click', () => {
+      look.icon = b.dataset.ic; renderLook();
+    }));
+    document.querySelectorAll('#colorGrid .dot').forEach(b => b.addEventListener('click', () => {
+      look.color = b.dataset.c; renderLook();
+    }));
+    // 预览卡
+    $('pvIcon').innerHTML = iconEl(look.icon);
+    $('pvIcon').style.setProperty('--look-color', look.color);
+    $('pvName').textContent = $('f-display').value || '<显示名称>';
+    const custom = lookTab === 'custom';
+    $('lookCur').textContent = '当前：' + (custom ? (ICONS.find(i => i.id === look.icon).id) : '类型图标');
+    renderHead();
+  }
+  let lookTab = 'type';
+  function setLookTab(m) {
+    lookTab = m;
+    document.querySelectorAll('#lookSeg button').forEach(x => x.classList.toggle('on', x.dataset.m === m));
+    const custom = m === 'custom';
+    $('lookTypeRow').style.display = custom ? 'none' : 'block';
+    $('lookCustom').style.display = custom ? 'block' : 'none';
+    if (custom) renderLook(); else { look = lookDefault(); renderLook(); }
+    $('lookHintRefresh') && 0;
+  }
+  document.querySelectorAll('#lookSeg button').forEach(b =>
+    b.addEventListener('click', () => setLookTab(b.dataset.m)));
+  $('lookReset').addEventListener('click', () => {
+    look = lookDefault(); setLookTab('type');
+  });
+
+  // ================================================================
+  // 服务类型 Schema（含 Step1 卡片元数据）
+  // ================================================================
+  const SCHEMAS = {
+    java: {
+      label: 'Java 应用', cat: 'runtime', order: 1,
+      cardIcon: `<img src="${ICON_BASE}java.svg" alt="">`,
+      cardDesc: 'JAR / WAR 部署为系统服务', tags: ['官方模板', 'JVM 探测'],
+      section: 'Java 运行时',
+      look: { icon: 'java', color: '#d97706' },
+      file: 'D:\\apps\\order\\order.jar', fileHint: '程序文件（JAR / WAR）· JVM 将自动探测，也可在参数中手动指定',
+      name: 'order-service', display: 'Order Service',
+      fields: [
+        { key: 'jvm',     label: 'JVM 路径', type: 'select', value: '自动探测（jdk-17\\bin\\java.exe）' },
+        { key: 'xmx',     label: '最大堆内存', type: 'select', value: '512m' },
+        { key: 'jvmArgs', label: 'JVM 附加参数', type: 'text', value: '', placeholder: '-XX:+UseG1GC -Dspring.profiles.active=prod' },
+        { key: 'appArgs', label: '程序参数', type: 'text', value: '--server.port=8080' },
+      ],
+      exe: () => 'C:\\Program Files\\Java\\jdk-17\\bin\\java.exe',
+      params: (f, file) => `-Xmx${f.xmx} ${f.jvmArgs} -jar "${file}" ${f.appArgs}`.replace(/\s+/g, ' ').trim(),
+      conf: null,
+    },
+    rustfs: {
+      label: 'RustFS', cat: 'storage', order: 1,
+      cardIcon: `<img src="../frontend/public/db-icons/rustfs.png" alt="" style="width:25px;height:25px" />`,
+      cardDesc: '高性能分布式对象存储', tags: ['官方模板', '配置生成'],
+      section: 'RustFS 参数',
+      look: { icon: 'rustfs', color: '#c2410c' },
+      file: 'D:\\rustfs\\rustfs.exe', fileHint: '程序文件 · rustfs.conf 默认创建在同目录',
+      name: 'rustfs-service', display: 'RustFS 分布式存储服务',
+      fields: [
+        { key: 'dataDir',  label: '数据目录', type: 'path', value: 'D:\\rustfs\\data', span: 2 },
+        { key: 'apiPort',  label: 'API 端口', type: 'port', value: '9000' },
+        { key: 'consolePort', label: 'Console 端口', type: 'port', value: '9001' },
+        { key: 'logLevel',  label: '日志级别', type: 'select', value: 'info' },
+        { key: 'accessKey', label: '访问密钥', type: 'text', value: 'rustfsadmin' },
+        { key: 'secretKey', label: '访问密码', type: 'pass', value: 'rustfsadmin' },
+      ],
+      exe: () => null,
+      params: f => `server "${f.dataDir}" --console-enable --console-address :${f.consolePort} --address :${f.apiPort} --access-key ${f.accessKey} --secret-key ${f.secretKey}`,
+      conf: {
+        name: 'rustfs.conf', doc: '查看 RustFS 官方配置文档',
+        hint: '由上方参数实时生成（KEY=VALUE，注册时以环境变量注入服务进程）；若同目录已有 rustfs.conf，将读取并解析回上方字段。',
+        render: f => `RUSTFS_ACCESS_KEY=${f.accessKey}\nRUSTFS_SECRET_KEY=${f.secretKey}\nRUSTFS_VOLUMES=${f.dataDir}\nRUSTFS_ADDRESS=0.0.0.0:${f.apiPort}\nRUSTFS_CONSOLE_ADDRESS=0.0.0.0:${f.consolePort}\nRUSTFS_CONSOLE_ENABLE=true\nRUST_LOG=${f.logLevel}\nRUSTFS_OBS_LOG_DIRECTORY={{LOG_DIR}}`,
+      },
+    },
+    nginx: {
+      label: 'Nginx', cat: 'web', order: 1,
+      cardIcon: `<img src="../frontend/public/db-icons/nginx.svg" alt="" style="width:25px;height:25px" />`,
+      cardDesc: 'Web 服务器 / 反向代理', tags: ['官方模板', '最小配置生成'],
+      section: 'Nginx 参数',
+      look: { icon: 'nginx', color: '#009639' },
+      file: 'D:\\nginx\\nginx.exe', fileHint: '程序文件 · conf 默认位于同目录 conf\\nginx.conf',
+      name: 'nginx', display: 'Nginx 反向代理服务',
+      fields: [
+        { key: 'prefix',   label: '前缀目录（-p）', type: 'path', value: 'D:\\nginx' },
+        { key: 'listenPort', label: '监听端口', type: 'port', value: '8080' },
+        { key: 'proxyPass', label: '反向代理目标', type: 'text', value: 'http://127.0.0.1:9000' },
+        { key: 'workers',  label: 'worker 进程数', type: 'select', value: 'auto' },
+      ],
+      exe: () => null,
+      params: f => `-p "${f.prefix}"`,
+      conf: {
+        name: 'nginx.conf', doc: '查看 Nginx 官方配置文档',
+        hint: '由上方参数生成最小可用配置；证书、多站点等复杂规则请切「高级编辑」手工维护。',
+        render: f => `worker_processes ${f.workers};\nevents {\n  worker_connections 1024;\n}\nhttp {\n  server {\n    listen ${f.listenPort};\n    location / {\n      proxy_pass ${f.proxyPass};\n    }\n  }\n}`,
+      },
+    },
+    redis: {
+      label: 'Redis', cat: 'data', order: 1,
+      cardIcon: `<img src="${ICON_BASE}redis.ico" alt="">`,
+      cardDesc: '内存键值缓存（Windows 版）', tags: ['官方模板', '配置生成'],
+      section: 'Redis 参数',
+      look: { icon: 'redis', color: '#dc2626' },
+      file: 'D:\\redis\\redis-server.exe', fileHint: '程序文件 · redis.conf 默认创建在同目录',
+      name: 'redis', display: 'Redis 缓存服务',
+      fields: [
+        { key: 'dataDir',   label: '持久化目录', type: 'path', value: 'D:\\redis\\data', span: 2 },
+        { key: 'port',      label: '端口', type: 'port', value: '6379' },
+        { key: 'password',  label: '访问密码（requirepass）', type: 'pass', value: 'changeme' },
+        { key: 'aof',       label: 'AOF 持久化', type: 'sw', value: true },
+        { key: 'maxMemory', label: '内存上限', type: 'select', value: '1gb' },
+      ],
+      exe: () => null,
+      params: f => `"{{CONF_PATH}}"`,
+      conf: {
+        name: 'redis.conf', doc: '查看 Redis 官方配置文档',
+        hint: '由上方参数实时生成；主从、哨兵等高级拓扑请切「高级编辑」。',
+        render: f => `bind 0.0.0.0\nport ${f.port}\nrequirepass ${f.password}\nappendonly ${f.aof ? 'yes' : 'no'}\ndir ${f.dataDir}\nmaxmemory ${f.maxMemory}\nmaxmemory-policy allkeys-lru\nlogfile "{{LOG_DIR}}\\redis.log"`,
+      },
+    },
+    mongodb: {
+      label: 'MongoDB', cat: 'data', order: 2,
+      cardIcon: `<img src="${ICON_BASE}mongodb.svg" alt="">`,
+      cardDesc: '文档数据库（zip 版部署）', tags: ['官方模板', '配置生成'],
+      section: 'MongoDB 参数',
+      look: { icon: 'mongodb', color: '#47A248' },
+      file: 'D:\\mongodb\\mongod.exe', fileHint: '程序文件 · mongod.conf 默认创建在同目录',
+      name: 'mongodb', display: 'MongoDB 数据库服务',
+      fields: [
+        { key: 'port',    label: '端口', type: 'port', value: '27017' },
+        { key: 'dataDir', label: '数据目录', type: 'path', value: 'D:\\mongodb\\data' },
+        { key: 'logDir',  label: '日志目录', type: 'path', value: 'D:\\mongodb\\logs' },
+      ],
+      exe: () => null,
+      params: f => `--dbpath "${f.dataDir}" --port ${f.port} --logpath "{{LOG_DIR}}\\mongod.log"`,
+      conf: {
+        name: 'mongod.conf', doc: '查看 MongoDB 官方配置文档',
+        hint: '由上方参数实时生成（YAML 格式）。',
+        render: f => `storage:\n  dbPath: ${f.dataDir}\nnet:\n  port: ${f.port}\nsystemLog:\n  destination: file\n  path: {{LOG_DIR}}\\mongod.log\n  logAppend: true`,
+      },
+    },
+    kafka: {
+      label: 'Kafka', cat: 'mq', order: 1,
+      cardIcon: `<img src="${ICON_BASE}kafka.png" alt="">`,
+      cardDesc: '分布式消息队列（依赖 ZooKeeper）', tags: ['官方模板'],
+      section: 'Kafka 参数',
+      look: { icon: 'kafka', color: '#0f766e' },
+      file: 'D:\\kafka\\kafka-server-start.bat', fileHint: '启动脚本 · kafka 由脚本拉起',
+      name: 'kafka', display: 'Kafka 消息队列服务',
+      fields: [
+        { key: 'port',      label: '监听端口', type: 'port', value: '9092' },
+        { key: 'zk',        label: 'ZooKeeper 地址', type: 'text', value: '127.0.0.1:2181' },
+        { key: 'logRetention', label: '日志保留（小时）', type: 'port', value: '72' },
+      ],
+      exe: () => null,
+      params: f => `--override listeners=PLAINTEXT://0.0.0.0:${f.port} --override zookeeper.connect=${f.zk} --override log.retention.hours=${f.logRetention}`,
+      conf: null,
+    },
+    rabbitmq: {
+      label: 'RabbitMQ', cat: 'mq', order: 2,
+      cardIcon: `<img src="${ICON_BASE}rabbitmq.svg" alt="">`,
+      cardDesc: 'AMQP 消息代理', tags: ['官方模板'],
+      section: 'RabbitMQ 参数',
+      look: { icon: 'rabbitmq', color: '#c2410c' },
+      file: 'D:\\rabbitmq\\rabbitmq-server.bat', fileHint: '启动脚本 · Erlang 运行时需已安装',
+      name: 'rabbitmq', display: 'RabbitMQ 消息代理服务',
+      fields: [
+        { key: 'nodePort', label: 'AMQP 端口', type: 'port', value: '5672' },
+        { key: 'mgmtPort', label: '管理台端口', type: 'port', value: '15672' },
+      ],
+      exe: () => null,
+      params: f => `-p 5672:${f.nodePort}`,
+      conf: null,
+    },
+    node: {
+      label: 'Node.js', cat: 'runtime', order: 2,
+      cardIcon: `<svg class="ic" style="color:#2f8f4e;width:25px;height:25px"><use href="#i-node"/></svg>`,
+      cardDesc: 'JS 入口脚本 · 运行时自动探测', tags: ['运行时探测'],
+      section: 'Node.js 运行时',
+      look: { icon: 'node', color: '#2f8f4e' },
+      file: 'D:\\apps\\console\\server.js', fileHint: '入口文件（JS / TS 编译产物）· node 运行时自动探测',
+      name: 'web-console', display: 'Web Console 服务',
+      fields: [
+        { key: 'runtime', label: 'node 运行时', type: 'select', value: '自动探测（nodejs\\node.exe）' },
+        { key: 'appArgs', label: '程序参数', type: 'text', value: '--port 3000' },
+        { key: 'env',     label: '环境变量（KEY=VALUE）', type: 'text', value: 'NODE_ENV=production', placeholder: 'NODE_ENV=production KEY=value' },
+      ],
+      exe: () => 'C:\\Program Files\\nodejs\\node.exe',
+      params: (f, file) => `"${file}" ${f.appArgs}`,
+      conf: null,
+    },
+    generic: {
+      label: '通用程序', cat: 'misc', order: 1,
+      cardIcon: `<svg class="ic" style="color:#64748b;width:25px;height:25px"><use href="#i-exe"/></svg>`,
+      cardDesc: '任意 EXE · 参数完全自定义', tags: ['自由配置'],
+      section: '程序参数',
+      look: { icon: 'generic', color: '#64748b' },
+      file: 'D:\\apps\\agent\\app.exe', fileHint: '程序文件 · 命令行完全自定义',
+      name: 'custom-agent', display: '自定义程序服务',
+      fields: [
+        { key: 'appArgs', label: '启动参数', type: 'text', value: '--config app.yaml' },
+      ],
+      exe: () => null,
+      params: f => `${f.appArgs}`,
+      conf: null,
+    },
+  };
+  const CATS = [
+    { id: 'all', label: '全部' },
+    { id: 'data', label: '数据与缓存' },
+    { id: 'web', label: 'Web 与代理' },
+    { id: 'storage', label: '存储' },
+    { id: 'runtime', label: '应用运行时' },
+    { id: 'mq', label: '消息队列' },
+    { id: 'misc', label: '其他' },
+  ];
+
+  // ---- Step1：卡片渲染 / 分类 / 搜索 ----
+  function renderTypeGrid(cat = 'all', kw = '') {
+    const list = Object.entries(SCHEMAS)
+      .filter(([, t]) => (cat === 'all' || t.cat === cat) && (!kw || t.label.toLowerCase().includes(kw.toLowerCase())))
+      .sort((a, b) => (a[1].cat + a[1].order).localeCompare(b[1].cat + b[1].order));
+    $('typeGrid2').innerHTML = list.map(([id, t]) => `
+      <button class="type-card" data-t="${id}">
+        <span class="tc-top">
+          <span class="tc-ic">${t.cardIcon}</span>
+          <span><span class="tc-name">${t.label}</span><span class="tc-desc">${t.cardDesc}</span></span>
+        </span>
+        <span class="tc-tags">${t.tags.map(x => `<span class="tag-chip${x === '官方模板' ? ' hot' : ''}">${x}</span>`).join('')}</span>
+      </button>`).join('');
+    $('selCatTitle').textContent = (CATS.find(c => c.id === cat) || CATS[0]).label + ` · ${list.length} 个类型`;
+    document.querySelectorAll('#typeGrid2 .type-card').forEach(c => c.addEventListener('click', () => {
+      applyTemplate(c.dataset.t);
+      showStep('config');
+    }));
+  }
+  document.querySelectorAll('.sel-side .side-row[data-cat]').forEach(r => r.addEventListener('click', () => {
+    document.querySelectorAll('.sel-side .side-row').forEach(x => x.classList.toggle('on', x === r));
+    renderTypeGrid(r.dataset.cat, $('typeSearch').value.trim());
+  }));
+  $('typeSearch').addEventListener('input', () => {
+    document.querySelectorAll('.sel-side .side-row[data-cat]').forEach(x => x.classList.toggle('on', x.dataset.cat === 'all'));
+    renderTypeGrid('all', $('typeSearch').value.trim());
+  });
+
+  // ---- Step 切换 ----
+  function showStep(step) {
+    const cfg = step === 'config';
+    $('modalSelect').style.display = cfg ? 'none' : 'flex';
+    $('modalConfig').style.display = cfg ? 'flex' : 'none';
+    document.querySelector('.m-body').scrollTop = 0;
+  }
+  $('btnBack').addEventListener('click', () => showStep('select'));
+
+  // ---- Step2 Tabs ----
+  document.querySelectorAll('.wtab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.wtab').forEach(x => x.classList.toggle('active', x === t));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('show', p.id === 'pane' + t.dataset.tab[0].toUpperCase() + t.dataset.tab.slice(1)));
+  }));
+
+  // ---- schema 渲染 ----
+  const F = {
+    text:   s => `<div class="input"><input class="mono" data-k="${s.key}" value="${s.value ?? ''}" placeholder="${s.placeholder ?? ''}" spellcheck="false" /></div>`,
+    pass:   s => `<div class="input has-eye"><input class="mono" data-k="${s.key}" type="password" value="${s.value ?? ''}" spellcheck="false" /><button class="pass-eye" type="button" aria-label="显示密码" aria-pressed="false"><svg class="ic"><use href="#i-eye"/></svg></button></div>`,
+    path:   s => `<div class="input-row"><div class="input" style="flex:1"><input class="mono" data-k="${s.key}" value="${s.value ?? ''}" spellcheck="false" /></div><button class="btn btn-ghost">浏览…</button></div>`,
+    select: s => `<div class="select"><input class="mono" data-k="${s.key}" value="${s.value}" readonly /><svg class="ic chev" style="width:12px;height:12px;color:var(--gn-fg-5)"><use href="#i-chev"/></svg></div>`,
+    port:   s => `<div class="input narrow"><input class="mono" data-k="${s.key}" value="${s.value}" /></div>`,
+    sw:     s => `<div style="height:34px;display:flex;align-items:center"><span class="switch small${s.value ? ' on' : ''}" data-k="${s.key}"></span></div>`,
+  };
+
+  const state = { type: 'rustfs', start: 'Automatic', restart: true, confMode: 'simple', confEdited: false };
+  const vals = {};
+  const curTpl = () => SCHEMAS[state.type];
+
+  function renderTplFields() {
+    const tpl = curTpl();
+    $('tplSectionName').textContent = tpl.section;
+    const grid = [];
+    tpl.fields.forEach(s => {
+      // span:2 = 跨满整行（grid-column:1 / -1），给路径类字段用。
+      // 带整行的字段请排在分区首位，插在行中间会在栅格上留下空洞。
+      const span = s.span === 2 ? 'grid-column:1 / -1;' : '';
+      if (s.type === 'sw') {
+        grid.push(`<div class="field" style="${span}justify-content:flex-end"><label>${s.label}</label>${F.sw(s)}</div>`);
+      } else {
+        grid.push(`<div class="field" style="${span}"><label>${s.label}</label>${F[s.type](s)}</div>`);
+      }
+    });
+    const cols = tpl.fields.length > 4 ? 'grid-template-columns:1fr 1fr 1fr' : 'grid-template-columns:1fr 1fr';
+    $('tplFields').innerHTML = `<div style="display:grid;${cols};gap:10px 12px">${grid.join('')}</div>`;
+    for (const k of Object.keys(vals)) delete vals[k];
+    tpl.fields.forEach(s => { vals[s.key] = s.value; });
+    $('tplFields').querySelectorAll('[data-k]').forEach(el => {
+      const k = el.dataset.k;
+      if (el.classList.contains('switch')) {
+        el.addEventListener('click', () => { vals[k] = !vals[k]; el.classList.toggle('on', vals[k]); onValsChanged(); });
+      } else {
+        el.addEventListener('input', () => { vals[k] = el.value; onValsChanged(); });
+      }
+    });
+    // 眼睛只切 type，不动 vals，也不触发 onValsChanged。
+    $('tplFields').querySelectorAll('.pass-eye').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const inp = btn.closest('.input').querySelector('input');
+        const toPlain = inp.type === 'password';
+        inp.type = toPlain ? 'text' : 'password';
+        btn.setAttribute('aria-label', toPlain ? '隐藏密码' : '显示密码');
+        btn.setAttribute('aria-pressed', String(toPlain));
+        btn.querySelector('use').setAttribute('href', toPlain ? '#i-eye-off' : '#i-eye');
+      });
+    });
+  }
+
+  function renderConf() {
+    const tpl = curTpl();
+    if (!tpl.conf) { $('confSec').style.display = 'none'; return; }
+    $('confSec').style.display = 'block';
+    $('confName').textContent = tpl.conf.name;
+    $('confDoc').innerHTML = tpl.conf.doc + ' <svg class="ic"><use href="#i-link"/></svg>';
+    const simple = state.confMode === 'simple';
+    $('confModeSeg').querySelectorAll('button').forEach(b =>
+      b.classList.toggle('on', (b.dataset.m === 'simple') === simple));
+    $('confGenOut').style.display = simple ? 'block' : 'none';
+    $('confEdit').style.display = simple ? 'none' : 'block';
+    $('confReset').style.display = (!simple && state.confEdited) ? 'inline-flex' : 'none';
+    const badge = $('confGenBadge');
+    if (simple) {
+      badge.className = 'cf-gen'; badge.innerHTML = '<i></i>自动生成';
+      $('confGenOut').textContent = tpl.conf.render(vals);
+      $('confHint').textContent = tpl.conf.hint;
+    } else {
+      badge.className = 'cf-gen' + (state.confEdited ? ' manual' : '');
+      badge.innerHTML = state.confEdited ? '<i></i>已手动修改' : '<i></i>自动生成';
+      if (!state.confEdited && $('confEdit').value.trim() === '') {
+        $('confEdit').value = tpl.conf.render(vals);
+      }
+      $('confHint').textContent = '手动编辑后内容不再随上方字段联动；注册时按此内容写入配置文件。';
+    }
+  }
+
+  function renderCmd() {
+    const tpl = curTpl();
+    const file = $('f-file').value.trim() || '<程序文件>';
+    const name = $('f-name').value.trim() || '<服务名>';
+    const display = $('f-display').value.trim() || '<显示名称>';
+    const dir = file.replace(/[\\\/][^\\\/]*$/, '') || '<目录>';
+    const exe = tpl.exe(vals) || file;
+    const params = tpl.params(vals, file);
+    const base = 'C:\\Users\\Administrator\\.servdeck\\services\\' + name + '\\logs';
+    const flags = [
+      ['-p', `"${exe}"`],
+      ['--name', `"${name}"`],
+      ['--displayName', `"${display}"`],
+      ['--startupDir', `"${dir}"`],
+    ];
+    if (params) flags.push(['--params', `"${params}"`]);
+    flags.push(['--startupType', state.start]);
+    flags.push(['--stdout', `"${base}\\service-out.log"`]);
+    flags.push(['--stderr', `"${base}\\service-err.log"`]);
+    if (state.restart) flags.push(['--enableSizeRotation', '']);
+    const l1 = '<span class="c-cmd">servy-10.1.exe</span> <span class="c-val">install</span> ' +
+      flags.filter(([k]) => k !== '--enableSizeRotation')
+        .map(([k, v]) => `<span class="c-flag">${k}</span> <span class="c-val">${v.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>`)
+        .join(' \\\n  ') +
+      (state.restart ? ' \\\n  <span class="c-flag">--enableSizeRotation</span>' : '');
+    const l2 = '<span class="c-cmd">servy-10.1.exe</span> <span class="c-val">start --name "' + name.replace(/&/g, '&amp;') + '"</span>';
+    $('cmdBox').innerHTML = l1 + '\n' + l2;
+  }
+
+  function onValsChanged() {
+    if (state.confMode === 'simple') state.confEdited = false;
+    renderConf(); renderCmd();
+  }
+
+  function applyTemplate(t) {
+    const tpl = SCHEMAS[t];
+    state.type = t;
+    state.confMode = 'simple';
+    state.confEdited = false;
+    $('confEdit').value = '';
+    $('f-file').value = tpl.file;
+    $('fileHint').textContent = tpl.fileHint;
+    $('f-name').value = tpl.name;
+    $('f-display').value = tpl.display;
+    $('tabTypeBadge').textContent = tpl.label;
+    $('cfgTitle').textContent = tpl.label + ' 服务';
+    $('footType').textContent = tpl.label;
+    $('tplSectionName').textContent = tpl.section;
+    look = { ...tpl.look };
+    setLookTab('type');
+    renderTplFields();
+    renderConf();
+    renderCmd();
+    resetProbe();
+  }
+
+  // ================================================================
+  // 探测：注册前的服务名唯一性检查（服务名在 SCM 中必须唯一）。
+  // 命中本机已有服务 → 拦截并引导「已被自动扫描纳管」；通过 → 解锁「加入纳管」。
+  // ================================================================
+  const MOCK_EXISTS = {
+    mysql:   { scm: 'MySQL80',  state: '运行中', start: '自动' },
+    redis:   { scm: 'Redis',    state: '已停止', start: '手动' },
+    nginx:   { scm: 'nginx',    state: '运行中', start: '自动' },
+    mongodb: { scm: 'MongoDB',  state: '运行中', start: '自动' },
+    spooler: { scm: 'Spooler',  state: '运行中', start: '自动' },
+  };
+  let probeState = 'none'; // none | ok | conflict
+  function setPrimaryEnabled(on) {
+    $('footPrimary').classList.toggle('disabled', !on);
+  }
+  function resetProbe() {
+    probeState = 'none';
+    setPrimaryEnabled(false);
+    $('probeBar').className = 'probe-bar';
+    $('footStatus').innerHTML = '未探测 · <b id="footType">' + $('footType').textContent + '</b>';
+    $('btnProbe').innerHTML = '<svg class="ic"><use href="#i-target"/></svg>探测';
+  }
+  function runProbe() {
+    const btn = $('btnProbe');
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="ic" style="animation:spin 1s linear infinite"><use href="#i-target"/></svg>探测中…';
+    $('probeBar').className = 'probe-bar';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<svg class="ic"><use href="#i-target"/></svg>重新探测';
+      const name = $('f-name').value.trim();
+      const hitKey = Object.keys(MOCK_EXISTS).find(k => name.toLowerCase() === k || name.toLowerCase().includes(k));
+      if (hitKey) {
+        const e = MOCK_EXISTS[hitKey];
+        probeState = 'exists';
+        setPrimaryEnabled(true); // 已存在 → 仍可加入纳管（纳管模式，不重复注册）
+        $('probeBar').className = 'probe-bar info show';
+        $('probeIc').innerHTML = '<svg class="ic"><use href="#i-info"/></svg>';
+        $('probeText').innerHTML = '检测到已存在服务 <b class="mono">' + e.scm + '</b>（' + e.state + ' · ' + e.start + ' 启动）。加入纳管后将<b>直接管理该服务</b>：启停、重启与监控照常，<b>不改动它的任何配置</b>，也不会重新注册。<small>如想注册一个全新的 ' + $('footType').textContent + ' 实例，请修改服务名（如 ' + hitKey + '-2）后重新探测。</small>';
+        $('probeLink').style.display = 'inline-flex';
+        $('footStatus').innerHTML = '已存在 · 将纳管 · <b>' + e.scm + '</b>';
+      } else {
+        probeState = 'ok';
+        setPrimaryEnabled(true);
+        $('probeBar').className = 'probe-bar ok show';
+        $('probeIc').innerHTML = '<svg class="ic"><use href="#i-check"/></svg>';
+        $('probeText').innerHTML = '探测通过：服务名 <b class="mono">' + name + '</b> 可用 · 程序文件存在 · 默认端口未占用。<small>加入纳管时将注册新服务（servy install → 启动）；如遇竞争以 SCM 实际结果为准。</small>';
+        $('probeLink').style.display = 'none';
+        $('footStatus').innerHTML = '可用 · 将注册 · <b>' + name + '</b>';
+      }
+    }, 800);
+  }
+  $('btnProbe').addEventListener('click', runProbe);
+  $('probeLink').addEventListener('click', () => {
+    // 原型演示：关闭弹框回到服务列表（扫描纳管的入口）
+    $('modalConfig').style.display = 'none';
+  });
+  $('footPrimary').addEventListener('click', () => {
+    if (probeState === 'none') { runProbe(); return; } // 未探测 → 先自动探测
+    const btn = $('footPrimary');
+    btn.disabled = true;
+    if (probeState === 'exists') {
+      // 纳管模式：已有服务，只接入管理，不注册
+      btn.innerHTML = '<svg class="ic" style="animation:spin 1s linear infinite"><use href="#i-target"/></svg>接入中…';
+      setTimeout(() => {
+        btn.innerHTML = '<svg class="ic"><use href="#i-check"/></svg>已纳管';
+        $('footStatus').innerHTML = '已纳管（不改动原配置）· <b>' + $('f-name').value.trim() + '</b>';
+      }, 1000);
+    } else {
+      // 注册模式：不存在 → servy 注册 + 启动
+      btn.innerHTML = '<svg class="ic" style="animation:spin 1s linear infinite"><use href="#i-target"/></svg>注册中…';
+      setTimeout(() => {
+        btn.innerHTML = '<svg class="ic"><use href="#i-check"/></svg>已加入纳管';
+        $('footStatus').innerHTML = '已注册并启动 · <b>' + $('f-name').value.trim() + '</b>';
+      }, 1200);
+    }
+  });
+
+  // ---- 其余交互 ----
+  $('confModeSeg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    const m = b.dataset.m;
+    if (m === 'simple') state.confEdited = false;
+    if (m === 'advanced' && state.confMode === 'simple') {
+      state.confEdited = false;
+      $('confEdit').value = curTpl().conf ? curTpl().conf.render(vals) : '';
+    }
+    state.confMode = m;
+    renderConf();
+  }));
+  $('confEdit').addEventListener('input', () => { state.confEdited = true; renderConf(); });
+  $('confReset').addEventListener('click', () => {
+    state.confEdited = false;
+    $('confEdit').value = curTpl().conf.render(vals);
+    renderConf();
+  });
+  document.querySelectorAll('#startSeg button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#startSeg button').forEach(x => x.classList.toggle('on', x === b));
+    state.start = b.dataset.v; renderCmd();
+  }));
+  $('f-restart').addEventListener('click', () => {
+    state.restart = !state.restart;
+    $('f-restart').classList.toggle('on', state.restart);
+    renderCmd();
+  });
+  ['f-file', 'f-name', 'f-display'].forEach(id => $(id).addEventListener('input', () => {
+    renderCmd();
+    if (id === 'f-display') $('pvName').textContent = $('f-display').value || '<显示名称>';
+    if (id === 'f-name' && probeState !== 'none') resetProbe(); // 服务名改动 → 重新探测
+  }));
+  $('cmdToggle').addEventListener('click', () => {
+    $('cmdBox').classList.toggle('show');
+    $('cmdToggle').classList.toggle('open');
+  });
+
+  // ---- 主题 ----
+  document.querySelectorAll('.td-seg button').forEach(b => b.addEventListener('click', () => {
+    document.body.dataset.theme = b.dataset.t;
+    document.querySelectorAll('.td-seg button').forEach(x => x.classList.toggle('on', x === b));
+  }));
+
+  // ---- 分段控件滑块 ----
+  // 位置按真实 DOM 量（offsetLeft / offsetWidth），不猜像素：换语言、字体加载完成都自动对齐。
+  function syncSegThumb(seg) {
+    const thumb = seg.querySelector(':scope > .seg-thumb');
+    const active = seg.querySelector('button.on');
+    if (!thumb || !active) return;
+    // 用 rect 相减，不读 offsetLeft：thumb 的 left:0 落在容器 padding box 左边缘，
+    // 而 offsetLeft 的基准是 padding edge。容器有 padding 时两者差一个 padding-left，
+    // 滑块会看起来偏左。
+    const box = seg.getBoundingClientRect();
+    const rect = active.getBoundingClientRect();
+    const borderLeft = parseFloat(getComputedStyle(seg).borderLeftWidth) || 0;
+    thumb.style.width = rect.width + 'px';
+    thumb.style.transform = 'translateX(' + (rect.left - box.left - borderLeft) + 'px)';
+  }
+
+  function initSegThumbs() {
+    document.querySelectorAll('.seg').forEach(seg => {
+      let thumb = seg.querySelector(':scope > .seg-thumb');
+      if (!thumb) {
+        thumb = document.createElement('span');
+        thumb.className = 'seg-thumb';
+        seg.prepend(thumb);
+        // 首帧瞬时落位，下一帧才开过渡
+        requestAnimationFrame(() => thumb.classList.add('is-animating'));
+      }
+      syncSegThumb(seg);
+    });
+  }
+
+  // 点击后等原有 handler 改完 .on 再量位置
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.seg button')) return;
+    requestAnimationFrame(() => document.querySelectorAll('.seg').forEach(syncSegThumb));
+  });
+
+  // tab 切换、切换模板都会重建含分段控件的 DOM，出现新的就补上滑块。
+  // 只观察 childList：滑块自身的 style 改动不会触发，不会打转。
+  new MutationObserver(initSegThumbs).observe(document.body, { childList: true, subtree: true });
+
+  // ---- init ----
+  renderTypeGrid('all');
+  applyTemplate('rustfs');
+  showStep('select');
+  initSegThumbs();
+</script>
+</body>
+</html>

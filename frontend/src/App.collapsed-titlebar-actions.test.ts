@@ -10,7 +10,7 @@ import {
 import {
   resolveTitleBarLayout,
   shouldDockCollapsedSidebarActionsInTitlebar,
-} from './utils/titleBarLayout';
+} from './utils/titlebarLayout';
 
 const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 const appCss = readFileSync(new URL('./App.css', import.meta.url), 'utf8');
@@ -93,8 +93,10 @@ describe('collapsed V2 sidebar actions', () => {
       "data-sidebar-actions-placement={isCollapsedSidebarActionsDocked ? 'titlebar' : 'fixed-rail'}",
     );
     expect(appSource).toContain('const sidebarCollapsedWidth = !shouldDockCollapsedSidebarActionsInTitlebar');
+    // 左侧树已切换为纳管服务树；展开联动与「添加服务」入口仍由标题栏/侧栏共享。
+    expect(appSource).toContain('<ServiceTreeSidebar');
+    expect(appSource).toContain('onAddService={() => setIsAddServiceModalOpen(true)}');
     expect(appSource).toContain('onExpandSidebar={handleExpandSidebarPanel}');
-    expect(appSource).toContain('onEnsureSidebarExpanded={handleEnsureSidebarExpanded}');
     expect(appSource).toContain('data-collapsed-sidebar-actions-docked');
     expect(v2ThemeCss).toMatch(
       /\.ant-layout-sider\[data-sidebar-actions-placement='titlebar'\]\s+\.gn-v2-connection-rail\s*\{[^}]*display:\s*none;/s,

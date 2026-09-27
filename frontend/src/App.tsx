@@ -6,14 +6,15 @@ import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type D
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { BrowserOpenURL, Environment, EventsOn, WindowFullscreen, WindowGetPosition, WindowGetSize, WindowIsFullscreen, WindowIsMaximised, WindowIsMinimised, WindowIsNormal, WindowMaximise, WindowMinimise, WindowSetDarkTheme, WindowSetLightTheme, WindowSetPosition, WindowSetSize, WindowSetSystemDefaultTheme, WindowUnfullscreen, WindowUnmaximise } from '../wailsjs/runtime';
-import Sidebar from './components/Sidebar';
+import { ServiceTreeSidebar } from './components/serviceTree/ServiceTreeSidebar';
 import TitleBarPrimaryActions, {
   resolveTitleBarPrimaryActionShortcut,
 } from './components/TitleBarPrimaryActions';
 import TitleBarSystemActions from './components/TitleBarSystemActions';
 import TitleBarViewMenu from './components/TitleBarViewMenu';
 import { useTitleBarViewMenuEntries } from './components/useTitleBarViewMenuEntries';
-import ConnectionGroupManagementModal from './components/sidebar/ConnectionGroupManagementModal';
+import { ManageServiceGroupsModal } from './components/serviceTree/ManageServiceGroupsModal';
+import { AddServiceModal } from './components/AddServiceModal';
 import TabManager from './components/TabManager';
 import FloatingWorkbenchWindows from './components/FloatingWorkbenchWindows';
 import FloatingQueryResultWindows from './components/FloatingQueryResultWindows';
@@ -328,7 +329,7 @@ import {
   resolveTitleBarLayout,
   resolveTitlebarRuntimePlatform,
   shouldDockCollapsedSidebarActionsInTitlebar as resolveCollapsedSidebarDocking,
-} from './utils/titleBarLayout';
+} from './utils/titlebarLayout';
 import './App.css';
 import './v2-theme.css';
 import './styles/v2-theme-workbench.css';
@@ -1166,7 +1167,8 @@ function App() {
           closeTab(SETTINGS_CENTER_WORKBENCH_TAB_ID);
       }
   }, []);
-  const [isConnectionGroupManagementOpen, setIsConnectionGroupManagementOpen] = useState(false);
+  const [isManageServiceGroupsOpen, setIsManageServiceGroupsOpen] = useState(false);
+  const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [activeSettingsCenterGroupKey, setActiveSettingsCenterGroupKey] = useState<SettingsCenterGroupKey>('preferences');
   const [activeSettingsCenterPane, setActiveSettingsCenterPane] = useState<SettingsCenterPaneState | null>(null);
   const activeSettingsCenterPaneRef = useRef<SettingsCenterPaneState | null>(null);
@@ -4313,6 +4315,10 @@ function App() {
       setActiveSettingsCenterPane({ key, group });
       openSettingsCenterWorkbenchTab();
   }, [clearSettingsCenterTransientPaneState]);
+  /** 标题栏「数据目录」图标入口：直接落到工具中心的「应用数据目录」面板。 */
+  const handleOpenDataRootPane = useCallback(() => {
+      handleOpenToolCenterPane('config', 'data-root-application');
+  }, [handleOpenToolCenterPane]);
   /** Title-bar / explorer settings entries → settings center navigation. */
   const handleTitleBarSettingsNavigation = useCallback((spec: {
     group: 'preferences' | 'services' | 'config' | 'workflow' | 'workspace' | 'about';
@@ -7831,7 +7837,6 @@ function App() {
                             : <img src="brand/servdeck-icon.svg" alt="ServDeck" style={{ width: 20, height: 20, borderRadius: 5, display: 'block' }} />}
                       </button>
                   </Tooltip>
-                  <div className="gonavi-titlebar-brand-divider" aria-hidden="true" />
                   <TitleBarPrimaryActions
                     newQueryLabel={t(primaryActionIsMessageQueue
                       ? 'message_queue_workbench.action.open'
@@ -7841,8 +7846,12 @@ function App() {
                     newConnectionShortcut={titleBarNewConnectionShortcut}
                     onNewQuery={handleNewQuery}
                     onNewConnection={handleCreateConnection}
-                    connectionGroupLabel={t('connection.sidebar.management.title')}
-                    onConnectionGroupManagement={() => setIsConnectionGroupManagementOpen(true)}
+                    addServiceLabel={t('service.modal.entry')}
+                    onAddService={() => setIsAddServiceModalOpen(true)}
+                    connectionGroupLabel={t('service.tree.groups.manage_title')}
+                    onConnectionGroupManagement={() => setIsManageServiceGroupsOpen(true)}
+                    dataRootLabel={t('app.tools.entry.data_root.title')}
+                    onDataRoot={handleOpenDataRootPane}
                   />
                   <div id="gonavi-titlebar-quick-actions" className="gonavi-titlebar-quick-actions-slot" />
                   {appearance.titlebarMenuStyle === 'view-menu' && (
@@ -7965,24 +7974,9 @@ function App() {
             >
                 <div style={{ flex: 1, overflow: 'hidden', paddingBottom: 0, paddingRight: 0, position: 'relative' }}>
                     <div style={{ height: '100%', opacity: connectionWorkbenchState.ready ? 1 : 0.72, pointerEvents: connectionWorkbenchState.ready ? 'auto' : 'none' }}>
-                        <Sidebar
-                            onCreateConnection={handleCreateConnection}
-                            onCreateConnectionInGroup={handleCreateConnectionInGroup}
-                            onEditConnection={handleEditConnection}
-                            onOpenSettings={handleOpenSettingsModal}
-                            onOpenSettingsNavigation={handleTitleBarSettingsNavigation}
-                            isWebRuntime={isWebRuntime}
-                            onOpenDataSyncWorkbench={handleOpenDataSyncWorkbench}
-                            onToggleLogPanel={handleToggleLogPanel}
-                            v2ExplorerContext={v2ExplorerContext}
-                            collapsedSidebarActionsTarget={collapsedSidebarActionsTarget}
-                            onFocusCommandSearch={handleFocusSidebarSearch}
-                            onCollapseSidebar={handleCollapseSidebarPanel}
+                        <ServiceTreeSidebar
+                            onAddService={() => setIsAddServiceModalOpen(true)}
                             onExpandSidebar={handleExpandSidebarPanel}
-                            onEnsureSidebarExpanded={handleEnsureSidebarExpanded}
-                            onTitlebarSnapshotChange={setSidebarTitlebarSnapshot}
-                            collapseSidebarLabel={sidebarPanelCollapseLabel}
-                            collapseSidebarButtonRef={sidebarExplorerToggleRef}
                             expandSidebarLabel={sidebarPanelExpandLabel}
                             expandSidebarButtonRef={sidebarCollapsedToggleRef}
                         />
@@ -8084,7 +8078,6 @@ function App() {
             open={isModalOpen}
             onClose={handleCloseModal}
             initialValues={editingConnection}
-            modalZIndex={isConnectionGroupManagementOpen ? APP_NESTED_MODAL_Z_INDEX : undefined}
             onOpenDriverManager={handleOpenDriverManagerFromConnection}
             onSaved={handleConnectionSaved}
             onOpenConnectionHealth={(connection) => {
@@ -8932,17 +8925,8 @@ function App() {
               </>
           )}
 
-          <ConnectionGroupManagementModal
-            open={isConnectionGroupManagementOpen}
-            onClose={() => setIsConnectionGroupManagementOpen(false)}
-            onOpenTagForm={(parentTagId) => window.dispatchEvent(new CustomEvent('gonavi:open-connection-tag-form', { detail: { parentTagId } }))}
-            onCreateConnectionInGroup={handleCreateConnectionInGroup}
-            onEditConnection={handleEditConnection}
-            onCloseTabsByConnection={closeTabsByConnection}
-            onConnectionGroupDeleted={async () => {
-              await connectionSidebarLayoutCoordinatorRef.current?.refresh().catch(() => undefined);
-            }}
-          />
+          <AddServiceModal open={isAddServiceModalOpen} onClose={() => setIsAddServiceModalOpen(false)} />
+          <ManageServiceGroupsModal open={isManageServiceGroupsOpen} onClose={() => setIsManageServiceGroupsOpen(false)} />
 
           {/* Ghost Resize Line for Log Panel */}
           <div

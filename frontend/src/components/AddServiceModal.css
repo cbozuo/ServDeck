@@ -1,0 +1,1015 @@
+/* 添加服务弹框（AddServiceModal）组件旁样式；颜色一律走 --gn-* token。 */
+
+.asm-modal .ant-modal-content {
+  padding: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--gn-bg-panel);
+  box-shadow: var(--gn-shadow-lg), 0 0 0 1px var(--gn-br-1);
+}
+
+/* v2-theme.css:886 给所有 antd 弹窗内容区加了 padding: 18px !important，
+   头部凭空高 19px、内容左右各内缩 18px。本弹窗各区块自带内边距
+   （head 16/20、body 16/20/8、tabs 0/20、foot 12/20），不需要这一段。
+
+   清零必须同时满足两点，缺一不可：
+     1. 带 !important —— 对手那条就是 !important；
+     2. 特异性压过 (0,3,1) —— 对手是 body[data-ui-version] .ant-modal .ant-modal-body。
+   所以这里写成 (0,4,1)：body[data-ui-version] .asm-modal .ant-modal .ant-modal-body。
+   .asm-modal 挂在 Modal 的 wrapClassName 上，是 .ant-modal 的祖先。 */
+body[data-ui-version="v2"] .asm-modal .ant-modal .ant-modal-body {
+  padding: 0 !important;
+}
+
+.asm-root {
+  display: flex;
+  flex-direction: column;
+  max-height: min(88vh, 860px);
+}
+
+/* ---------- 头部 ---------- */
+.asm-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--gn-br-1);
+  flex-shrink: 0;
+}
+.asm-head-ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  /* 对齐高保真 .m-ico：主色 14% 底 + 主色 30% 描边，不是中性灰 */
+  background: color-mix(in srgb, var(--gn-accent) 14%, var(--gn-bg-panel));
+  border: 1px solid color-mix(in srgb, var(--gn-accent) 30%, transparent);
+}
+.asm-head-ico img {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+.asm-head-ico-plus {
+  background: var(--gn-accent-strong);
+  border-color: transparent;
+  color: var(--gn-on-accent);
+  /* 对齐高保真 .m-ico.plus svg：18px */
+  font-size: 18px;
+}
+.asm-title {
+  min-width: 0;
+}
+.asm-title h2 {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--gn-fg-1);
+}
+.asm-title p {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: var(--gn-fg-4);
+  line-height: 1.5;
+}
+.asm-steps {
+  margin-left: auto;
+  /* 对齐高保真 .steps-ind：gap 8、与关闭按钮之间留 14px */
+  margin-right: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--gn-fg-5);
+  flex-shrink: 0;
+}
+.asm-steps .on {
+  color: var(--gn-accent-2);
+  font-weight: 700;
+}
+.asm-steps .done {
+  color: var(--gn-fg-4);
+}
+.asm-steps-arrow {
+  font-size: 10px;
+  opacity: 0.6;
+}
+/* 对齐高保真 .m-close：28×28 / 圆角 7 / 图标 14px。
+   关闭按钮是 antd Button，默认 32×32 且带内边距，必须压到与高保真一致。 */
+.asm-close.ant-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0;
+  border-radius: 7px;
+  color: var(--gn-fg-4);
+  flex-shrink: 0;
+}
+.asm-close.ant-btn .anticon,
+.asm-close.ant-btn svg {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------- 主体 ---------- */
+.asm-body {
+  padding: 16px 20px 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  min-width: 0;
+}
+.asm-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.asm-sec-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gn-fg-3);
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.asm-sec-title::before {
+  content: "";
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--gn-accent);
+}
+.asm-sec-opt,
+.asm-sec-title .asm-sec-opt {
+  color: var(--gn-fg-5);
+  font-weight: 400;
+}
+.asm-sec-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gn-accent-2);
+  background: var(--gn-accent-soft);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+
+/* Step1 类型卡片 */
+.asm-type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.asm-type-card {
+  border: 1px solid var(--gn-br-2);
+  border-radius: 12px;
+  background: var(--gn-bg-panel);
+  padding: 14px 16px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  cursor: pointer;
+  transition: border-color 0.13s ease, box-shadow 0.13s ease, transform 0.13s ease;
+  min-height: 108px;
+}
+.asm-type-card:hover {
+  border-color: var(--gn-accent);
+  box-shadow: var(--gn-shadow-md);
+  transform: translateY(-1px);
+}
+.asm-type-top {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.asm-type-ico {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--gn-bg-panel-2);
+  border: 1px solid var(--gn-br-1);
+}
+.asm-type-ico img {
+  width: 25px;
+  height: 25px;
+  display: block;
+}
+.asm-type-name {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gn-fg-1);
+}
+.asm-type-desc {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--gn-fg-4);
+}
+.asm-type-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.asm-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--gn-fg-4);
+  background: var(--gn-bg-hover);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.asm-tag-hot {
+  color: var(--gn-accent-2);
+  background: var(--gn-accent-soft);
+}
+
+/* 字段 */
+.asm-input-row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+/* 目录/路径字段把裸 input 直接放进 .asm-input-row，需要自己占满剩余宽度 */
+.asm-input-row > input.asm-input {
+  flex: 1;
+  min-width: 0;
+}
+/* 密码字段：输入框右侧内嵌一枚 28×28 的眼睛按钮切换明文。
+   按钮右边距 3px + 宽 28px，所以输入框留 34px 右内边距，长口令不会压到按钮底下。
+   默认保持密文，切换只改 type，不改受控值。 */
+.asm-password-field {
+  position: relative;
+  display: block;
+  min-width: 0;
+  width: 100%;
+}
+.asm-password-field > input.asm-input {
+  padding-right: 34px;
+}
+.asm-password-toggle {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gn-fg-4);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.asm-password-toggle:hover {
+  background: var(--gn-bg-hover);
+  color: var(--gn-fg-2);
+}
+.asm-password-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--gn-accent) 55%, transparent);
+  outline-offset: 1px;
+}
+/* 值很短的字段不必撑满整列。端口是 4 位数字，下拉最长 7 个字符，
+   撑满一列会在右侧留大片空白，比例也失真。
+   宽度按最长可能值给：端口 104px（含 22px 内边距与 2px 边框），下拉 140px（再留出箭头位）。
+   目录、密钥、口令这类长度不可控的字段仍走 100%。 */
+.asm-input.asm-input-narrow {
+  width: 104px;
+}
+.asm-input.asm-input-medium {
+  width: 140px;
+}
+.asm-field-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* 对齐高保真 .field-grid：行 10px / 列 12px */
+  gap: 10px 12px;
+}
+.asm-field-grid.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.asm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.asm-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gn-fg-2);
+}
+.asm-field label em {
+  font-style: normal;
+  color: var(--gn-danger);
+  margin-left: 2px;
+}
+.asm-input,
+.asm-select {
+  /* 对齐高保真 add-service-modal.html 的 .input/.select：34px 高、0 11px 内边距。
+     box-sizing 必须显式声明：.asm-input 同时挂在包裹 div 与裸 <input> 上，
+     后者在缺少全局 border-box 的环境里按 content-box 计算，宽度会比栅格列宽多出
+     内边距与边框（22px），两列就会被挤到一起、右列还会溢出弹窗内边距。 */
+  box-sizing: border-box;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--gn-bg-input);
+  border: 1px solid var(--gn-br-2);
+  display: flex;
+  align-items: center;
+  padding: 0 11px;
+  font-size: 12.5px;
+  color: var(--gn-fg-1);
+  min-width: 0;
+  width: 100%;
+  outline: 0;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.asm-input input,
+.asm-input-with-icon input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+}
+.asm-select {
+  appearance: auto;
+}
+.asm-input:focus,
+.asm-select:focus {
+  border-color: var(--gn-accent);
+  box-shadow: 0 0 0 3px var(--gn-accent-soft);
+}
+input.asm-input.mono {
+  font-family: var(--gn-font-mono);
+  font-size: 12px;
+}
+.asm-hint {
+  font-size: 11px;
+  color: var(--gn-fg-5);
+  line-height: 1.55;
+}
+.asm-hint b {
+  color: var(--gn-fg-4);
+  font-weight: 600;
+}
+
+/* 启动与守护 */
+.asm-start-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: center;
+}
+/* 分段控件：灰色底槽 + 一枚滑动的滑块承担选中态。
+   选中按钮不再自带背景，背景交给 .asm-seg-thumb，切换时由它平移过去。
+   高度收进 --seg-h，滑块与按钮共用，避免两处各写一遍导致不同步。
+   滑块位置由组件按真实 DOM 测量后写成内联 transform，换语言、字体加载都不会错位。 */
+.asm-seg {
+  --seg-h: 26px;
+  position: relative;
+  display: inline-flex;
+  background: var(--gn-bg-hover);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+.asm-seg-thumb {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  height: var(--seg-h);
+  border-radius: 6px;
+  background: var(--gn-bg-panel);
+  box-shadow: var(--gn-shadow-md);
+  pointer-events: none;
+  z-index: 0;
+}
+/* 只有挂上 .is-animating 才带过渡：组件在挂载后一帧才加这个类，
+   首帧瞬时落位，之后用户每次切换才有滑过去的动效。 */
+.asm-seg-thumb.is-animating {
+  transition: transform 0.34s cubic-bezier(0.32, 1.32, 0.52, 1),
+    width 0.34s cubic-bezier(0.32, 1.32, 0.52, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .asm-seg-thumb.is-animating {
+    transition: none;
+  }
+}
+.asm-seg button {
+  position: relative;
+  z-index: 1;
+  height: var(--seg-h);
+  padding: 0 11px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gn-fg-4);
+  white-space: nowrap;
+  border: 0;
+  background: transparent;
+  transition: color 0.2s ease, transform 0.12s ease;
+}
+.asm-seg button:hover {
+  color: var(--gn-fg-1);
+}
+.asm-seg button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.asm-seg button.on {
+  color: var(--gn-fg-1);
+}
+.asm-seg button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.asm-switch-field {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+  color: var(--gn-fg-2);
+  justify-content: flex-end;
+  padding-bottom: 6px;
+}
+.asm-switch {
+  width: 34px;
+  height: 19px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--gn-br-3);
+  position: relative;
+  transition: background 0.15s ease;
+  cursor: pointer;
+}
+.asm-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+.asm-switch.on {
+  background: var(--gn-accent-strong);
+}
+.asm-switch.on::after {
+  transform: translateX(15px);
+}
+
+/* Tabs */
+.asm-tabs {
+  display: flex;
+  /* 对齐高保真 .wtabs：容器不加上内边距，行高完全由 tab 自身决定 */
+  padding: 0 20px;
+  border-bottom: 1px solid var(--gn-br-1);
+  flex-shrink: 0;
+}
+.asm-tabs button {
+  /* 对齐高保真 .wtab：11px 14px / 13px */
+  padding: 11px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gn-fg-3);
+  position: relative;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.asm-tabs button:hover {
+  color: var(--gn-fg-1);
+}
+.asm-tabs button.active {
+  color: var(--gn-accent-2);
+  font-weight: 700;
+}
+.asm-tabs button.active::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2.5px;
+  border-radius: 2px 2px 0 0;
+  background: var(--gn-accent);
+}
+.asm-tab-badge {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gn-accent-2);
+  background: var(--gn-accent-soft);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+/* 配置文件卡 */
+.asm-conf-card {
+  border: 1px solid var(--gn-br-2);
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--gn-bg-panel-2);
+}
+.asm-conf-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--gn-br-1);
+  background: var(--gn-bg-panel);
+}
+.asm-conf-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gn-fg-1);
+}
+.asm-conf-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gn-accent-2);
+  background: var(--gn-accent-soft);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.asm-conf-doc {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gn-info);
+}
+.asm-conf-gen {
+  margin: 10px 12px 0;
+  background: var(--gn-bg-input);
+  border: 1px dashed var(--gn-br-2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: var(--gn-font-mono);
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--gn-fg-2);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 150px;
+  overflow-y: auto;
+}
+.asm-conf-card .asm-hint {
+  margin: 8px 12px 12px;
+}
+
+/* 全局提示 */
+.asm-global-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--gn-bg-hover);
+  font-size: 11.5px;
+  color: var(--gn-fg-4);
+  line-height: 1.6;
+}
+
+/* 外观 */
+.asm-look-block {
+  border: 1px solid var(--gn-br-1);
+  border-radius: 10px;
+  background: var(--gn-bg-panel-2);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.asm-look-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.asm-look-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gn-fg-2);
+}
+.asm-look-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--gn-bg-panel);
+  border: 1.5px solid var(--gn-accent);
+  box-shadow: 0 0 0 2px var(--gn-accent-soft);
+}
+.asm-look-icon img {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+/* ---------- footer ---------- */
+.asm-foot {
+  border-top: 1px solid var(--gn-br-1);
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--gn-bg-panel);
+}
+.asm-foot-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.asm-back {
+  color: var(--gn-fg-4);
+}
+.asm-foot-status {
+  font-size: 12px;
+  color: var(--gn-fg-5);
+}
+.asm-foot-spring,
+.asm-foot-main > span[style] {
+  flex: 1;
+}
+.asm-foot-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.asm-btn-ghost {
+  border: 1px solid var(--gn-br-2);
+  color: var(--gn-fg-2);
+}
+.asm-btn-ghost:hover {
+  background: var(--gn-bg-hover);
+}
+.asm-btn-disabled {
+  opacity: 0.5;
+}
+.asm-probe-btn {
+  color: var(--gn-fg-3);
+  font-weight: 600;
+}
+.asm-probe-btn:hover {
+  background: var(--gn-bg-hover);
+  color: var(--gn-fg-1);
+}
+.asm-cmd-toggle {
+  color: var(--gn-fg-4);
+  font-size: 12px;
+}
+.asm-cmd-toggle:hover {
+  background: var(--gn-bg-hover);
+  color: var(--gn-fg-1);
+}
+.asm-cmd-box {
+  display: none;
+  background: var(--gn-bg-input);
+  border: 1px solid var(--gn-br-2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: var(--gn-font-mono);
+  font-size: 10.5px;
+  line-height: 1.8;
+  color: var(--gn-fg-2);
+  white-space: pre;
+  overflow-x: auto;
+}
+.asm-cmd-box.show {
+  display: block;
+}
+
+/* 探测结果条 */
+.asm-probe-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: 9px;
+  padding: 10px 13px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.asm-probe-bar.ok {
+  background: color-mix(in srgb, var(--gn-accent) 8%, var(--gn-bg-panel));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-accent) 32%, transparent);
+  color: var(--gn-fg-2);
+}
+.asm-probe-bar.ok .asm-probe-ico {
+  background: var(--gn-accent-soft);
+  color: var(--gn-accent-2);
+}
+.asm-probe-bar.info {
+  background: color-mix(in srgb, var(--gn-info) 7%, var(--gn-bg-panel));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-info) 28%, transparent);
+  color: var(--gn-fg-2);
+}
+.asm-probe-bar.info .asm-probe-ico {
+  background: color-mix(in srgb, var(--gn-info) 12%, transparent);
+  color: var(--gn-info);
+}
+.asm-probe-bar.error {
+  background: color-mix(in srgb, var(--gn-danger) 8%, var(--gn-bg-panel));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-danger) 32%, transparent);
+  color: var(--gn-fg-2);
+}
+.asm-probe-bar.error .asm-probe-ico {
+  background: color-mix(in srgb, var(--gn-danger) 14%, transparent);
+  color: var(--gn-danger);
+}
+.asm-probe-ico {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+.asm-probe-text {
+  min-width: 0;
+}
+.asm-probe-text b {
+  font-weight: 700;
+}
+.asm-probe-text small {
+  display: block;
+  color: var(--gn-fg-4);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* Step3 摘要表 */
+.asm-summary {
+  border: 1px solid var(--gn-br-1);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.asm-summary-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--gn-br-1);
+}
+.asm-summary-row:last-child { border-bottom: 0; }
+.asm-summary-row:nth-child(odd) { background: var(--gn-bg-panel-2); }
+.asm-summary-row .k { color: var(--gn-fg-4); }
+.asm-summary-row .v {
+  color: var(--gn-fg-1);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 外观 tab（对齐高保真） */
+.asm-look-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.asm-look-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gn-fg-2);
+}
+.asm-look-cur {
+  margin-left: 6px;
+  color: var(--gn-fg-5);
+  font-weight: 500;
+}
+.asm-compact-seg {
+  /* 高度交给 .asm-seg 的 --seg-h，滑块跟着一起收 */
+  --seg-h: 24px;
+}
+.asm-compact-seg button {
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+.asm-look-icon-grid {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 10px;
+}
+/* 自定义图标候选。选中态沿用 .asm-look-icon（类型图标只读展示）那套描边语言，
+   两处看起来才像一家的。 */
+.asm-look-icon-opt {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1.5px solid var(--gn-br-2);
+  background: var(--gn-bg-panel);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.12s ease;
+}
+.asm-look-icon-opt:hover {
+  border-color: var(--gn-br-3);
+  transform: translateY(-1px);
+}
+.asm-look-icon-opt.on {
+  border-color: var(--gn-accent);
+  box-shadow: 0 0 0 2px var(--gn-accent-soft);
+}
+.asm-look-icon-opt:active {
+  transform: translateY(0) scale(0.97);
+}
+.asm-look-icon-opt img {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+/* 上传的图长宽比不可控，contain 保住原始比例，别被拉变形 */
+.asm-look-icon-uploaded img {
+  object-fit: contain;
+}
+/* 上传入口：虚线框，和实线的候选格区分开，一眼看出这是「另一个动作」 */
+.asm-look-upload {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gn-fg-3);
+  border: 1px dashed var(--gn-br-3);
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 0.14s ease, color 0.14s ease, background-color 0.14s ease;
+}
+.asm-look-upload:hover:not(:disabled) {
+  border-color: var(--gn-accent);
+  color: var(--gn-accent-2);
+  background: var(--gn-accent-soft);
+}
+.asm-look-upload:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.asm-look-upload .anticon {
+  font-size: 13px;
+}
+.asm-look-dots {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.asm-look-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 0;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.asm-look-dot:hover {
+  transform: scale(1.12);
+}
+.asm-look-dot.on::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--gn-fg-1);
+}
+.asm-look-preview {
+  margin-top: 14px;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--gn-bg-panel-2);
+  box-shadow: var(--gn-shadow-card);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.asm-look-preview-ico {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--gn-br-2);
+}
+.asm-look-preview-ico img {
+  width: 21px;
+  height: 21px;
+  display: block;
+}
+.asm-look-preview-text b {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gn-fg-1);
+}
+.asm-look-preview-text small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--gn-fg-5);
+}
+.asm-look-reset {
+  margin-left: auto;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--gn-br-2);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gn-fg-2);
+  cursor: pointer;
+}
+.asm-look-reset:hover {
+  background: var(--gn-bg-hover);
+}
+
+/* 识别条（对齐高保真：蓝底大条 + 图标 + 徽标右置） */
+.asm-detect {
+  /* 对齐高保真 .detect：8px 12px 内边距 / 8px 圆角 / 8px 间距 / 12px 字号 */
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--gn-info) 7%, var(--gn-bg-panel));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-info) 25%, transparent);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--gn-fg-3);
+}
+.asm-detect-glyph {
+  color: var(--gn-info);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.asm-detect-main {
+  min-width: 0;
+}
+.asm-detect .asm-tag {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* 程序文件输入：内置图标 + 浏览按钮 */
+.asm-input-with-icon {
+  gap: 8px;
+}
+.asm-input-lead-ic {
+  width: 14px;
+  height: 14px;
+  color: var(--gn-fg-5);
+  flex-shrink: 0;
+}
+.asm-browse-btn {
+  /* 与同一行的 .asm-input 同高，避免「程序文件」行出现输入框与按钮差 4px 的错位。
+     高保真里 .btn 是 32px，这里取 34 换齐平。 */
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--gn-br-2);
+  background: var(--gn-bg-panel);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--gn-fg-2);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.asm-browse-btn:hover {
+  background: var(--gn-bg-hover);
+}
+.asm-browse-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

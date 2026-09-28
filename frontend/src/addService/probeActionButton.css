@@ -1,0 +1,172 @@
+/* 探测按钮（ProbeActionButton）组件旁样式；颜色一律走 --gn-* token。
+   与高保真 design/probe-button-v1.html v3 对齐：单动作、无箭头、常态承载 accent。 */
+
+.asm-probe-btn {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  /* 常态即带 accent：自定义主题只覆盖 accent 时整键换色（旧实现常态用 bg-panel+br-2，
+     只有 hover 才用 accent，自定义主题下几乎看不出变化）。 */
+  color: var(--gn-accent-2);
+  background: color-mix(in srgb, var(--gn-accent) 6%, var(--gn-bg-panel));
+  border: 1px solid color-mix(in srgb, var(--gn-accent) 22%, transparent);
+  box-shadow: var(--gn-shadow-sm);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+.asm-probe-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--gn-accent) 10%, var(--gn-bg-panel));
+  border-color: color-mix(in srgb, var(--gn-accent) 40%, transparent);
+  transform: translateY(-1px);
+  box-shadow: var(--gn-shadow-md);
+}
+
+.asm-probe-btn:active:not(:disabled) {
+  transform: translateY(0);
+  background: color-mix(in srgb, var(--gn-accent) 14%, var(--gn-bg-panel));
+}
+
+.asm-probe-btn:focus-visible {
+  outline: 2px solid var(--gn-accent);
+  outline-offset: 2px;
+}
+
+.asm-probe-btn:disabled {
+  cursor: progress;
+}
+
+/* ── 图标槽：accent-soft 常驻色块，四态图标同槽叠放，切换零布局跳动 ── */
+.asm-probe-slot {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--gn-accent-soft);
+  color: var(--gn-accent-2);
+  transition:
+    transform 120ms cubic-bezier(0.2, 0.8, 0.25, 1),
+    background 120ms ease;
+}
+
+.asm-probe-btn:hover:not(:disabled) .asm-probe-slot {
+  transform: scale(1.06);
+}
+
+.asm-probe-ic {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    transform 160ms cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+.asm-probe-ic-search {
+  opacity: 1;
+}
+
+.asm-probe-ic-ok,
+.asm-probe-ic-fail {
+  transform: scale(0.5);
+}
+
+/* ── 探测中：spinner 接管 + 外圈呼吸环 ── */
+.asm-probe-btn.is-busy {
+  border-color: color-mix(in srgb, var(--gn-accent) 30%, transparent);
+}
+
+.asm-probe-btn.is-busy .asm-probe-ic-search {
+  opacity: 0;
+}
+
+.asm-probe-btn.is-busy .asm-probe-ic-spin {
+  opacity: 1;
+}
+
+.asm-probe-btn.is-busy .asm-probe-slot::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 8px;
+  border: 1.5px solid color-mix(in srgb, var(--gn-accent) 45%, transparent);
+  animation: probe-breathe 1.1s ease-in-out infinite;
+}
+
+@keyframes probe-breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* ── 成功闪现（400ms 后由组件回落到常态） ── */
+.asm-probe-btn.is-ok .asm-probe-ic-search {
+  opacity: 0;
+}
+
+.asm-probe-btn.is-ok .asm-probe-ic-ok {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.asm-probe-btn.flash-ok {
+  background: var(--gn-accent-soft);
+  border-color: color-mix(in srgb, var(--gn-accent) 45%, transparent);
+}
+
+/* ── 失败：槽位与描边转 danger，详情由 .asm-probe-bar.error 承接 ── */
+.asm-probe-btn.is-fail {
+  color: var(--gn-danger);
+  border-color: color-mix(in srgb, var(--gn-danger) 45%, transparent);
+}
+
+.asm-probe-btn.is-fail .asm-probe-slot {
+  background: color-mix(in srgb, var(--gn-danger) 14%, transparent);
+  color: var(--gn-danger);
+}
+
+.asm-probe-btn.is-fail .asm-probe-ic-search {
+  opacity: 0;
+}
+
+.asm-probe-btn.is-fail .asm-probe-ic-fail {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 动效降级：尊重系统「减少动态效果」设置，去掉位移与呼吸环。 */
+@media (prefers-reduced-motion: reduce) {
+  .asm-probe-btn,
+  .asm-probe-slot,
+  .asm-probe-ic {
+    transition-duration: 1ms;
+  }
+
+  .asm-probe-btn:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .asm-probe-btn.is-busy .asm-probe-slot::after {
+    animation: none;
+    opacity: 0.6;
+  }
+}

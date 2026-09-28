@@ -8238,5 +8238,6 @@
   "home.res.uptime.m": "{{n}} мин",
   "home.res.diskRead": "Чтение",
   "home.res.diskWrite": "Запись",
-  "home.summary.none": "Пока нет управляемых служб"
+  "home.summary.none": "Пока нет управляемых служб",
+  "service.modal.jdk.detected": "Обнаружено локальных сред Java: {{n}}"
 }

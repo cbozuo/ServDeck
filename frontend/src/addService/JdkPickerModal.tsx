@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button, Modal, message } from 'antd';
 import { FolderOutlined } from '@ant-design/icons';
 import { useI18n } from '../i18n/provider';
+import { getDbIconAssetSrc } from '../components/DatabaseIcons';
 import {
   DetectJavaRuntimes,
   ProbeWindowsService,
@@ -151,8 +152,13 @@ export const JdkPickerModal: React.FC<{
     >
       <div className="asm-jdk">
         <div className="asm-jdk-head">
-          <h3>{t('service.modal.jdk.title')}</h3>
-          <p>{t('service.modal.jdk.desc')}</p>
+          <span className="asm-jdk-ico" aria-hidden="true">
+            <img src={getDbIconAssetSrc('java')} alt="" />
+          </span>
+          <div className="asm-jdk-head-main">
+            <h3>{t('service.modal.jdk.title')}</h3>
+            <p>{t('service.modal.jdk.desc')}</p>
+          </div>
         </div>
         <div className="asm-jdk-body">
           {detecting ? (
@@ -171,7 +177,6 @@ export const JdkPickerModal: React.FC<{
                       setManual('');
                     }}
                   >
-                    <span className="asm-jdk-radio" aria-hidden="true" />
                     <span className="asm-jdk-ver">{item.version || '·'}</span>
                     <span className="asm-jdk-main">
                       <span className="asm-jdk-name">
@@ -182,6 +187,7 @@ export const JdkPickerModal: React.FC<{
                       </span>
                       <span className="asm-jdk-path mono">{item.path}</span>
                     </span>
+                    <span className="asm-jdk-radio" aria-hidden="true" />
                   </button>
                 );
               })}
@@ -189,31 +195,42 @@ export const JdkPickerModal: React.FC<{
           ) : (
             <div className="asm-jdk-empty">{t('service.modal.jdk.empty')}</div>
           )}
-          <div className="asm-jdk-manual">
-            <label>{t('service.modal.jdk.manual')}</label>
-            <input
-              className="mono"
-              value={manual}
-              placeholder={t('service.modal.jdk.manualPlaceholder')}
-              spellCheck={false}
-              onChange={(event) => {
-                setManual(event.target.value);
-                setPicked('');
-              }}
-            />
-            <button type="button" className="asm-browse-btn" disabled={applying} onClick={() => void browse()}>
-              <FolderOutlined />
-              {t('service.modal.program.browse')}
-            </button>
+          <div className="asm-sec asm-jdk-manual-sec">
+            <div className="asm-sec-title">{t('service.modal.jdk.manual')}</div>
+            <div className="asm-jdk-manual">
+              <input
+                className="mono"
+                value={manual}
+                placeholder={t('service.modal.jdk.manualPlaceholder')}
+                spellCheck={false}
+                onChange={(event) => {
+                  setManual(event.target.value);
+                  setPicked('');
+                }}
+              />
+              <button type="button" className="asm-browse-btn" disabled={applying} onClick={() => void browse()}>
+                <FolderOutlined />
+                {t('service.modal.program.browse')}
+              </button>
+            </div>
           </div>
         </div>
         <div className="asm-jdk-foot">
-          <Button className="asm-btn-ghost" onClick={onClose}>
-            {t('common.cancel')}
-          </Button>
-          <Button type="primary" disabled={!applying && !(manual.trim() || picked)} loading={applying} onClick={() => void apply()}>
-            {t('service.modal.jdk.apply')}
-          </Button>
+          <span className="asm-jdk-foot-hint">
+            {detecting
+              ? t('service.modal.jdk.detecting')
+              : candidates.length > 0
+                ? t('service.modal.jdk.detected', { n: candidates.length })
+                : t('service.modal.jdk.empty')}
+          </span>
+          <div className="asm-jdk-foot-actions">
+            <Button className="asm-btn-ghost" onClick={onClose}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="primary" disabled={!applying && !(manual.trim() || picked)} loading={applying} onClick={() => void apply()}>
+              {t('service.modal.jdk.apply')}
+            </Button>
+          </div>
         </div>
       </div>
     </Modal>

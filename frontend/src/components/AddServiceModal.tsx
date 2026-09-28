@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckCircleFilled,
   CloseOutlined,
+  ExclamationCircleFilled,
   InfoCircleFilled,
   LeftOutlined,
   LoadingOutlined,
@@ -25,6 +26,7 @@ import {
   type ServiceLook,
 } from '../addService/AddServicePanes';
 import { useAddServiceForm } from '../addService/useAddServiceForm';
+import { ProbeActionButton } from '../addService/ProbeActionButton';
 import { useServiceRegistryStore } from '../serviceRegistryStore';
 import { SelectDirectory } from '../../wailsjs/go/app/App';
 import './AddServiceModal.css';
@@ -191,9 +193,10 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
       programFile: form.basic.programFile.trim(),
       addedAt: new Date().toISOString(),
       groupId: null,
-      // 仅在用户真的挑过自定义外观时才写，避免给每条记录都塞一份默认值
+      // 仅在用户真的挑过自定义图标时才写，避免给每条记录都塞一份默认值；
+      // 主色不限外观模式——「类型图标 + 自选主色」是合法组合，之前限定 custom 导致颜色被静默丢弃。
       iconDataUrl: look.mode === 'custom' && look.customIcon ? look.customIcon : undefined,
-      accentColor: look.mode === 'custom' ? look.color : undefined,
+      accentColor: look.color,
     });
     closeModal();
   }, [addManagedService, closeModal, form, look, managedServices, template]);
@@ -379,10 +382,10 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                 </span>
               </div>
             ) : probeNotice ? (
-              /* 页签浏览守卫 / 基本信息必填前置校验：与探测结果同一条位的信息条（非报错）。 */
-              <div className="asm-probe-bar info show">
+              /* 页签浏览守卫 / 基本信息必填前置校验：属于阻断操作的错误提示，红色 danger 态。 */
+              <div className="asm-probe-bar error center">
                 <span className="asm-probe-ico">
-                  <InfoCircleFilled />
+                  <ExclamationCircleFilled />
                 </span>
                 <span className="asm-probe-text">{probeNotice.text}</span>
               </div>
@@ -451,19 +454,11 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
               <span className="asm-foot-spring" />
               <div className="asm-foot-actions">
                 <Tooltip title={t('service.modal.probe.actionTip')} placement="top">
-                  <Button
-                    type="text"
-                    className="asm-probe-btn"
-                    icon={probing ? <LoadingOutlined /> : <RightOutlined style={{ transform: 'rotate(90deg)' }} />}
-                    disabled={probing}
-                    onClick={() => void runProbe()}
-                  >
-                    {probing
-                      ? t('service.modal.probe.probing')
-                      : probePhase === 'none'
-                        ? t('service.modal.probe.action')
-                        : t('service.modal.probe.again')}
-                  </Button>
+                  <ProbeActionButton
+                    probing={probing}
+                    phase={probePhase}
+                    onProbe={() => void runProbe()}
+                  />
                 </Tooltip>
                 <Button className="asm-btn-ghost" onClick={closeModal}>
                   {t('common.cancel')}

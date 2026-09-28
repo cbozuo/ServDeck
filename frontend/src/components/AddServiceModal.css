@@ -345,6 +345,16 @@ body[data-ui-version="v2"] .asm-modal .ant-modal .ant-modal-body {
   /* 主题色光晕即聚焦指示，压掉浏览器默认的黑色 outline，避免双层边框 */
   outline: none;
 }
+/* v2-theme 对 .ant-modal-body input 有带 !important 的设置中心统一规则
+   （border-color 压成 br-2），会把本弹框输入框的聚焦描边压成灰色，
+   只剩 box-shadow 光晕（灰边+绿晕的不协调组合）；
+   此处以同档 !important + 更高特异性恢复主题聚焦样式。 */
+.ant-modal-body .asm-root input.asm-input:focus,
+.ant-modal-body .asm-root input.asm-input:focus-within,
+.ant-modal-body .asm-root .asm-input:focus-within {
+  border-color: var(--gn-accent) !important;
+  box-shadow: 0 0 0 3px var(--gn-accent-soft) !important;
+}
 input.asm-input.mono {
   font-family: var(--gn-font-mono);
   font-size: 12px;
@@ -828,20 +838,8 @@ input.asm-input.mono {
 .asm-btn-disabled {
   opacity: 0.5;
 }
-/* 探测按钮：描边 ghost（.asm-modal 前缀提升优先级，压过 antd .ant-btn-text 的透明边框） */
-.asm-modal .asm-probe-btn {
-  color: var(--gn-fg-2);
-  font-weight: 600;
-  background: var(--gn-bg-panel);
-  border: 1px solid var(--gn-br-2);
-  border-radius: 8px;
-  box-shadow: none;
-}
-.asm-modal .asm-probe-btn:hover {
-  border-color: var(--gn-accent);
-  color: var(--gn-accent-2);
-  background: var(--gn-bg-panel);
-}
+/* 探测按钮样式已迁出到 ../addService/probeActionButton.css（单动作按钮、四态图标槽、
+   常态承载 accent 以跟随主题），此处不再定义 .asm-probe-btn，避免两套规则打架。 */
 
 /* 探测结果条 */
 .asm-probe-bar {
@@ -879,6 +877,11 @@ input.asm-input.mono {
 .asm-probe-bar.error .asm-probe-ico {
   background: color-mix(in srgb, var(--gn-danger) 14%, transparent);
   color: var(--gn-danger);
+}
+/* 单行阻断类提示（必填校验等）：内容整体居中 */
+.asm-probe-bar.center {
+  align-items: center;
+  justify-content: center;
 }
 .asm-probe-ico {
   width: 24px;
@@ -1161,16 +1164,39 @@ input.asm-input.mono {
   flex-direction: column;
 }
 .asm-jdk-head {
-  padding: 14px 20px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--gn-br-1);
+}
+.asm-jdk-ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--gn-accent) 14%, var(--gn-bg-panel));
+  border: 1px solid color-mix(in srgb, var(--gn-accent) 30%, transparent);
+}
+.asm-jdk-ico img {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+.asm-jdk-head-main {
+  min-width: 0;
 }
 .asm-jdk-head h3 {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--gn-fg-1);
 }
 .asm-jdk-head p {
   margin-top: 3px;
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--gn-fg-4);
   line-height: 1.5;
 }
@@ -1291,16 +1317,10 @@ input.asm-input.mono {
   align-items: center;
   gap: 10px;
 }
-.asm-jdk-manual label {
-  flex-shrink: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--gn-fg-2);
-}
 .asm-jdk-manual input {
   flex: 1;
   min-width: 0;
-  height: 30px;
+  height: 32px;
   border-radius: 7px;
   border: 1px solid var(--gn-br-2);
   background: var(--gn-bg-input);
@@ -1316,15 +1336,30 @@ input.asm-input.mono {
 }
 .asm-jdk-foot {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
   gap: 10px;
-  padding: 4px 20px 16px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--gn-br-1);
+  background: var(--gn-bg-panel);
+}
+.asm-jdk-foot-hint {
+  font-size: 11px;
+  color: var(--gn-fg-5);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asm-jdk-foot-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 .asm-jdk-foot .ant-btn {
   height: 32px;
   padding: 0 18px;
   border-radius: 8px;
-  border-top: 1px solid var(--gn-br-1);
   font-weight: 600;
 }

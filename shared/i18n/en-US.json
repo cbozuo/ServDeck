@@ -8238,5 +8238,6 @@
   "home.res.uptime.m": "{{n}}m",
   "home.res.diskRead": "Read",
   "home.res.diskWrite": "Write",
-  "home.summary.none": "No services managed yet"
+  "home.summary.none": "No services managed yet",
+  "service.modal.jdk.detected": "Detected {{n}} local Java runtime(s)"
 }

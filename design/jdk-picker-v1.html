@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServDeck 高保真 — 选择 JDK 弹窗 v1（跟随主题）</title>
+<style>
+  /* ─────────────────────────────────────────────────────────────
+     颜色全部走 --gn-* token，命名与 frontend/src/v2-theme.css 一致；
+     body[data-theme] 切换浅/深两套，与 App.tsx 挂载方式相同。
+     仅遮罩 --gn-overlay 为建议新增 token（当前代码缺省，见规格表）。
+     ───────────────────────────────────────────────────────────── */
+
+  /* Light tokens（与 v2-theme.css 逐条一致） */
+  body[data-theme="light"] {
+    --gn-bg-app:      rgb(246 246 244 / var(--gn-window-opacity, 1));
+    --gn-bg-chrome:   rgb(236 236 234 / var(--gn-window-opacity, 1));
+    --gn-bg-panel:    rgb(255 255 255 / var(--gn-window-opacity, 1));
+    --gn-bg-panel-2:  rgb(250 250 248 / var(--gn-window-opacity, 1));
+    --gn-bg-input:    rgb(255 255 255 / var(--gn-window-opacity, 1));
+    --gn-bg-hover:    rgba(15, 23, 42, 0.045);
+    --gn-bg-active:   rgba(15, 23, 42, 0.075);
+    --gn-fg-1: #0c1322; --gn-fg-2: #1f2937; --gn-fg-3: #4b5563;
+    --gn-fg-4: #6b7280; --gn-fg-5: #9ca3af;
+    --gn-br-1: rgba(15, 23, 42, 0.08);
+    --gn-br-2: rgba(15, 23, 42, 0.12);
+    --gn-br-3: rgba(15, 23, 42, 0.18);
+    --gn-accent:      #15803d;
+    --gn-accent-2:    #166534;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 16%, var(--gn-bg-panel));
+    --gn-on-accent:   #ffffff;
+    --gn-ant-on-primary: #ffffff;
+    --gn-accent-strong: #15803d;
+    --gn-accent-strong-hover: #126634;
+    --gn-info:        #0369a1;
+    --gn-info-soft:   #e0f2fe;
+    --gn-warn:        #d97706;
+    --gn-warn-soft:   rgba(245, 158, 11, 0.14);
+    --gn-danger:      #dc2626;
+    --gn-shadow-sm:   0 1px 2px rgba(15, 23, 42, 0.05);
+    --gn-shadow-md:   0 4px 14px rgba(15, 23, 42, 0.08);
+    --gn-shadow-lg:   0 12px 40px rgba(15, 23, 42, 0.14);
+    --gn-shadow-card: 0 0 0 0.5px rgba(15, 23, 42, 0.10), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --gn-overlay:     rgba(15, 23, 42, 0.36);
+  }
+  /* 自定义主题示例 A：浅色 baseMode + 用户 CSS 只覆盖 accent 家族
+     （机制与代码一致：body[data-custom-theme] 注入片段覆盖部分 token） */
+  body[data-theme="light"][data-custom-theme] {
+    --gn-accent:        #7c3aed;
+    --gn-accent-2:      #6d28d9;
+    --gn-accent-strong: #7c3aed;
+    --gn-accent-strong-hover: #6d28d9;
+    --gn-ant-on-primary: #ffffff;
+  }
+  /* Dark tokens（与 v2-theme.css 逐条一致） */
+  body[data-theme="dark"] {
+    --gn-bg-app:      rgb(12 14 18 / var(--gn-window-opacity, 1));
+    --gn-bg-chrome:   rgb(20 23 28 / var(--gn-window-opacity, 1));
+    --gn-bg-panel:    rgb(22 26 33 / var(--gn-window-opacity, 1));
+    --gn-bg-panel-2:  rgb(27 31 39 / var(--gn-window-opacity, 1));
+    --gn-bg-input:    rgb(15 18 23 / var(--gn-window-opacity, 1));
+    --gn-bg-hover:    rgba(255, 255, 255, 0.05);
+    --gn-bg-active:   rgba(255, 255, 255, 0.08);
+    --gn-fg-1: #ffffff; --gn-fg-2: #f5f5f5; --gn-fg-3: #e6e6e6;
+    --gn-fg-4: #d9d9d9; --gn-fg-5: #cccccc;
+    --gn-br-1: rgba(255, 255, 255, 0.06);
+    --gn-br-2: rgba(255, 255, 255, 0.10);
+    --gn-br-3: rgba(255, 255, 255, 0.16);
+    --gn-accent:      #22c55e;
+    --gn-accent-2:    #16a34a;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 22%, transparent);
+    --gn-on-accent:   #0a2417;
+    --gn-ant-on-primary: #ffffff;
+    --gn-accent-strong: #15803d;
+    --gn-accent-strong-hover: #126634;
+    --gn-info:        #38bdf8;
+    --gn-info-soft:   rgba(56, 189, 248, 0.14);
+    --gn-warn:        #f59e0b;
+    --gn-warn-soft:   rgba(245, 158, 11, 0.16);
+    --gn-danger:      #f87171;
+    --gn-shadow-sm:   0 1px 2px rgba(0, 0, 0, 0.4);
+    --gn-shadow-md:   0 4px 14px rgba(0, 0, 0, 0.45);
+    --gn-shadow-lg:   0 12px 40px rgba(0, 0, 0, 0.55);
+    --gn-shadow-card: 0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 1px 3px rgba(0, 0, 0, 0.35);
+    --gn-overlay:     rgba(0, 0, 0, 0.55);
+  }
+  /* 自定义主题示例 B：深色 baseMode + 用户 CSS 覆盖 accent 家族
+     （亮 accent 面 → 前景切深色，与内置深色同语义） */
+  body[data-theme="dark"][data-custom-theme] {
+    --gn-accent:        #38bdf8;
+    --gn-accent-2:      #7dd3fc;
+    --gn-on-accent:     #082032;
+    --gn-accent-strong: #0284c7;
+    --gn-accent-strong-hover: #0369a1;
+    --gn-ant-on-primary: #ffffff;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:var(--gn-font-sans); font-size:13px; color:var(--gn-fg-1);
+    background:var(--gn-bg-chrome); padding:28px 24px 48px;
+    transition:background .18s, color .18s;
+  }
+  svg.ic { width:16px; height:16px; display:block; }
+  button { font-family:inherit; border:0; background:transparent; color:inherit; cursor:pointer; }
+
+  /* ===== 页面外壳（展示用，同样走 token） ===== */
+  .page { max-width:1100px; margin:0 auto; }
+  .page-head { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+  .page-head h1 { font-size:17px; font-weight:700; letter-spacing:-0.01em; flex:1; }
+  .page-head .tag { font-family:var(--gn-font-mono); font-size:11px; color:var(--gn-fg-5); margin-right:auto; }
+  .theme-seg {
+    display:inline-flex; padding:3px; gap:2px; border-radius:9px;
+    background:var(--gn-bg-active);
+  }
+  .theme-seg button {
+    height:26px; padding:0 12px; border-radius:7px;
+    font-size:11.5px; font-weight:600; color:var(--gn-fg-4);
+  }
+  .theme-seg button.on { background:var(--gn-bg-panel); color:var(--gn-fg-1); box-shadow:var(--gn-shadow-sm); }
+
+  /* ===== 主场景：遮罩 + 弹窗 ===== */
+  .stage {
+    position:relative; border-radius:16px; overflow:hidden; height:640px;
+    background:
+      radial-gradient(1200px 500px at 30% -10%, color-mix(in srgb, var(--gn-accent) 6%, transparent), transparent 60%),
+      var(--gn-bg-app);
+    box-shadow:var(--gn-shadow-card);
+    transition:background .18s;
+  }
+  .stage .fake-app { position:absolute; inset:0; filter:blur(1.5px) saturate(0.9); opacity:0.55; padding:22px 26px; }
+  .stage .fake-app .fk-title { font-size:19px; font-weight:700; color:var(--gn-fg-1); }
+  .stage .fake-app .fk-line { margin-top:10px; height:10px; border-radius:5px; background:var(--gn-bg-active); width:46%; }
+  .stage .fake-app .fk-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:26px; }
+  .stage .fake-app .fk-card { height:96px; border-radius:12px; background:var(--gn-bg-panel); box-shadow:var(--gn-shadow-card); }
+  .stage .mask { position:absolute; inset:0; background:var(--gn-overlay); }
+
+  /* ===== 弹窗本体 ===== */
+  .modal {
+    position:absolute; left:50%; top:44px; transform:translateX(-50%);
+    width:600px; border-radius:14px; background:var(--gn-bg-panel);
+    box-shadow:var(--gn-shadow-lg), var(--gn-shadow-card);
+    overflow:hidden; transition:background .18s;
+  }
+  .md-head { display:flex; align-items:flex-start; gap:12px; padding:18px 18px 14px; }
+  .md-ico {
+    width:36px; height:36px; border-radius:10px; flex-shrink:0;
+    background:var(--gn-accent-soft); color:var(--gn-accent-2);
+    display:grid; place-items:center;
+  }
+  .md-ico .ic { width:18px; height:18px; }
+  .md-head .t { flex:1; min-width:0; }
+  .md-head .t h2 { font-size:15.5px; font-weight:700; letter-spacing:-0.01em; }
+  .md-head .t p { margin-top:4px; font-size:12px; color:var(--gn-fg-4); line-height:1.5; }
+  .md-head .t p b { color:var(--gn-fg-2); font-weight:600; }
+  .md-x { width:28px; height:28px; border-radius:8px; flex-shrink:0; display:grid; place-items:center; color:var(--gn-fg-4); }
+  .md-x:hover { background:var(--gn-bg-hover); color:var(--gn-fg-1); }
+
+  .md-body { padding:0 18px 16px; }
+
+  /* 检测信息行 */
+  .detect-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .detect-row .hint { font-size:11.5px; color:var(--gn-fg-5); }
+  .detect-row .hint b { color:var(--gn-fg-3); font-weight:600; }
+  .btn-ghost-sm {
+    margin-left:auto; height:28px; padding:0 10px; border-radius:8px;
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:11.5px; font-weight:600; color:var(--gn-fg-2);
+    background:var(--gn-bg-panel); border:1px solid var(--gn-br-2);
+    box-shadow:var(--gn-shadow-card);
+  }
+  .btn-ghost-sm:hover { background:var(--gn-bg-hover); }
+  .btn-ghost-sm .ic { width:12px; height:12px; }
+
+  /* JDK 选项行 */
+  .jdk-list { display:flex; flex-direction:column; gap:8px; }
+  .jdk-row {
+    display:flex; align-items:center; gap:11px;
+    padding:10px 12px; border-radius:10px;
+    background:var(--gn-bg-panel); border:1px solid var(--gn-br-1);
+    box-shadow:var(--gn-shadow-card); cursor:pointer;
+    transition:background .12s, box-shadow .12s, border-color .12s;
+  }
+  .jdk-row:hover { background:var(--gn-bg-hover); }
+  .jdk-row.sel {
+    border-color:transparent;
+    box-shadow:0 0 0 1.5px var(--gn-accent), var(--gn-shadow-card);
+    background:color-mix(in srgb, var(--gn-accent) 4%, var(--gn-bg-panel));
+  }
+  .radio {
+    width:16px; height:16px; border-radius:50%; flex-shrink:0;
+    border:1.5px solid var(--gn-br-2); background:var(--gn-bg-panel);
+    display:grid; place-items:center;
+  }
+  .jdk-row.sel .radio { border-color:var(--gn-accent); background:var(--gn-accent); }
+  .jdk-row.sel .radio::after { content:""; width:5px; height:5px; border-radius:50%; background:var(--gn-on-accent); }
+  .j-badge {
+    width:30px; height:30px; border-radius:8px; flex-shrink:0;
+    display:grid; place-items:center;
+    font-family:var(--gn-font-mono); font-size:12px; font-weight:700;
+  }
+  .j-badge.v17 { background:var(--gn-accent-soft); color:var(--gn-accent-2); }
+  .j-badge.v8 { background:var(--gn-warn-soft); color:var(--gn-warn); }
+  .j-main { flex:1; min-width:0; }
+  .j-name { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:600; color:var(--gn-fg-1); min-width:0; }
+  .j-name .vendor { font-weight:500; color:var(--gn-fg-3); font-size:12px; }
+  .j-name .arch {
+    font-family:var(--gn-font-mono); font-size:9.5px; font-weight:600; color:var(--gn-fg-4);
+    background:var(--gn-bg-active); border-radius:5px; padding:1px 5px; flex-shrink:0;
+  }
+  .j-path {
+    margin-top:3px; display:flex; align-items:center; gap:6px; min-width:0;
+    font-family:var(--gn-font-mono); font-size:10.5px; color:var(--gn-fg-5);
+  }
+  .j-path .p { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .j-copy {
+    width:20px; height:20px; border-radius:6px; flex-shrink:0;
+    display:grid; place-items:center; color:var(--gn-fg-5); opacity:0; transition:opacity .12s;
+  }
+  .jdk-row:hover .j-copy { opacity:1; }
+  .j-copy:hover { background:var(--gn-bg-active); color:var(--gn-fg-2); }
+  .j-copy .ic { width:11px; height:11px; }
+  .j-now {
+    flex-shrink:0; font-size:10px; font-weight:700;
+    color:var(--gn-accent-2); background:var(--gn-accent-soft);
+    border-radius:999px; padding:3px 9px;
+  }
+
+  /* 手动指定 */
+  .or-divider { display:flex; align-items:center; gap:10px; margin:14px 0 10px; }
+  .or-divider::before, .or-divider::after { content:""; flex:1; height:1px; background:var(--gn-br-1); }
+  .or-divider span { font-size:10.5px; font-weight:600; color:var(--gn-fg-5); letter-spacing:0.06em; }
+  .manual-label { display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--gn-fg-3); margin-bottom:7px; }
+  .manual-label .opt { font-weight:500; color:var(--gn-fg-5); }
+  .manual-row { display:flex; gap:8px; }
+  .manual-input {
+    flex:1; height:34px; border-radius:9px;
+    background:var(--gn-bg-input); border:1px solid var(--gn-br-2);
+    box-shadow:var(--gn-shadow-card);
+    display:flex; align-items:center; gap:8px; padding:0 11px;
+    transition:background .12s, box-shadow .12s, border-color .12s;
+  }
+  /* 手动指定生效：与列表行同一套 accent 选中语言（描边 + 弱底 + radio 填充） */
+  .manual-input.sel {
+    border-color:transparent;
+    box-shadow:0 0 0 1.5px var(--gn-accent), var(--gn-shadow-card);
+    background:color-mix(in srgb, var(--gn-accent) 4%, var(--gn-bg-panel));
+  }
+  .manual-radio {
+    width:16px; height:16px; border-radius:50%; flex-shrink:0;
+    border:1.5px solid var(--gn-br-2); background:var(--gn-bg-panel);
+    display:grid; place-items:center;
+  }
+  .manual-input.sel .manual-radio { border-color:var(--gn-accent); background:var(--gn-accent); }
+  .manual-input.sel .manual-radio::after { content:""; width:5px; height:5px; border-radius:50%; background:var(--gn-on-accent); }
+  .manual-clear {
+    width:20px; height:20px; border-radius:6px; flex-shrink:0;
+    display:grid; place-items:center; color:var(--gn-fg-5);
+  }
+  .manual-clear:hover { background:var(--gn-bg-active); color:var(--gn-fg-2); }
+  .manual-clear .ic { width:11px; height:11px; }
+  /* 校验通过反馈（替代灰提示行） */
+  .manual-ok {
+    margin-top:7px; display:flex; align-items:center; gap:6px;
+    font-size:11px; color:var(--gn-accent-2);
+  }
+  .manual-ok .ic { width:12px; height:12px; }
+  .manual-ok b { font-weight:600; }
+  .manual-ok .sep { color:var(--gn-fg-5); }
+  .manual-ok .ok-pill {
+    font-family:var(--gn-font-mono); font-size:10px; font-weight:700;
+    background:var(--gn-accent-soft); color:var(--gn-accent-2);
+    border-radius:999px; padding:2px 8px;
+  }
+  /* 场景 B：列表行降为未选中（仍可点击切回） */
+  .jdk-row.dim { opacity:0.72; }
+  .jdk-row.dim:hover { opacity:1; }
+  .manual-input input {
+    flex:1; border:0; outline:0; background:transparent;
+    font-family:var(--gn-font-mono); font-size:11.5px; color:var(--gn-fg-1);
+  }
+  .manual-input input::placeholder { color:var(--gn-fg-5); }
+  .manual-input .fld-ico { color:var(--gn-fg-5); display:grid; place-items:center; }
+  .manual-input .fld-ico .ic { width:13px; height:13px; }
+  .btn-ghost {
+    height:34px; padding:0 13px; border-radius:9px; flex-shrink:0;
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:600; color:var(--gn-fg-2);
+    background:var(--gn-bg-panel); border:1px solid var(--gn-br-2);
+    box-shadow:var(--gn-shadow-card);
+  }
+  .btn-ghost:hover { background:var(--gn-bg-hover); }
+  .manual-help { margin-top:7px; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--gn-fg-5); }
+  .manual-help .ic { width:12px; height:12px; color:var(--gn-fg-5); }
+  .manual-help b { color:var(--gn-fg-3); font-weight:500; }
+
+  /* 底栏 */
+  .md-foot {
+    display:flex; align-items:center; gap:10px;
+    padding:13px 18px; border-top:1px solid var(--gn-br-1); background:var(--gn-bg-panel-2);
+  }
+  .md-foot .foot-hint { font-size:11px; color:var(--gn-fg-5); }
+  .md-foot .sp { flex:1; }
+  .btn {
+    height:34px; padding:0 15px; border-radius:9px;
+    display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600;
+  }
+  .btn-primary { background:var(--gn-accent-strong); color:var(--gn-ant-on-primary); box-shadow:var(--gn-shadow-md); }
+  .btn-primary:hover { background:var(--gn-accent-strong-hover); }
+  .btn-primary .ic { width:13px; height:13px; }
+
+  /* ===== 状态区（三小态） ===== */
+  .states { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:18px; }
+  .state-card { background:var(--gn-bg-panel); border-radius:14px; box-shadow:var(--gn-shadow-card); padding:16px; transition:background .18s; }
+  .state-card h3 { font-size:12.5px; font-weight:700; color:var(--gn-fg-2); display:flex; align-items:center; gap:7px; margin-bottom:12px; }
+  .state-card h3 .dot { width:7px; height:7px; border-radius:50%; }
+  .frame { border:1px solid var(--gn-br-1); border-radius:10px; padding:12px; background:var(--gn-bg-app); }
+  .st-title { font-size:12.5px; font-weight:700; }
+  .st-sub { margin-top:3px; font-size:11px; color:var(--gn-fg-4); line-height:1.55; }
+  .st-center { text-align:center; padding:8px 4px 4px; }
+  .st-ico { width:40px; height:40px; border-radius:12px; margin:0 auto 9px; display:grid; place-items:center; }
+  .st-actions { margin-top:12px; display:flex; gap:8px; justify-content:center; }
+  .btn-sm { height:28px; padding:0 11px; border-radius:8px; font-size:11px; font-weight:600; display:inline-flex; align-items:center; gap:5px; }
+  .btn-sm.primary { background:var(--gn-accent-strong); color:var(--gn-ant-on-primary); }
+  .btn-sm.ghost { background:var(--gn-bg-panel); border:1px solid var(--gn-br-2); color:var(--gn-fg-2); }
+  .input-bad {
+    height:30px; border-radius:8px; background:var(--gn-bg-input);
+    border:1px solid color-mix(in srgb, var(--gn-danger) 45%, transparent);
+    box-shadow:0 0 0 2.5px color-mix(in srgb, var(--gn-danger) 10%, transparent);
+    display:flex; align-items:center; gap:7px; padding:0 9px;
+    font-family:var(--gn-font-mono); font-size:10.5px; color:var(--gn-fg-2);
+  }
+  .st-err { margin-top:7px; display:flex; gap:6px; align-items:flex-start; font-size:10.5px; color:var(--gn-danger); line-height:1.5; }
+  .st-err .ic { width:11px; height:11px; flex-shrink:0; margin-top:1px; }
+  .skel { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+  .skel .sk {
+    height:44px; border-radius:9px; background:var(--gn-bg-panel);
+    box-shadow:var(--gn-shadow-card); position:relative; overflow:hidden;
+  }
+  .skel .sk::after {
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(90deg, transparent, var(--gn-bg-hover), transparent);
+    animation:shimmer 1.4s infinite;
+  }
+  @keyframes shimmer { from { transform:translateX(-100%); } to { transform:translateX(100%); } }
+  .st-scan { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--gn-fg-4); margin-top:9px; }
+  .spin { width:12px; height:12px; border-radius:50%; border:2px solid var(--gn-br-2); border-top-color:var(--gn-accent); animation:rot 0.9s linear infinite; }
+  @keyframes rot { to { transform:rotate(360deg); } }
+
+  /* ===== 标注 ===== */
+  .scene-b {
+    margin-top:18px; background:var(--gn-bg-panel); border-radius:14px;
+    box-shadow:var(--gn-shadow-card); padding:16px 18px 18px; transition:background .18s;
+  }
+  .scene-b .sb-head { display:flex; align-items:baseline; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  .scene-b h3 { font-size:12.5px; font-weight:700; color:var(--gn-fg-2); }
+  .sb-rule { font-size:11.5px; color:var(--gn-fg-4); line-height:1.55; }
+  .sb-rule b { color:var(--gn-fg-2); font-weight:600; }
+  .modal.modal-inline {
+    position:static; transform:none; box-shadow:var(--gn-shadow-card);
+    border:1px solid var(--gn-br-1); width:100%; max-width:600px; margin:0 auto;
+  }
+  .modal-inline input[readonly] { cursor:default; }
+  .spec { margin-top:18px; background:var(--gn-bg-panel); border-radius:14px; box-shadow:var(--gn-shadow-card); padding:16px 18px; }
+  .spec h3 { font-size:12.5px; font-weight:700; color:var(--gn-fg-2); margin-bottom:10px; }
+  .spec table { width:100%; border-collapse:collapse; font-size:11.5px; }
+  .spec td { padding:6px 8px; border-bottom:1px solid var(--gn-br-1); color:var(--gn-fg-3); vertical-align:top; }
+  .spec td:first-child { width:130px; color:var(--gn-fg-4); font-weight:600; }
+  .spec td code { font-family:var(--gn-font-mono); font-size:10.5px; color:var(--gn-fg-2); background:var(--gn-bg-active); border-radius:4px; padding:1px 5px; }
+  .spec tr:last-child td { border-bottom:0; }
+</style>
+</head>
+<body data-theme="light" data-ui-version="v2">
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-coffee" viewBox="0 0 16 16"><path d="M3 6.5h8.5v3.2a3.3 3.3 0 0 1-3.3 3.3H6.3a3.3 3.3 0 0 1-3.3-3.3V6.5Z" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M11.5 7.2h1.2a1.6 1.6 0 0 1 0 3.2h-1.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M5.2 4.2c0-.9 1.2-.9 1.2-1.8M8 4.2c0-.9 1.2-.9 1.2-1.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M2.8 8a5.2 5.2 0 0 1 9-3.6M13.2 8a5.2 5.2 0 0 1-9 3.6" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M11.5 2.2l.4 2.4-2.4.4M4.5 13.8l-.4-2.4 2.4-.4" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-check" viewBox="0 0 14 14"><path d="M2.8 7.2l2.5 2.5 5-5.4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M10.5 5.5v-1a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h1" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+      <symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 16 16"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.4 1.6h5A1.5 1.5 0 0 1 14 6.1v5.4a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5v-7Z" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M8 5v3.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11" r="0.9" fill="currentColor"/></symbol>
+      <symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M8 7.4V11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="5.2" r="0.9" fill="currentColor"/></symbol>
+      <symbol id="i-search-off" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M10.4 10.4L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5.4 7h3.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="page">
+    <div class="page-head">
+      <h1>选择 JDK 弹窗 · 高保真 v1</h1>
+      <span class="tag">design/jdk-picker-v1.html · 全 --gn-* token · 4 主题可切换</span>
+      <div class="theme-seg" id="themeSeg">
+        <button class="on" data-t="light">内置浅色</button>
+        <button data-t="dark">内置深色</button>
+        <button data-t="light" data-custom="1">自定义·浅底</button>
+        <button data-t="dark" data-custom="1">自定义·深底</button>
+      </div>
+    </div>
+
+    <!-- ===== 主场景 ===== -->
+    <div class="stage">
+      <div class="fake-app">
+        <div class="fk-title">服务总览</div>
+        <div class="fk-line"></div>
+        <div class="fk-cards"><div class="fk-card"></div><div class="fk-card"></div><div class="fk-card"></div><div class="fk-card"></div></div>
+      </div>
+      <div class="mask"></div>
+
+      <div class="modal">
+        <!-- 头部 -->
+        <div class="md-head">
+          <span class="md-ico"><svg class="ic"><use href="#i-coffee"/></svg></span>
+          <div class="t">
+            <h2>选择 JDK</h2>
+            <p>已自动检测本机 Java 运行时，选择其一；也可以手动指定 <b>JDK 目录</b> 或 <b>java.exe 完整路径</b>。</p>
+          </div>
+          <button class="md-x" title="关闭"><svg class="ic"><use href="#i-x"/></svg></button>
+        </div>
+
+        <div class="md-body">
+          <!-- 检测信息行 -->
+          <div class="detect-row">
+            <span class="hint">检测到 <b>3</b> 个运行时 · 上次检测 <b>01:26</b></span>
+            <button class="btn-ghost-sm"><svg class="ic"><use href="#i-refresh"/></svg>重新检测</button>
+          </div>
+
+          <!-- JDK 列表 -->
+          <div class="jdk-list">
+            <div class="jdk-row">
+              <span class="radio"></span>
+              <span class="j-badge v17">17</span>
+              <span class="j-main">
+                <span class="j-name">Java 17 <span class="vendor">· Microsoft Build of OpenJDK 17.0.8</span> <span class="arch">x64</span></span>
+                <span class="j-path"><span class="p">C:\Program Files\Java\jdk-17\bin\java.exe</span>
+                  <button class="j-copy" title="复制路径"><svg class="ic"><use href="#i-copy"/></svg></button>
+                </span>
+              </span>
+            </div>
+
+            <div class="jdk-row sel">
+              <span class="radio"></span>
+              <span class="j-badge v8">8</span>
+              <span class="j-main">
+                <span class="j-name">Java 8 <span class="vendor">· Oracle 1.8.0_471</span> <span class="arch">x64</span></span>
+                <span class="j-path"><span class="p">C:\Program Files\Java\jre-1.8\bin\java.exe</span>
+                  <button class="j-copy" title="复制路径"><svg class="ic"><use href="#i-copy"/></svg></button>
+                </span>
+              </span>
+              <span class="j-now">当前使用</span>
+            </div>
+
+            <div class="jdk-row">
+              <span class="radio"></span>
+              <span class="j-badge v8">8</span>
+              <span class="j-main">
+                <span class="j-name">Java 8 <span class="vendor">· Oracle 1.8.0_333</span> <span class="arch">x64</span></span>
+                <span class="j-path"><span class="p">C:\Program Files\Java\jdk1.8.0_333\bin\java.exe</span>
+                  <button class="j-copy" title="复制路径"><svg class="ic"><use href="#i-copy"/></svg></button>
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <!-- 手动指定 -->
+          <div class="or-divider"><span>或</span></div>
+          <div class="manual-label">手动指定 <span class="opt">（可选，优先于上方选择）</span></div>
+          <div class="manual-row">
+            <div class="manual-input">
+              <span class="fld-ico"><svg class="ic"><use href="#i-folder"/></svg></span>
+              <input placeholder="D:\tools\jdk-21 或 D:\tools\jdk-21\bin\java.exe" />
+            </div>
+            <button class="btn-ghost">浏览…</button>
+          </div>
+          <div class="manual-help">
+            <svg class="ic"><use href="#i-info"/></svg>
+            <span>填入后将校验路径有效性；目录与 java.exe 均可，结果会写入 <b>JVM 运行时</b> 参数。</span>
+          </div>
+        </div>
+
+        <!-- 底栏 -->
+        <div class="md-foot">
+          <span class="foot-hint">Enter 确认 · Esc 取消</span>
+          <span class="sp"></span>
+          <button class="btn btn-primary"><svg class="ic"><use href="#i-check"/></svg>使用该 JDK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 场景 B：手动指定生效（选中态转移到手动框） ===== -->
+    <div class="scene-b">
+      <div class="sb-head">
+        <h3>场景 B · 手动指定生效</h3>
+        <span class="sb-rule">列表与手动输入互斥单选：手动路径校验通过后，列表行取消选中并降权（仍可点回），选中态转移到手动框；<b>清除</b>即回到列表选择。</span>
+      </div>
+      <div class="modal modal-inline">
+        <div class="md-head">
+          <span class="md-ico"><svg class="ic"><use href="#i-coffee"/></svg></span>
+          <div class="t">
+            <h2>选择 JDK</h2>
+            <p>已自动检测本机 Java 运行时，选择其一；也可以手动指定 <b>JDK 目录</b> 或 <b>java.exe 完整路径</b>。</p>
+          </div>
+          <button class="md-x" title="关闭"><svg class="ic"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="md-body">
+          <div class="detect-row">
+            <span class="hint">检测到 <b>3</b> 个运行时 · 上次检测 <b>01:26</b></span>
+            <button class="btn-ghost-sm"><svg class="ic"><use href="#i-refresh"/></svg>重新检测</button>
+          </div>
+
+          <!-- 列表：全部未选中 + 降权 -->
+          <div class="jdk-list">
+            <div class="jdk-row dim">
+              <span class="radio"></span>
+              <span class="j-badge v17">17</span>
+              <span class="j-main">
+                <span class="j-name">Java 17 <span class="vendor">· Microsoft Build of OpenJDK 17.0.8</span> <span class="arch">x64</span></span>
+                <span class="j-path"><span class="p">C:\Program Files\Java\jdk-17\bin\java.exe</span></span>
+              </span>
+            </div>
+            <div class="jdk-row dim">
+              <span class="radio"></span>
+              <span class="j-badge v8">8</span>
+              <span class="j-main">
+                <span class="j-name">Java 8 <span class="vendor">· Oracle 1.8.0_471</span> <span class="arch">x64</span></span>
+                <span class="j-path"><span class="p">C:\Program Files\Java\jre-1.8\bin\java.exe</span></span>
+              </span>
+              <span class="j-now">当前使用</span>
+            </div>
+            <div class="jdk-row dim">
+              <span class="radio"></span>
+              <span class="j-badge v8">8</span>
+              <span class="j-main">
+                <span class="j-name">Java 8 <span class="vendor">· Oracle 1.8.0_333</span> <span class="arch">x64</span></span>
+                <span class="j-path"><span class="p">C:\Program Files\Java\jdk1.8.0_333\bin\java.exe</span></span>
+              </span>
+            </div>
+          </div>
+
+          <!-- 手动框：接管选中态 -->
+          <div class="or-divider"><span>或</span></div>
+          <div class="manual-label">手动指定 <span class="opt">（可选，优先于上方选择）</span></div>
+          <div class="manual-row">
+            <div class="manual-input sel">
+              <span class="manual-radio"></span>
+              <span class="fld-ico"><svg class="ic"><use href="#i-folder"/></svg></span>
+              <input value="D:\tools\jdk-21\bin\java.exe" readonly />
+              <button class="manual-clear" title="清除并返回列表选择"><svg class="ic"><use href="#i-x"/></svg></button>
+            </div>
+            <button class="btn-ghost">浏览…</button>
+          </div>
+          <div class="manual-ok">
+            <svg class="ic"><use href="#i-check"/></svg>
+            <span>路径有效 <b>Java 21.0.1</b> · Microsoft Build of OpenJDK <span class="ok-pill">21</span></span>
+          </div>
+        </div>
+        <div class="md-foot">
+          <span class="foot-hint">Enter 确认 · Esc 取消</span>
+          <span class="sp"></span>
+          <button class="btn btn-primary"><svg class="ic"><use href="#i-check"/></svg>使用该 JDK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 三个关键状态 ===== -->
+    <div class="states">
+      <!-- 空态 -->
+      <div class="state-card">
+        <h3><span class="dot" style="background:var(--gn-warn)"></span>未检测到 JDK（空态）</h3>
+        <div class="frame">
+          <div class="st-center">
+            <div class="st-ico" style="background:var(--gn-warn-soft); color:var(--gn-warn);">
+              <svg class="ic" style="width:18px;height:18px"><use href="#i-search-off"/></svg>
+            </div>
+            <div class="st-title">未检测到 Java 运行时</div>
+            <div class="st-sub">已扫描 JAVA_HOME、Path 及常见安装目录；<br>可手动指定 JDK 目录或 java.exe 路径。</div>
+            <div class="st-actions">
+              <button class="btn-sm primary">重新检测</button>
+              <button class="btn-sm ghost">手动指定</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 校验失败 -->
+      <div class="state-card">
+        <h3><span class="dot" style="background:var(--gn-danger)"></span>手动路径校验失败</h3>
+        <div class="frame">
+          <div class="manual-label" style="margin-top:2px;">手动指定</div>
+          <div class="input-bad">
+            <svg class="ic" style="width:12px;height:12px;color:var(--gn-fg-5)"><use href="#i-folder"/></svg>
+            D:\tools\jdk-21\bin\java.exe
+          </div>
+          <div class="st-err">
+            <svg class="ic"><use href="#i-alert"/></svg>
+            <span>路径无效：未找到可执行的 java.exe。请确认目录或完整路径是否正确。</span>
+          </div>
+          <div class="st-sub" style="margin-top:9px;">「使用该 JDK」在此状态下置灰；错误即时反馈，不打断输入。</div>
+        </div>
+      </div>
+
+      <!-- 检测中 -->
+      <div class="state-card">
+        <h3><span class="dot" style="background:var(--gn-info)"></span>检测中（骨架屏）</h3>
+        <div class="frame">
+          <div class="skel"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+          <div class="st-scan"><span class="spin"></span>正在扫描 JAVA_HOME 与常见安装目录…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 布局规格标注 ===== -->
+    <div class="spec">
+      <h3>布局与样式规格（开发对齐用）</h3>
+      <table>
+        <tr><td>主题</td><td>颜色全部 <code>--gn-*</code> token（命名与 <code>v2-theme.css</code> 一致），弹窗只依赖语义 token，内置浅/深 + 自定义主题均自动跟随；右上角可切换 4 种组合预览（自定义 = <code>body[data-custom-theme]</code> 叠加用户 CSS，仅覆盖 accent 家族）。唯一缺省的是弹窗遮罩 <code>--gn-overlay</code>，建议沉淀进 v2-theme.css（浅 <code>rgba(15,23,42,.36)</code> / 深 <code>rgba(0,0,0,.55)</code>）</td></tr>
+        <tr><td>弹窗容器</td><td>宽 <code>600px</code> 圆角 <code>14px</code>，投影 <code>--gn-shadow-lg + --gn-shadow-card</code>；顶部距遮罩区 <code>44px</code> 居中</td></tr>
+        <tr><td>头部</td><td>图标位 <code>36px</code> 圆角 <code>10px</code>（accent-soft 底 + accent-2 前景）；标题 <code>15.5px/700</code>；副文案 <code>12px/1.5</code>，fg-4，关键词 fg-2 加重</td></tr>
+        <tr><td>JDK 行</td><td>内边距 <code>10px 12px</code>，圆角 <code>10px</code>，行距 <code>8px</code>；版本徽标 <code>30px</code>（17→accent-soft/accent-2，8→warn-soft/warn）；架构徽标 bg-active；路径 mono <code>10.5px</code> 省略 + 悬停复制钮</td></tr>
+        <tr><td>选中态</td><td><code>0 0 0 1.5px var(--gn-accent)</code> 描边 + accent 4% 混底；radio 填充 accent、圆点用 <code>--gn-on-accent</code>（深色下自动换深色点，满足对比度）；右侧「当前使用」胶囊同 svc-badge.run 语义</td></tr>
+        <tr><td>选择互斥规则</td><td>列表项与手动输入为<b>同一单选组</b>：手动路径校验通过 → 列表行清空 radio 并降权（<code>opacity .72</code>，悬停回满，仍可点回），选中态转移到手动框（accent 1.5px 描边 + 4% 弱底 + 左侧 radio 填充 <code>--gn-on-accent</code> 圆点，与列表行同一语言）；点 <b>清除</b> 恢复列表可选。手动校验失败时不抢选中态，列表保持原选择</td></tr>
+        <tr><td>手动指定</td><td>「或」分隔线降级为弱分隔；输入框高 <code>34px</code> mono、底 <code>--gn-bg-input</code>，选中后改 <code>--gn-bg-panel</code> 混 accent 4%；校验通过行替换灰提示：accent-2 勾 + 版本信息 + 版本胶囊；失败态见状态卡二</td></tr>
+        <tr><td>底栏</td><td><code>13px 18px</code>，<code>--gn-bg-panel-2</code> + 上边框 br-1；左侧快捷键提示，右侧唯一主按钮（accent-strong 底 + <code>--gn-ant-on-primary</code> 前景）；未选中/校验失败时置灰</td></tr>
+        <tr><td>与现状差异</td><td>①头部加图标与检测元信息（数量/时间/重新检测入口）②行内补 vendor 完整名与架构徽标 ③路径悬停可复制 ④手动指定与列表用「或」分区、帮助文案前置 ⑤底栏精简为单主钮 + 快捷键提示</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const seg = document.getElementById('themeSeg');
+    seg.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-t]');
+      if (!btn) return;
+      document.body.dataset.theme = btn.dataset.t;
+      // 与 App.tsx 同语义：存在自定义主题时挂 body[data-custom-theme]
+      if (btn.dataset.custom) { document.body.setAttribute('data-custom-theme', ''); }
+      else { document.body.removeAttribute('data-custom-theme'); }
+      seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn));
+    });
+  </script>
+</body>
+</html>

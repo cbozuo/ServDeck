@@ -8238,5 +8238,6 @@
   "home.res.uptime.m": "{{n}} Min.",
   "home.res.diskRead": "Lesen",
   "home.res.diskWrite": "Schreiben",
-  "home.summary.none": "Noch keine Dienste verwaltet"
+  "home.summary.none": "Noch keine Dienste verwaltet",
+  "service.modal.jdk.detected": "{{n}} lokale Java-Laufzeit(en) erkannt"
 }

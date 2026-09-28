@@ -8238,5 +8238,6 @@
   "home.res.uptime.m": "{{n}}分",
   "home.res.diskRead": "讀取",
   "home.res.diskWrite": "寫入",
-  "home.summary.none": "尚未納管任何服務"
+  "home.summary.none": "尚未納管任何服務",
+  "service.modal.jdk.detected": "本機偵測到 {{n}} 個 Java 執行環境"
 }

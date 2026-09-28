@@ -8238,5 +8238,6 @@
   "home.res.uptime.m": "{{n}}分",
   "home.res.diskRead": "読み取り",
   "home.res.diskWrite": "書き込み",
-  "home.summary.none": "管理対象のサービスはまだありません"
+  "home.summary.none": "管理対象のサービスはまだありません",
+  "service.modal.jdk.detected": "ローカルで {{n}} 個の Java ランタイムを検出"
 }

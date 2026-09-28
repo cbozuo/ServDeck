@@ -25,6 +25,10 @@ export interface ServiceRuntimeRow {
   serviceType: string;
   state: string;
   autoStart: boolean;
+  /** 外观 tab 挑的主色（无则用类型默认色） */
+  accentColor?: string;
+  /** 外观 tab 上传/挑选的自定义图标（data URL 或图标路径；无则用类型默认图标） */
+  customIcon?: string;
   /** 仅 Running 时有值 */
   metrics: ServiceRuntimeMetrics | null;
   /** 会话内观察到的最后一次停止时间（epoch ms）；null = 会话内未观察到 */
@@ -145,6 +149,8 @@ export function useServiceRuntime(services: ManagedServiceEntry[]): ServiceRunti
           serviceType: entry.serviceType,
           state,
           autoStart: (info?.startType ?? '').startsWith('Automatic'),
+          accentColor: entry.accentColor,
+          customIcon: entry.iconDataUrl,
           metrics,
           lastStoppedAt: lastStoppedRef.current.get(entry.name) ?? null,
         };

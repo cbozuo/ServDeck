@@ -347,8 +347,16 @@ const ServiceRowItem: React.FC<{
 
   return (
     <div className={isTerminal ? 'svc-row' : 'svc-row err'}>
-      <span className="svc-ico">
-        <img src={getDbIconAssetSrc(row.serviceType)} alt="" />
+      <span
+        className="svc-ico"
+        style={row.accentColor
+          ? {
+              background: `color-mix(in srgb, ${row.accentColor} 16%, var(--gn-bg-panel))`,
+              borderColor: `color-mix(in srgb, ${row.accentColor} 32%, transparent)`,
+            }
+          : undefined}
+      >
+        <img src={row.customIcon || getDbIconAssetSrc(row.serviceType)} alt="" />
       </span>
       <span className="svc-id">
         <span className="svc-name">

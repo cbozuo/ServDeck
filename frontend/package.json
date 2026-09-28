@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node scripts/zip-dist.mjs",
+    "build": "tsc && node scripts/check-css-braces.mjs && vite build && node scripts/zip-dist.mjs",
+    "check:css": "node scripts/check-css-braces.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "postinstall": "patch-package --error-on-fail",

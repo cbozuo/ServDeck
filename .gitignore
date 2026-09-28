@@ -45,3 +45,6 @@ docs/*
 .tmp_superpowers_edit
 .gonavi-dev-signing-identity
 .workbuddy/
+
+# vite 启动时的临时配置快照
+frontend/vite.config.ts.timestamp-*.mjs

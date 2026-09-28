@@ -29,6 +29,11 @@ func locateServyEngine() (string, error) {
 	return "", errServiceRegistryUnsupported
 }
 
+// servyEngineVersion 非 Windows 构建没有引擎可探测，始终返回空串。
+func servyEngineVersion(string) string {
+	return ""
+}
+
 func registerServiceWithServy(AddServiceRequest) (serviceAddResult, error) {
 	return serviceAddResult{}, errServiceRegistryUnsupported
 }

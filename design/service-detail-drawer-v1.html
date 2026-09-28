@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServDeck 高保真 — 纳管服务详情抽屉（概览 / 部署 / 配置 / 日志 / 事件）</title>
+<!--
+  设计说明（对接 JavaServiceDeploy-servy-cli版本.bat 的 GUI 化）
+  · 触发：双击左侧纳管服务树的服务节点 → 右侧滑出详情抽屉（本原型中单击也会打开，便于体验；
+    真实实现建议仅双击触发，单击保持选中 —— ServiceTreeSidebar.tsx:235 已预留该接入点）
+  · 形态：inspector 式右侧抽屉（无遮罩、不阻塞树操作），× / ESC 关闭
+  · 页签与脚本映射：
+      概览   ← 脚本 [4] Service Status + SampleServiceMetrics 实时指标
+      部署   ← 脚本 [1] Install（依赖端口预检→清理旧服务→注册→启动 / INSTALL_CMD 命令）
+               脚本 [5] Version Info（java -version / servy-cli version）
+               脚本 [6] Uninstall（Y/N 确认）+ DEPS_PORTS 端口健康检查
+      配置   ← 配置文件托管（字段 ↔ 原文双向编辑，保存 → 重启生效）
+      日志   ← --stdout / --stderr / --enableSizeRotation（日志轮转文件管理）
+      事件   ← 启停 / 崩溃守护重启 / 配置变更 / 依赖端口告警 / 注册卸载 时间线
+  · 已纳入的扩展：崩溃守护状态与事件、服务自身+依赖端口健康、日志轮转文件管理、
+    register（servy 注册）/ manage（纳管未注册）双模式差异态、待重启配置变更闭环
+  · 文档化未纳入（后续版本）：多服务指标对比、告警订阅/通知、诊断包导出、
+    SCM binPath 直接解析校验、远程主机服务
+-->
+<style>
+  /* ===== 主题 Token（对齐 v2-theme.css，与首页/注册弹框/旧详情稿同套） ===== */
+  :root, [data-theme="light"], [data-theme="custom"] {
+    --gn-bg-app:      rgb(246 246 244);
+    --gn-bg-chrome:   rgb(236 236 234);
+    --gn-bg-titlebar: rgb(250 250 248);
+    --gn-bg-panel:    rgb(255 255 255);
+    --gn-bg-panel-2:  rgb(250 250 248);
+    --gn-bg-input:    rgb(255 255 255);
+    --gn-bg-hover:    rgba(15, 23, 42, 0.045);
+    --gn-bg-active:   rgba(15, 23, 42, 0.075);
+    --gn-bg-selected: color-mix(in srgb, var(--gn-accent) 14%, transparent);
+    --gn-fg-1: #0c1322; --gn-fg-2: #1f2937; --gn-fg-3: #4b5563;
+    --gn-fg-4: #6b7280; --gn-fg-5: #9ca3af;
+    --gn-br-1: rgba(15, 23, 42, 0.08);
+    --gn-br-2: rgba(15, 23, 42, 0.12);
+    --gn-br-3: rgba(15, 23, 42, 0.18);
+    --gn-accent:       #15803d;
+    --gn-accent-2:     #166534;
+    --gn-accent-soft:  color-mix(in srgb, var(--gn-accent) 16%, var(--gn-bg-panel));
+    --gn-accent-strong: #15803d;
+    --gn-accent-strong-hover: #126634;
+    --gn-on-accent: #ffffff;
+    --gn-info:  #0369a1;
+    --gn-warn:  #d97706;
+    --gn-danger: #dc2626;
+    --gn-shadow-md:  0 4px 14px rgba(15, 23, 42, 0.08);
+    --gn-shadow-lg:  0 12px 40px rgba(15, 23, 42, 0.14);
+    --gn-shadow-card: 0 0 0 0.5px rgba(15, 23, 42, 0.10), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --gn-font-sans: "Inter", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+    --gn-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  [data-theme="custom"] {
+    --gn-accent: #6d28d9; --gn-accent-2: #5b21b6;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 14%, var(--gn-bg-panel));
+    --gn-accent-strong: #6d28d9; --gn-accent-strong-hover: #5b21b6;
+  }
+  [data-theme="dark"] {
+    --gn-bg-app:      rgb(12 14 18);
+    --gn-bg-chrome:   rgb(20 23 28);
+    --gn-bg-titlebar: rgb(27 31 39);
+    --gn-bg-panel:    rgb(22 26 33);
+    --gn-bg-panel-2:  rgb(27 31 39);
+    --gn-bg-input:    rgb(15 18 23);
+    --gn-bg-hover:    rgba(255, 255, 255, 0.05);
+    --gn-bg-active:   rgba(255, 255, 255, 0.08);
+    --gn-bg-selected: color-mix(in srgb, var(--gn-accent) 18%, transparent);
+    --gn-fg-1: #ffffff; --gn-fg-2: #f5f5f5; --gn-fg-3: #e6e6e6;
+    --gn-fg-4: #d9d9d9; --gn-fg-5: #cccccc;
+    --gn-br-1: rgba(255, 255, 255, 0.06);
+    --gn-br-2: rgba(255, 255, 255, 0.10);
+    --gn-br-3: rgba(255, 255, 255, 0.16);
+    --gn-accent: #22c55e; --gn-accent-2: #16a34a;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 22%, transparent);
+    --gn-accent-strong: #15803d; --gn-accent-strong-hover: #126634;
+    --gn-info: #38bdf8; --gn-warn: #f59e0b; --gn-danger: #f87171;
+    --gn-shadow-md:  0 4px 14px rgba(0, 0, 0, 0.45);
+    --gn-shadow-lg:  0 12px 40px rgba(0, 0, 0, 0.55);
+    --gn-shadow-card: 0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+  :root { --t-java: #e76f00; --t-rust: #c2410c; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { font-family: var(--gn-font-sans); background: var(--gn-bg-app); color: var(--gn-fg-1); font-size: 13px; overflow: hidden; }
+  svg.ic { width: 16px; height: 16px; display: block; }
+  button { font-family: inherit; border: 0; background: transparent; color: inherit; cursor: pointer; }
+  input, textarea, select { font-family: inherit; color: var(--gn-fg-1); }
+  .mono { font-family: var(--gn-font-mono); }
+
+  .app { display: flex; flex-direction: column; height: 100vh; min-width: 1080px; }
+
+  /* ===== 48px 标题栏 ===== */
+  .titlebar {
+    height: 48px; flex-shrink: 0;
+    display: flex; align-items: center;
+    background: var(--gn-bg-titlebar);
+    border-bottom: 1px solid var(--gn-br-1);
+    padding-left: 11px; user-select: none;
+  }
+  .brandlogo {
+    width: 34px; height: 34px; border-radius: 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--gn-fg-4); flex-shrink: 0;
+  }
+  .brandlogo .bl-logo { width: 20px; height: 20px; display: block; }
+  .tdivider { width: 1px; height: 20px; background: var(--gn-br-2); margin: 0 6px; flex-shrink: 0; }
+  .ghostbtn {
+    height: 32px; padding: 0 10px; border-radius: 7px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600; color: var(--gn-fg-3); white-space: nowrap;
+  }
+  .ghostbtn:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .ghostbtn .ic { opacity: .85; width: 15px; height: 15px; }
+  .spring { flex: 1 1 auto; min-width: 0; }
+  .gear { width: 30px; height: 30px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; color: var(--gn-fg-4); margin-right: 12px; }
+  .gear:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .winbtns { display: flex; align-items: center; gap: 2px; padding-right: 6px; }
+  .winbtn { width: 40px; height: 40px; color: var(--gn-fg-4); display: inline-flex; align-items: center; justify-content: center; position: relative; }
+  .winbtn::before { content: ""; position: absolute; inset: 5px; border-radius: 7px; transition: background-color .15s ease; }
+  .winbtn:hover { color: var(--gn-fg-1); }
+  .winbtn:hover::before { background: var(--gn-bg-hover); }
+  .winbtn.close:hover { color: #fff; }
+  .winbtn.close:hover::before { background: #e81123; }
+  .winbtn .ic { position: relative; }
+
+  /* ===== 主体：侧栏 + 主区占位 ===== */
+  .wbody { flex: 1; display: flex; min-height: 0; }
+  .sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--gn-bg-panel);
+    border-right: 1px solid var(--gn-br-1);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .sb-search { padding: 12px 12px 8px; }
+  .sb-search-box {
+    height: 30px; border-radius: 7px;
+    background: var(--gn-bg-input); border: 1px solid var(--gn-br-2);
+    display: flex; align-items: center; gap: 6px; padding: 0 8px; color: var(--gn-fg-5);
+  }
+  .sb-search-box .ic { width: 14px; height: 14px; flex-shrink: 0; }
+  .sb-search-box input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: 12.5px; color: var(--gn-fg-1); }
+  .sb-tree { flex: 1; overflow-y: auto; padding: 4px 8px 12px; user-select: none; }
+  .tree-row {
+    height: 30px; padding: 0 8px; border-radius: 6px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; color: var(--gn-fg-2); cursor: pointer;
+  }
+  .tree-row:hover { background: var(--gn-bg-hover); }
+  .tree-row.selected { background: var(--gn-bg-selected); color: var(--gn-fg-1); font-weight: 600; }
+  .tree-row .ic { width: 14px; height: 14px; color: var(--gn-fg-4); flex-shrink: 0; }
+  .tree-row .cnt { margin-left: auto; font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-fg-5); }
+  .tree-chev { width: 12px; height: 12px; transition: transform .15s ease; color: var(--gn-fg-5); flex-shrink: 0; }
+  .tree-group.collapsed .tree-chev { transform: rotate(-90deg); }
+  .tree-group.collapsed .tree-children { display: none; }
+  .tree-children { margin: 1px 0 3px; }
+  .tree-leaf { padding-left: 30px; font-weight: 400; }
+  .leaf-ic { width: 14px; height: 14px; flex-shrink: 0; object-fit: contain; }
+  .leaf-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .leaf-dot.run { background: var(--gn-accent); }
+  .leaf-dot.stop { background: var(--gn-fg-5); opacity: .55; }
+  .leaf-dot.pend { background: var(--gn-warn); animation: blink 1s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+  .leaf-state { margin-left: auto; font-size: 10.5px; color: var(--gn-fg-5); white-space: nowrap; }
+  .sb-engine {
+    flex-shrink: 0; border-top: 1px solid var(--gn-br-1);
+    padding: 10px 14px; display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--gn-fg-3); background: var(--gn-bg-panel-2);
+  }
+  .engine-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--gn-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gn-accent) 18%, transparent);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--gn-accent) 10%, transparent); } }
+  .sb-engine .ver { margin-left: auto; font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-fg-5); }
+
+  .main { flex: 1; min-width: 0; overflow-y: auto; padding: 18px 24px 40px; }
+  .ph-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .ph-head h2 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+  .hint-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 24px; padding: 0 10px; border-radius: 999px;
+    background: var(--gn-accent-soft); color: var(--gn-accent-2);
+    font-size: 11.5px; font-weight: 600;
+  }
+  .ph-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+  .ph-card { background: var(--gn-bg-panel); border-radius: 10px; box-shadow: var(--gn-shadow-card); padding: 14px 16px; }
+  .ph-card .k { font-size: 11.5px; color: var(--gn-fg-4); }
+  .ph-card .v { margin-top: 6px; font-family: var(--gn-font-mono); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ph-card .v small { font-size: 12px; font-weight: 500; color: var(--gn-fg-5); margin-left: 3px; }
+  .ph-list { background: var(--gn-bg-panel); border-radius: 10px; box-shadow: var(--gn-shadow-card); padding: 6px 8px; }
+  .ph-row { height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: 7px; font-size: 12.5px; color: var(--gn-fg-2); }
+  .ph-row:hover { background: var(--gn-bg-hover); }
+
+  /* ============================================================ 详情抽屉 */
+  .drawer {
+    position: fixed; top: 0; right: 0; z-index: 40;
+    height: 100vh; width: min(680px, 92vw);
+    background: var(--gn-bg-app);
+    border-left: 1px solid var(--gn-br-2);
+    box-shadow: -16px 0 44px rgba(15, 23, 42, 0.16);
+    display: flex; flex-direction: column;
+    transform: translateX(106%);
+    transition: transform .28s cubic-bezier(.32,.72,.24,1);
+  }
+  .drawer.open { transform: translateX(0); }
+  @media (max-width: 900px) { .drawer { width: 100vw; } }
+
+  .dw-head { flex-shrink: 0; background: var(--gn-bg-panel); border-bottom: 1px solid var(--gn-br-1); padding: 14px 18px 0; }
+  .dwh-top { display: flex; align-items: center; gap: 12px; }
+  .svc-ico {
+    width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
+    display: grid; place-items: center; overflow: hidden;
+    background: color-mix(in srgb, var(--look-color, #e76f00) 13%, var(--gn-bg-panel));
+    border: 1px solid color-mix(in srgb, var(--look-color, #e76f00) 30%, transparent);
+  }
+  .svc-ico img { width: 26px; height: 26px; object-fit: contain; }
+  .dw-title { min-width: 0; flex: 1; }
+  .dw-title h1 { font-size: 16.5px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dw-sub { margin-top: 4px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--gn-fg-4); flex-wrap: wrap; }
+  .dw-sub .mono { color: var(--gn-fg-3); }
+  .dw-close {
+    width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; color: var(--gn-fg-4);
+  }
+  .dw-close:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 21px; padding: 0 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+  }
+  .badge i { width: 6px; height: 6px; border-radius: 50%; }
+  .badge.run { background: var(--gn-accent-soft); color: var(--gn-accent-2); }
+  .badge.run i { background: var(--gn-accent); animation: pulse 2.4s ease-in-out infinite; }
+  .badge.stop { background: var(--gn-bg-hover); color: var(--gn-fg-4); }
+  .badge.stop i { background: var(--gn-fg-5); }
+  .badge.pend { background: color-mix(in srgb, var(--gn-warn) 14%, transparent); color: var(--gn-warn); }
+  .badge.pend i { background: var(--gn-warn); animation: blink 1s ease-in-out infinite; }
+
+  .dwh-actions { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
+  .dwh-actions .tip { font-size: 11.5px; color: var(--gn-fg-5); }
+  .svc-actions { margin-left: auto; display: flex; gap: 8px; }
+  .btn {
+    height: 32px; padding: 0 14px; border-radius: 8px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600; flex-shrink: 0;
+    transition: opacity .12s ease, background-color .12s ease;
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-ghost { border: 1px solid var(--gn-br-2); color: var(--gn-fg-2); }
+  .btn-ghost:hover:not(:disabled) { background: var(--gn-bg-hover); }
+  .btn-danger-o { border: 1px solid color-mix(in srgb, var(--gn-danger) 38%, transparent); color: var(--gn-danger); }
+  .btn-danger-o:hover:not(:disabled) { background: color-mix(in srgb, var(--gn-danger) 8%, transparent); }
+  .btn-primary { background: var(--gn-accent-strong); color: var(--gn-on-accent); box-shadow: var(--gn-shadow-md); }
+  .btn-primary:hover:not(:disabled) { background: var(--gn-accent-strong-hover); }
+  .btn .ic { width: 13px; height: 13px; }
+  .btn-sm { height: 27px; padding: 0 11px; font-size: 11.5px; border-radius: 7px; }
+  .icon-more {
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--gn-br-2);
+    display: inline-flex; align-items: center; justify-content: center; color: var(--gn-fg-4);
+    position: relative;
+  }
+  .icon-more:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .more-wrap { position: relative; }
+  .menu {
+    position: absolute; right: 0; top: 38px; z-index: 30;
+    min-width: 190px; padding: 5px;
+    background: var(--gn-bg-panel); border-radius: 10px;
+    box-shadow: var(--gn-shadow-lg), 0 0 0 1px var(--gn-br-1);
+    display: none; flex-direction: column;
+  }
+  .menu.show { display: flex; }
+  .menu button {
+    height: 30px; padding: 0 10px; border-radius: 6px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; color: var(--gn-fg-2); text-align: left;
+  }
+  .menu button:hover { background: var(--gn-bg-hover); }
+  .menu button .ic { width: 13.5px; height: 13.5px; color: var(--gn-fg-4); }
+  .menu button.danger, .menu button.danger .ic { color: var(--gn-danger); }
+  .menu button.danger:hover { background: color-mix(in srgb, var(--gn-danger) 9%, transparent); }
+  .menu .m-sep { height: 1px; background: var(--gn-br-1); margin: 4px 6px; }
+
+  .dw-tabs {
+    display: flex; gap: 2px; background: var(--gn-bg-hover);
+    border-radius: 9px; padding: 3px; margin: 0 0 13px; width: fit-content;
+  }
+  .dtab {
+    height: 29px; padding: 0 13px; border-radius: 7px;
+    font-size: 12.5px; font-weight: 600; color: var(--gn-fg-4);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .dtab:hover { color: var(--gn-fg-1); }
+  .dtab.on { background: var(--gn-bg-panel); color: var(--gn-fg-1); box-shadow: var(--gn-shadow-md); }
+
+  .dw-body { flex: 1; overflow-y: auto; padding: 16px 18px 36px; }
+  .dw-body > * + * { margin-top: 12px; }
+  .pane { display: flex; flex-direction: column; gap: 12px; }
+
+  /* 通用面板 / 徽标 / 信息表 */
+  .panel { background: var(--gn-bg-panel); border-radius: 10px; box-shadow: var(--gn-shadow-card); padding: 13px 15px; }
+  .panel h3 { font-size: 12.5px; font-weight: 700; color: var(--gn-fg-2); display: flex; align-items: center; gap: 8px; }
+  .panel h3 .sub { font-weight: 400; font-size: 11px; color: var(--gn-fg-5); }
+  .panel h3 .h-act { margin-left: auto; display: flex; gap: 6px; }
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .metric-card { background: var(--gn-bg-panel); border-radius: 10px; box-shadow: var(--gn-shadow-card); padding: 13px 15px; }
+  .metric-card .mc-label { font-size: 11.5px; color: var(--gn-fg-4); display: flex; align-items: center; gap: 6px; }
+  .metric-card .mc-val { margin-top: 6px; font-family: var(--gn-font-mono); font-size: 23px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .metric-card .mc-val small { font-size: 12px; font-weight: 500; color: var(--gn-fg-5); margin-left: 3px; }
+  .metric-card .mc-note { margin-top: 2px; font-size: 10.5px; color: var(--gn-fg-5); font-family: var(--gn-font-mono); }
+  .m-bar { margin-top: 8px; height: 4px; border-radius: 2px; background: var(--gn-bg-hover); overflow: hidden; }
+  .m-bar i { display: block; height: 100%; border-radius: 2px; transition: width .6s ease; }
+  .p-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .legend { margin-left: auto; display: flex; gap: 14px; font-size: 11.5px; color: var(--gn-fg-4); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend .lg-line { width: 14px; height: 2.5px; border-radius: 2px; }
+  .legend b { font-family: var(--gn-font-mono); font-weight: 600; color: var(--gn-fg-2); }
+  .chart-wrap svg { display: block; width: 100%; height: auto; }
+  .chart-empty { height: 120px; display: grid; place-items: center; font-size: 12px; color: var(--gn-fg-5); }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--gn-br-1); border-radius: 9px; overflow: hidden; }
+  .info-row { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 7px 13px; font-size: 12px; border-bottom: 1px solid var(--gn-br-1); }
+  .info-row:nth-child(odd) { background: var(--gn-bg-panel-2); }
+  .info-row:nth-last-child(-n+2) { border-bottom: 0; }
+  .info-row .k { color: var(--gn-fg-4); }
+  .info-row .v { color: var(--gn-fg-1); font-family: var(--gn-font-mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .info-row .v.sans { font-family: var(--gn-font-sans); }
+
+  /* 安装状态卡 */
+  .inst-card { display: flex; align-items: center; gap: 12px; border-radius: 10px; padding: 13px 15px; }
+  .inst-card.ok { background: color-mix(in srgb, var(--gn-accent) 8%, var(--gn-bg-panel)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-accent) 30%, transparent); }
+  .inst-card.info { background: color-mix(in srgb, var(--gn-info) 8%, var(--gn-bg-panel)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-info) 30%, transparent); }
+  .inst-ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; }
+  .inst-card.ok .inst-ic { background: var(--gn-accent-soft); color: var(--gn-accent-2); }
+  .inst-card.info .inst-ic { background: color-mix(in srgb, var(--gn-info) 14%, transparent); color: var(--gn-info); }
+  .inst-ic .ic { width: 17px; height: 17px; }
+  .inst-txt { min-width: 0; flex: 1; }
+  .inst-txt b { font-size: 12.5px; color: var(--gn-fg-1); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .inst-txt small { display: block; margin-top: 2px; font-size: 11px; color: var(--gn-fg-4); line-height: 1.5; }
+  .inst-acts { display: flex; gap: 8px; flex-shrink: 0; }
+
+  /* 安装步骤条 */
+  .steps { display: none; flex-direction: column; gap: 0; margin-top: 12px; border-top: 1px dashed var(--gn-br-2); padding-top: 12px; }
+  .steps.show { display: flex; }
+  .step { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 12px; color: var(--gn-fg-4); }
+  .step .s-ic {
+    width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: var(--gn-bg-hover); color: var(--gn-fg-5);
+    font-size: 10.5px; font-weight: 700;
+  }
+  .step .s-ic .ic { width: 11px; height: 11px; }
+  .step.doing .s-ic { background: color-mix(in srgb, var(--gn-info) 15%, transparent); color: var(--gn-info); }
+  .step.doing { color: var(--gn-fg-1); font-weight: 600; }
+  .step.done .s-ic { background: var(--gn-accent-soft); color: var(--gn-accent-2); }
+  .step.warn .s-ic { background: color-mix(in srgb, var(--gn-warn) 15%, transparent); color: var(--gn-warn); }
+  .step .s-sub { margin-left: auto; font-size: 11px; color: var(--gn-fg-5); font-family: var(--gn-font-mono); }
+  .spin { animation: rot 0.9s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+
+  /* 表单 */
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field.span2 { grid-column: span 2; }
+  .field label { font-size: 11.5px; font-weight: 600; color: var(--gn-fg-2); display: flex; align-items: center; gap: 6px; }
+  .field label .hint { font-weight: 400; color: var(--gn-fg-5); font-size: 10.5px; }
+  .input {
+    height: 31px; border-radius: 7px;
+    background: var(--gn-bg-input); border: 1px solid var(--gn-br-2);
+    display: flex; align-items: center; padding: 0 9px; font-size: 12px; min-width: 0;
+    transition: border-color .12s ease, box-shadow .12s ease;
+  }
+  .input input, .input select { flex: 1; border: 0; outline: 0; background: transparent; font-size: 12px; min-width: 0; }
+  .input input.mono { font-family: var(--gn-font-mono); }
+  .input:focus-within { border-color: var(--gn-accent); box-shadow: 0 0 0 3px var(--gn-accent-soft); }
+  .input select { appearance: auto; cursor: pointer; }
+  .switch-row { display: flex; align-items: center; gap: 8px; }
+  .switch {
+    width: 34px; height: 19px; border-radius: 999px; position: relative;
+    background: var(--gn-bg-active); transition: background-color .15s ease; flex-shrink: 0;
+  }
+  .switch::after { content: ""; position: absolute; top: 2.5px; left: 2.5px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .15s ease; }
+  .switch.on { background: var(--gn-accent-strong); }
+  .switch.on::after { transform: translateX(15px); }
+  .sw-label { font-size: 12px; color: var(--gn-fg-2); font-weight: 600; }
+  .sw-label small { font-weight: 400; color: var(--gn-fg-5); margin-left: 5px; }
+
+  /* 命令预览 */
+  .cmd-block { position: relative; margin-top: 10px; border-radius: 9px; overflow: hidden; box-shadow: 0 0 0 1px var(--gn-br-1); }
+  .cmd-bar { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: var(--gn-bg-panel-2); border-bottom: 1px solid var(--gn-br-1); }
+  .cmd-bar .dots { display: flex; gap: 4px; }
+  .cmd-bar .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--gn-br-3); }
+  .cmd-bar .t { font-family: var(--gn-font-mono); font-size: 10.5px; color: var(--gn-fg-5); margin-left: 4px; }
+  .cmd-bar .copy { margin-left: auto; height: 22px; padding: 0 8px; border-radius: 5px; font-size: 11px; font-weight: 600; color: var(--gn-fg-4); display: inline-flex; align-items: center; gap: 4px; }
+  .cmd-bar .copy:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .cmd-bar .copy .ic { width: 11.5px; height: 11.5px; }
+  .cmd-body { background: var(--gn-bg-input); padding: 11px 13px; font-family: var(--gn-font-mono); font-size: 11px; line-height: 1.8; color: var(--gn-fg-2); overflow-x: auto; max-height: 180px; overflow-y: auto; }
+  .cmd-body .flag { color: var(--gn-accent-2); }
+  .cmd-body .cont { color: var(--gn-fg-5); }
+
+  /* 依赖端口 */
+  .port-row { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px dashed var(--gn-br-1); font-size: 12px; }
+  .port-row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .port-row:first-of-type { padding-top: 10px; }
+  .p-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .p-dot.ok { background: var(--gn-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gn-accent) 16%, transparent); }
+  .p-dot.down { background: var(--gn-danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gn-danger) 16%, transparent); }
+  .p-dot.chk { background: var(--gn-info); animation: blink .7s ease-in-out infinite; }
+  .port-row .p-port { font-family: var(--gn-font-mono); font-weight: 700; color: var(--gn-fg-1); }
+  .port-row .p-label { color: var(--gn-fg-4); }
+  .port-row .p-state { margin-left: auto; font-size: 11px; font-weight: 600; }
+  .port-row .p-state.ok { color: var(--gn-accent-2); }
+  .port-row .p-state.down { color: var(--gn-danger); }
+
+  /* 运行环境终端 */
+  .term { background: var(--gn-bg-input); border-radius: 9px; box-shadow: 0 0 0 1px var(--gn-br-1); padding: 11px 13px; font-family: var(--gn-font-mono); font-size: 11px; line-height: 1.8; color: var(--gn-fg-2); }
+  .term .cmdline { color: var(--gn-fg-4); user-select: none; }
+  .term .cmdline b { color: var(--gn-accent-2); font-weight: 600; }
+  .env-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--gn-br-1); font-size: 12px; color: var(--gn-fg-3); }
+  .env-row .mono { color: var(--gn-fg-2); }
+
+  /* 配置文件 */
+  .conf-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .conf-head .cf-name { font-family: var(--gn-font-mono); font-size: 12.5px; font-weight: 700; color: var(--gn-fg-1); }
+  .conf-head .cf-path { font-family: var(--gn-font-mono); font-size: 10.5px; color: var(--gn-fg-5); }
+  .conf-head .cf-mode { margin-left: auto; }
+  .seg { display: inline-flex; background: var(--gn-bg-hover); border-radius: 8px; padding: 3px; gap: 2px; }
+  .seg button { height: 24px; padding: 0 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4); white-space: nowrap; }
+  .seg button:hover { color: var(--gn-fg-1); }
+  .seg button.on { background: var(--gn-bg-panel); color: var(--gn-fg-1); box-shadow: var(--gn-shadow-md); }
+  .conf-body textarea {
+    width: 100%; min-height: 200px; resize: vertical; margin-top: 10px;
+    background: var(--gn-bg-input); border: 1px solid var(--gn-br-2); border-radius: 8px;
+    padding: 11px 13px; outline: 0;
+    font-family: var(--gn-font-mono); font-size: 11.5px; line-height: 1.85; color: var(--gn-fg-2);
+  }
+  .conf-body textarea:focus { border-color: var(--gn-accent); box-shadow: 0 0 0 3px var(--gn-accent-soft); }
+  .conf-foot { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
+  .conf-foot .hint { flex: 1; font-size: 11px; color: var(--gn-fg-5); line-height: 1.55; }
+  .conf-foot .hint b { color: var(--gn-fg-4); font-weight: 600; }
+  .restart-bar {
+    display: none; align-items: center; gap: 10px;
+    border-radius: 10px; padding: 11px 14px;
+    background: color-mix(in srgb, var(--gn-warn) 9%, var(--gn-bg-panel));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-warn) 35%, transparent);
+  }
+  .restart-bar.show { display: flex; }
+  .restart-bar .rb-ic { width: 24px; height: 24px; border-radius: 8px; flex-shrink: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--gn-warn) 16%, transparent); color: var(--gn-warn); }
+  .restart-bar .rb-ic .ic { width: 13px; height: 13px; }
+  .restart-bar .rb-text { font-size: 12.5px; font-weight: 600; color: var(--gn-fg-1); }
+  .restart-bar .rb-text small { display: block; font-weight: 400; font-size: 11px; color: var(--gn-fg-4); margin-top: 1px; }
+  .restart-bar .rb-actions { margin-left: auto; display: flex; gap: 8px; }
+  .dot-badge {
+    min-width: 16px; height: 16px; border-radius: 999px; padding: 0 4px;
+    background: var(--gn-danger); color: #fff;
+    font-size: 9.5px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+
+  /* 日志 */
+  .chip {
+    height: 26px; padding: 0 11px; border-radius: 7px;
+    border: 1px solid var(--gn-br-2);
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4);
+    white-space: nowrap;
+  }
+  .chip:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .chip.on { background: var(--gn-bg-selected); border-color: transparent; color: var(--gn-accent-2); }
+  .chip .ic { width: 12px; height: 12px; }
+  .chip .errdot { color: var(--gn-danger); font-size: 9px; }
+  .log-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .log-files { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+  .log-file {
+    flex-shrink: 0; border-radius: 8px; padding: 7px 11px; text-align: left;
+    background: var(--gn-bg-panel); box-shadow: var(--gn-shadow-card);
+    border: 1px solid transparent;
+  }
+  .log-file:hover { background: var(--gn-bg-hover); }
+  .log-file.on { border-color: color-mix(in srgb, var(--gn-accent) 45%, transparent); background: var(--gn-accent-soft); }
+  .log-file .f-name { font-family: var(--gn-font-mono); font-size: 11px; font-weight: 700; color: var(--gn-fg-1); display: flex; align-items: center; gap: 5px; }
+  .log-file .f-meta { margin-top: 2px; font-size: 10px; color: var(--gn-fg-5); font-family: var(--gn-font-mono); }
+  .log-file .f-rot { font-size: 9px; padding: 0 4px; border-radius: 4px; background: var(--gn-bg-hover); color: var(--gn-fg-5); font-weight: 600; }
+  .log-view {
+    background: var(--gn-bg-input); border-radius: 10px;
+    box-shadow: 0 0 0 1px var(--gn-br-1);
+    padding: 11px 13px; font-family: var(--gn-font-mono); font-size: 11px;
+    line-height: 1.9; color: var(--gn-fg-3);
+    height: 320px; overflow-y: auto;
+  }
+  .log-view .lg-t { color: var(--gn-fg-5); margin-right: 9px; }
+  .log-view .lg-lv { display: inline-block; width: 46px; font-weight: 700; }
+  .log-view .lg-info .lg-lv { color: var(--gn-info); }
+  .log-view .lg-warn .lg-lv { color: var(--gn-warn); }
+  .log-view .lg-error .lg-lv { color: var(--gn-danger); }
+  .log-view .lg-error { color: var(--gn-fg-2); }
+
+  /* 事件时间线 */
+  .event { display: flex; gap: 10px; position: relative; padding-bottom: 13px; }
+  .event:last-child { padding-bottom: 2px; }
+  .event::before { content: ""; position: absolute; left: 4px; top: 14px; bottom: -2px; width: 1px; background: var(--gn-br-1); }
+  .event:last-child::before { display: none; }
+  .e-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--gn-bg-panel); }
+  .e-dot.run { background: var(--gn-accent); }
+  .e-dot.warn { background: var(--gn-warn); }
+  .e-dot.err { background: var(--gn-danger); }
+  .e-dot.info { background: var(--gn-info); }
+  .e-dot.stop { background: var(--gn-fg-5); }
+  .e-time { width: 100px; flex-shrink: 0; font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-fg-5); padding-top: 1.5px; }
+  .e-body { font-size: 12.5px; color: var(--gn-fg-3); line-height: 1.45; min-width: 0; }
+  .e-body b { color: var(--gn-fg-1); font-weight: 600; }
+  .e-body .tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 10.5px; font-weight: 600; vertical-align: 1px; }
+  .tag.err { background: color-mix(in srgb, var(--gn-danger) 12%, transparent); color: var(--gn-danger); }
+  .tag.warn { background: color-mix(in srgb, var(--gn-warn) 14%, transparent); color: var(--gn-warn); }
+  .tag.ok { background: var(--gn-accent-soft); color: var(--gn-accent-2); }
+  .tag.info { background: color-mix(in srgb, var(--gn-info) 12%, transparent); color: var(--gn-info); }
+
+  /* 空态 */
+  .empty { border-radius: 10px; padding: 26px 18px; text-align: center; background: var(--gn-bg-panel); box-shadow: var(--gn-shadow-card); }
+  .empty .ic { width: 26px; height: 26px; margin: 0 auto 8px; color: var(--gn-fg-5); }
+  .empty b { display: block; font-size: 12.5px; color: var(--gn-fg-2); }
+  .empty p { margin-top: 4px; font-size: 11.5px; color: var(--gn-fg-5); line-height: 1.6; }
+
+  /* 确认弹窗 / Toast / 主题 dock */
+  .modal-mask {
+    position: fixed; inset: 0; z-index: 80;
+    background: rgba(15, 23, 42, 0.34);
+    display: none; align-items: center; justify-content: center;
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    width: 400px; border-radius: 14px; overflow: hidden;
+    background: var(--gn-bg-panel);
+    box-shadow: var(--gn-shadow-lg), 0 0 0 1px var(--gn-br-1);
+    animation: pop .16s ease;
+  }
+  @keyframes pop { from { transform: scale(.96); opacity: 0; } }
+  .modal .m-body { padding: 18px 18px 4px; display: flex; gap: 12px; }
+  .modal .m-ic { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--gn-danger) 12%, transparent); color: var(--gn-danger); }
+  .modal .m-ic .ic { width: 17px; height: 17px; }
+  .modal h4 { font-size: 13.5px; font-weight: 700; color: var(--gn-fg-1); }
+  .modal .m-txt { margin-top: 5px; font-size: 12px; color: var(--gn-fg-3); line-height: 1.65; }
+  .modal .m-txt code { font-family: var(--gn-font-mono); font-size: 11px; background: var(--gn-bg-hover); padding: 1px 5px; border-radius: 4px; }
+  .modal .m-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 18px 16px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 26px; z-index: 90;
+    transform: translateX(-50%) translateY(8px);
+    background: #101828; color: #f3f4f6;
+    font-size: 12px; font-weight: 600;
+    padding: 9px 16px; border-radius: 999px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    opacity: 0; pointer-events: none;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .theme-dock {
+    position: fixed; right: 18px; bottom: 12px; z-index: 60;
+    background: var(--gn-bg-panel); border-radius: 12px;
+    box-shadow: var(--gn-shadow-lg), 0 0 0 1px var(--gn-br-2);
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; align-items: center;
+  }
+  .theme-dock .td-tip { font-size: 10.5px; color: var(--gn-fg-5); letter-spacing: .02em; }
+  .td-seg { display: flex; background: var(--gn-bg-hover); border-radius: 8px; padding: 3px; gap: 2px; }
+  .td-seg button { height: 24px; padding: 0 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4); }
+  .td-seg button:hover { color: var(--gn-fg-1); }
+  .td-seg button.on { background: var(--gn-bg-panel); color: var(--gn-fg-1); box-shadow: var(--gn-shadow-md); }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--gn-br-2); border-radius: 5px; border: 2.5px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body data-theme="light">
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="servyGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0.083" stop-color="#540E82"/><stop offset="0.25" stop-color="#4F2887"/>
+        <stop offset="0.417" stop-color="#4C4990"/><stop offset="0.583" stop-color="#456C9D"/>
+        <stop offset="0.75" stop-color="#398DAB"/><stop offset="0.917" stop-color="#24AEB9"/>
+      </linearGradient>
+      <symbol id="logo" viewBox="0 0 1024 1024"><path fill="url(#servyGrad)" fill-rule="evenodd" d="M466.50,76.00 520.00,75.50 579.00,82.50 643.00,99.50 695.00,121.50 740.00,147.50 783.00,179.50 821.50,216.00 843.50,242.00 852.50,257.00 853.50,337.00 850.50,344.00 846.00,348.50 836.00,352.50 732.00,352.50 724.00,348.50 703.50,322.00 670.00,290.50 632.00,265.50 598.00,249.50 556.00,236.50 510.00,230.50 479.00,230.50 436.00,236.50 414.00,242.50 379.00,255.50 349.00,271.50 320.00,291.50 283.50,326.00 265.50,348.00 249.50,372.00 233.50,403.00 220.50,442.00 213.50,474.00 210.50,519.00 214.50,561.00 223.50,598.00 236.50,631.00 253.50,663.00 284.50,703.00 318.00,734.50 347.00,754.50 386.00,773.50 426.00,786.50 467.00,793.50 516.00,793.50 569.00,785.50 573.00,786.50 580.00,791.50 660.00,870.50 682.50,893.00 685.50,899.00 685.50,906.00 681.00,910.50 640.00,927.50 577.00,943.50 519.00,950.50 470.00,950.50 431.00,946.50 394.00,939.50 342.00,924.50 301.00,907.50 262.00,885.50 231.00,864.50 198.00,837.50 156.50,795.00 134.50,767.00 109.50,727.00 92.50,694.00 80.50,665.00 67.50,623.00 57.50,570.00 54.50,534.00 54.50,491.00 56.50,482.00 57.50,456.00 66.50,409.00 80.50,363.00 92.50,333.00 112.50,294.00 133.50,262.00 159.50,229.00 199.00,188.50 223.00,168.50 268.00,137.50 310.00,115.50 341.00,102.50 383.00,89.50 431.00,79.50 466.50,76.00ZM448.50,433.00 936.00,432.50 951.00,438.50 962.50,450.00 968.50,560.00 961.50,574.00 954.00,581.50 935.00,590.50 452.00,590.50 441.00,587.50 432.00,582.50 421.50,571.00 416.50,557.00 416.50,463.00 422.50,450.00 431.00,440.50 439.00,435.50 448.50,433.00ZM652.50,672.00 839.00,671.50 843.00,673.50 851.50,684.00 851.50,721.00 853.50,729.00 947.50,824.00 952.50,836.00 953.50,848.00 946.50,866.00 877.00,933.50 861.00,938.50 848.00,937.50 840.00,933.50 832.00,927.50 630.50,724.00 624.50,709.00 626.50,695.00 636.00,680.50 641.00,676.50 652.50,672.00Z"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-min" viewBox="0 0 14 14"><path d="M3 7h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-max" viewBox="0 0 14 14"><rect x="3.2" y="3.2" width="7.6" height="7.6" rx="1.4" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+      <symbol id="i-x" viewBox="0 0 14 14"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-chev" viewBox="0 0 12 12"><path d="M3.5 4.8L6 7.3l2.5-2.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M10.4 10.4L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+      <symbol id="i-play" viewBox="0 0 16 16"><path d="M5.5 3.6L12.3 8l-6.8 4.4z" fill="currentColor"/></symbol>
+      <symbol id="i-stop" viewBox="0 0 16 16"><rect x="4.5" y="4.5" width="7" height="7" rx="1.2" fill="currentColor"/></symbol>
+      <symbol id="i-restart" viewBox="0 0 16 16"><path d="M13.2 8a5.2 5.2 0 1 1-1.6-3.75" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M13.4 1.8v3h-3" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="12.5" cy="8" r="1.3" fill="currentColor"/></symbol>
+      <symbol id="i-grid" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="8.9" y="2.5" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="2.5" y="8.9" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="8.9" y="8.9" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 1.8l5.2 2v3.6c0 3.1-2.1 5.6-5.2 6.8-3.1-1.2-5.2-3.7-5.2-6.8V3.8z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M5.9 7.9l1.6 1.6 2.8-2.9" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-java" viewBox="0 0 16 16"><path d="M4 6.9h7v3.4a3 3 0 0 1-3 3h-1a3 3 0 0 1-3-3z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M11 7.5h.8a1.7 1.7 0 0 1 0 3.4h-.9" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/><path d="M6.4 3.2c-.5.8.5 1.1 0 2M9.1 3.2c-.5.8.5 1.1 0 2" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-rust" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.1" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M8 2.2v1.7M8 12.1v1.7M13.8 8h-1.7M3.9 8H2.2M12.2 3.8l-1.2 1.2M5 11l-1.2 1.2M12.2 12.2L11 11M5 5L3.8 3.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-chart" viewBox="0 0 16 16"><path d="M2.5 12.5L6 8.6l3 2 4.5-6.1" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 13.8h11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".45"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M8 5.2V8l2.1 1.4" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+      <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2L14.5 13.5h-13z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M8 6.4v3.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".8" fill="currentColor"/></symbol>
+      <symbol id="i-download" viewBox="0 0 16 16"><path d="M8 2.5v6.5M5.5 6.8L8 9.3l2.5-2.5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.8 11.5v1.2a1 1 0 0 0 1 1h8.4a1 1 0 0 0 1-1v-1.2" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 16 16"><path d="M1.8 4.2a1.4 1.4 0 0 1 1.4-1.4h3l1.6 1.8h5a1.4 1.4 0 0 1 1.4 1.4v6a1.4 1.4 0 0 1-1.4 1.4H3.2a1.4 1.4 0 0 1-1.4-1.4z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.2" y="5.2" width="8.3" height="8.3" rx="1.4" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M10.8 5.2V3.6a1.4 1.4 0 0 0-1.4-1.4H3.6a1.4 1.4 0 0 0-1.4 1.4v5.8a1.4 1.4 0 0 0 1.4 1.4h1.6" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-check" viewBox="0 0 16 16"><path d="M3.2 8.6l3 3 6.6-7.2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 16 16"><path d="M2.8 4.2h10.4M6.5 4.2V2.9a.9.9 0 0 1 .9-.9h1.2a.9.9 0 0 1 .9.9v1.3M4.2 4.2l.6 8.4a1.2 1.2 0 0 0 1.2 1.1h4a1.2 1.2 0 0 0 1.2-1.1l.6-8.4" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-plug" viewBox="0 0 16 16"><path d="M5.5 1.8v3.4M10.5 1.8v3.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M3.8 5.2h8.4v2.2a4.2 4.2 0 0 1-8.4 0z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M8 11.6v2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+      <symbol id="i-conf" viewBox="0 0 16 16"><path d="M9.4 2.2H4.4a1.4 1.4 0 0 0-1.4 1.4v8.8a1.4 1.4 0 0 0 1.4 1.4h7.2a1.4 1.4 0 0 0 1.4-1.4V5.8z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M9.2 2.4v3.4h3.6" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M5.6 8.6h4.8M5.6 11h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+      <symbol id="i-term" viewBox="0 0 16 16"><rect x="1.8" y="2.6" width="12.4" height="10.8" rx="1.6" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M4.4 6.2l2.2 2-2.2 2M7.8 10.4h3.8" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="app">
+
+    <!-- ============ 48px 标题栏（底衬） ============ -->
+    <header class="titlebar">
+      <button class="brandlogo" title="ServDeck"><svg class="bl-logo"><use href="#logo"/></svg></button>
+      <div class="tdivider" style="margin:0 8px 0 9px"></div>
+      <button class="ghostbtn"><svg class="ic"><use href="#i-plus"/></svg>添加服务</button>
+      <div class="tdivider"></div>
+      <button class="ghostbtn"><svg class="ic"><use href="#i-grid"/></svg>管理分组</button>
+      <div class="spring"></div>
+      <button class="gear" title="设置"><svg class="ic"><use href="#i-gear"/></svg></button>
+      <div class="winbtns">
+        <button class="winbtn"><svg class="ic"><use href="#i-min"/></svg></button>
+        <button class="winbtn"><svg class="ic"><use href="#i-max"/></svg></button>
+        <button class="winbtn close"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+    </header>
+
+    <div class="wbody">
+
+      <!-- ============ 纳管服务树（双击服务打开详情抽屉） ============ -->
+      <aside class="sidebar">
+        <div class="sb-search">
+          <div class="sb-search-box">
+            <svg class="ic"><use href="#i-search"/></svg>
+            <input placeholder="筛选服务…" />
+          </div>
+        </div>
+        <nav class="sb-tree" id="sbTree"></nav>
+        <div class="sb-engine">
+          <i class="engine-dot"></i>
+          <svg class="ic"><use href="#i-shield"/></svg>
+          servy-10.1.exe · 引擎就绪
+          <span class="ver">v10.1</span>
+        </div>
+      </aside>
+
+      <!-- ============ 主区占位（服务总览骨架，突出抽屉滑入） ============ -->
+      <main class="main">
+        <div class="ph-head">
+          <h2>服务总览</h2>
+          <span class="hint-chip">原型演示：双击左侧服务 → 右侧滑出详情抽屉（真实实现单击仅选中）</span>
+        </div>
+        <div class="ph-cards">
+          <div class="ph-card"><div class="k">CPU</div><div class="v">23<small>%</small></div></div>
+          <div class="ph-card"><div class="k">内存</div><div class="v">9.6<small>GB / 16GB</small></div></div>
+          <div class="ph-card"><div class="k">磁盘</div><div class="v">1.2<small>TB 可用</small></div></div>
+          <div class="ph-card"><div class="k">纳管服务</div><div class="v">3<small>运行 / 共 4</small></div></div>
+        </div>
+        <div class="ph-list" id="phList"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ============ 服务详情抽屉 ============ -->
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="dw-head">
+      <div class="dwh-top">
+        <span class="svc-ico" id="dwIcon"></span>
+        <div class="dw-title">
+          <h1 id="dwName">—</h1>
+          <div class="dw-sub" id="dwSub"></div>
+        </div>
+        <button class="dw-close" id="dwClose" title="关闭（ESC）"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="dwh-actions">
+        <span class="tip" id="dwTip"></span>
+        <div class="svc-actions">
+          <button class="btn btn-ghost" id="btnStart"><svg class="ic"><use href="#i-play"/></svg>启动</button>
+          <button class="btn btn-danger-o" id="btnStop"><svg class="ic"><use href="#i-stop"/></svg>停止</button>
+          <button class="btn btn-ghost" id="btnRestart"><svg class="ic"><use href="#i-restart"/></svg>重启</button>
+          <div class="more-wrap">
+            <button class="icon-more" id="btnMore" title="更多操作"><svg class="ic"><use href="#i-more"/></svg></button>
+            <div class="menu" id="moreMenu">
+              <button data-act="open-logdir"><svg class="ic"><use href="#i-folder"/></svg>打开日志目录</button>
+              <button data-act="open-workdir"><svg class="ic"><use href="#i-folder"/></svg>打开工作目录</button>
+              <button data-act="copy-run"><svg class="ic"><use href="#i-copy"/></svg>复制启动命令</button>
+              <div class="m-sep"></div>
+              <button data-act="uninstall" class="danger"><svg class="ic"><use href="#i-trash"/></svg>卸载服务…</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dw-tabs" id="dwTabs">
+        <button class="dtab on" data-tab="overview">概览</button>
+        <button class="dtab" data-tab="deploy">部署</button>
+        <button class="dtab" data-tab="conf">配置文件<span class="dot-badge" id="confDirtyBadge" style="display:none">1</span></button>
+        <button class="dtab" data-tab="logs">日志</button>
+        <button class="dtab" data-tab="events">事件</button>
+      </div>
+    </div>
+    <div class="dw-body" id="dwBody"></div>
+  </aside>
+
+  <!-- 卸载确认弹窗 -->
+  <div class="modal-mask" id="modalMask">
+    <div class="modal">
+      <div class="m-body">
+        <span class="m-ic"><svg class="ic"><use href="#i-warn"/></svg></span>
+        <div>
+          <h4 id="mdTitle">卸载服务</h4>
+          <div class="m-txt" id="mdText"></div>
+        </div>
+      </div>
+      <div class="m-foot">
+        <button class="btn btn-ghost" id="mdCancel">取消</button>
+        <button class="btn btn-primary" id="mdOk" style="background:var(--gn-danger)">确认卸载</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- 原型专用：主题切换 -->
+  <div class="theme-dock">
+    <span class="td-tip">原型演示 · 全 Token 驱动</span>
+    <div class="td-seg">
+      <button data-t="light" class="on">亮色</button>
+      <button data-t="dark">暗色</button>
+      <button data-t="custom">自定义</button>
+    </div>
+  </div>
+
+<script>
+  /* ================================================================
+   * 演示数据：4 个服务覆盖全部差异态
+   *  · WEC-AI-PLATFORM  java  Running  register（脚本同款主角：JVM 参数/依赖端口/日志轮转）
+   *  · oj-gateway       java  Stopped  register（停止空态、启动 CTA）
+   *  · rustfs-service   rustfs Running register（有配置文件托管）
+   *  · mysql-local      mysql Running  manage（纳管未注册差异态）
+   * ================================================================ */
+  const ICON_BASE = '../frontend/public/db-icons/';
+  const START_TYPES = [
+    ['Automatic', '自动（开机自启）'],
+    ['Automatic (Delayed)', '自动（延迟启动）'],
+    ['Manual', '手动'],
+    ['Disabled', '已禁用'],
+  ];
+  const startTypeText = v => (START_TYPES.find(s => s[0] === v) || ['', v])[1];
+
+  function mkTrend(seed, v0, min, max, amp) {
+    let s = 2166136261;
+    for (let i = 0; i < seed.length; i++) { s ^= seed.charCodeAt(i); s = Math.imul(s, 16777619); }
+    let st = s >>> 0;
+    const r = () => { st |= 0; st = st + 0x6D2B79F5 | 0; let t = Math.imul(st ^ st >>> 15, 1 | st); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    const a = [v0];
+    for (let i = 1; i < 41; i++) { let v = a[i - 1] + (r() - 0.5) * amp; v = Math.max(min, Math.min(max, v)); a.push(v); }
+    return a;
+  }
+
+  const SERVICES = {
+    'WEC-AI-PLATFORM': {
+      name: 'WEC-AI-PLATFORM', display: 'WEC-AI 平台服务', type: 'java',
+      icon: 'java.svg', accent: '#e76f00',
+      desc: 'AI公共服务平台，目前本项目基于 smartJavaAI 开发。',
+      state: 'Running', pid: 8421, threads: 214, uptime: '3 天 4 小时',
+      startType: 'Automatic', mode: 'register', registered: true,
+      addedAt: '2026-09-20 14:22',
+      deploy: {
+        javaPath: 'C:\\Program Files\\Java\\jdk-17\\bin\\java.exe',
+        jvmArgs: '-Xms2g -Xmx2g',
+        appArgs: '-jar wec-ai-platform.jar',
+        workDir: 'D:\\wec-ai-platform',
+        logDir: 'D:\\wec-ai-platform\\applogs',
+        rotate: true, guard: true,
+      },
+      metrics: { cpu: 2.1, mem: 486, memMax: 2048 },
+      depsPorts: [
+        { port: 8080, label: '自身 HTTP', ok: true },
+        { port: 9200, label: '依赖 · Elasticsearch', ok: false },
+      ],
+      env: {
+        cmdline: '"C:\\Program Files\\Java\\jdk-17\\bin\\java.exe" -version',
+        out: 'openjdk version "17.0.9" 2023-10-17\nOpenJDK Runtime Environment Temurin-17.0.9+9 (build 17.0.9+9)\nOpenJDK 64-Bit Server VM Temurin-17.0.9+9 (build 17.0.9+9, mixed mode, sharing)',
+      },
+      logFiles: [
+        { name: 'stdout.log', size: '12.4 MB', mtime: '今天 11:26', kind: 'out' },
+        { name: 'stderr.log', size: '210 KB', mtime: '今天 09:47', kind: 'err' },
+        { name: 'stdout-0927-1.log', size: '48.2 MB', mtime: '09-27 23:59', kind: 'rot' },
+        { name: 'stdout-0926-1.log', size: '51.7 MB', mtime: '09-26 23:59', kind: 'rot' },
+      ],
+      logs: {
+        out: [
+          ['09:12:01', 'INFO', 'Tomcat started on port(s): 8080 (http) with context path /'],
+          ['09:12:01', 'INFO', 'Started WecAiPlatformApplication in 8.42 seconds (process running for 11.7)'],
+          ['09:12:03', 'INFO', 'smartJavaAI face model loaded (120 MB, cache hit)'],
+          ['10:02:11', 'INFO', 'POST /api/v1/recognize 200 143ms'],
+          ['10:15:37', 'INFO', 'POST /api/v1/recognize 200 121ms'],
+          ['11:22:47', 'INFO', 'GET /api/v1/health 200 3ms'],
+        ],
+        err: [
+          ['09:47:12', 'WARN', 'Heap usage 86% (Xmx 2g, threshold 80%)'],
+          ['09:47:40', 'ERROR', 'Embedding request failed: Connection refused: es/127.0.0.1:9200 — retry 1/3'],
+          ['09:47:43', 'ERROR', 'Embedding request failed: Connection refused: es/127.0.0.1:9200 — retry 2/3'],
+        ],
+      },
+      hasConf: false,
+      events: [
+        { t: '今天 09:12', d: 'run', html: '<b>WEC-AI-PLATFORM</b> 服务启动成功（PID 8421，耗时 8.4s）<span class="tag ok">启动</span>' },
+        { t: '今天 09:47', d: 'warn', html: '<b>WEC-AI-PLATFORM</b> 依赖端口 9200 连接失败（Elasticsearch 未监听）<span class="tag warn">依赖告警</span>' },
+        { t: '09-27 18:40', d: 'warn', html: '<b>WEC-AI-PLATFORM</b> 进程异常退出（代码 1），守护策略已自动重启，耗时 6.2s<span class="tag warn">守护重启</span>' },
+        { t: '09-20 14:22', d: 'info', html: '<b>WEC-AI-PLATFORM</b> 通过 servy 注册为 Windows 服务（开机自启 · 大小轮转日志）<span class="tag info">注册</span>' },
+      ],
+    },
+    'oj-gateway': {
+      name: 'oj-gateway', display: 'OJ 网关服务', type: 'java',
+      icon: 'java.svg', accent: '#e76f00',
+      desc: '在线判题平台 API 网关。',
+      state: 'Stopped', pid: null, threads: 0, uptime: null,
+      startType: 'Manual', mode: 'register', registered: true,
+      addedAt: '2026-09-18 10:05',
+      deploy: {
+        javaPath: 'C:\\Program Files\\Java\\jdk-17\\bin\\java.exe',
+        jvmArgs: '-Xms512m -Xmx1g',
+        appArgs: '-jar oj-gateway.jar --spring.profiles.active=prod',
+        workDir: 'D:\\oj\\gateway',
+        logDir: 'D:\\oj\\gateway\\logs',
+        rotate: true, guard: false,
+      },
+      metrics: { cpu: 0, mem: 0, memMax: 1024 },
+      depsPorts: [{ port: 3306, label: '依赖 · MySQL', ok: true }],
+      env: {
+        cmdline: '"C:\\Program Files\\Java\\jdk-17\\bin\\java.exe" -version',
+        out: 'openjdk version "17.0.9" 2023-10-17\nOpenJDK Runtime Environment Temurin-17.0.9+9 (build 17.0.9+9)\nOpenJDK 64-Bit Server VM Temurin-17.0.9+9 (build 17.0.9+9, mixed mode, sharing)',
+      },
+      logFiles: [
+        { name: 'stdout.log', size: '3.1 MB', mtime: '09-27 20:12', kind: 'out' },
+        { name: 'stderr.log', size: '18 KB', mtime: '09-27 20:12', kind: 'err' },
+      ],
+      logs: {
+        out: [
+          ['20:11:58', 'INFO', 'Netty started on port 8443'],
+          ['20:11:59', 'INFO', 'Started OjGatewayApplication in 5.1 seconds'],
+          ['20:12:44', 'INFO', 'Shutdown hook triggered (SIGTERM from SCM)'],
+        ],
+        err: [['20:12:44', 'INFO', 'Graceful shutdown completed in 1.2s']],
+      },
+      hasConf: false,
+      events: [
+        { t: '09-27 20:12', d: 'stop', html: '<b>oj-gateway</b> 服务已停止（手动）<span class="tag ok">停止</span>' },
+        { t: '09-27 18:00', d: 'run', html: '<b>oj-gateway</b> 服务启动成功（PID 5210）<span class="tag ok">启动</span>' },
+        { t: '09-18 10:05', d: 'info', html: '<b>oj-gateway</b> 通过 servy 注册为 Windows 服务<span class="tag info">注册</span>' },
+      ],
+    },
+    'rustfs-service': {
+      name: 'rustfs-service', display: 'RustFS 分布式存储', type: 'rustfs',
+      icon: 'rustfs.png', accent: '#c2410c',
+      desc: '对象存储服务（S3 兼容）。',
+      state: 'Running', pid: 6102, threads: 96, uptime: '12 天 7 小时',
+      startType: 'Automatic', mode: 'register', registered: true,
+      addedAt: '2026-09-16 09:41',
+      deploy: {
+        program: 'D:\\rustfs\\rustfs.exe',
+        params: 'server D:\\rustfs\\data',
+        workDir: 'D:\\rustfs',
+        logDir: 'D:\\rustfs\\logs',
+        rotate: true, guard: true,
+      },
+      metrics: { cpu: 1.4, mem: 312, memMax: 1024 },
+      depsPorts: [{ port: 9000, label: '自身 S3 API', ok: true }],
+      env: null,
+      logFiles: [
+        { name: 'stdout.log', size: '210 MB', mtime: '今天 11:26', kind: 'out' },
+        { name: 'stderr.log', size: '4 KB', mtime: '09-16 09:41', kind: 'err' },
+      ],
+      logs: {
+        out: [
+          ['09:41:04', 'INFO', 'server started, listening on 0.0.0.0:9000'],
+          ['09:41:04', 'INFO', 'console enabled: http://0.0.0.0:9001'],
+          ['09:41:05', 'INFO', 'volume mounted: D:\\rustfs\\data (1.2 TB free)'],
+          ['11:02:33', 'INFO', 'PUT /bucket-a/report.pdf 204 12ms'],
+          ['11:05:19', 'INFO', 'GET /bucket-a/report.pdf 200 8ms'],
+        ],
+        err: [['09:47:12', 'WARN', 'memory usage 84%, threshold 80%']],
+      },
+      hasConf: true,
+      conf: {
+        file: 'rustfs.env', path: 'D:\\rustfs\\rustfs.env',
+        fields: [
+          ['dataDir', '数据目录', 'D:\\rustfs\\data'],
+          ['apiPort', 'API 端口', '9000'],
+          ['consolePort', 'Console 端口', '9001'],
+          ['accessKey', '访问密钥', 'rustfsadmin'],
+          ['secretKey', '访问密码', 'rustfsadmin', 'password'],
+          ['logLevel', '日志级别', 'info'],
+        ],
+      },
+      events: [
+        { t: '今天 11:26', d: 'info', html: '<b>rustfs-service</b> 配置文件修改已保存（原文件已备份）<span class="tag warn">待重启生效</span>' },
+        { t: '09-16 09:41', d: 'run', html: '<b>rustfs-service</b> 服务启动成功（PID 6102）<span class="tag ok">启动</span>' },
+        { t: '09-16 09:41', d: 'info', html: '<b>rustfs-service</b> 通过 servy 注册并创建 rustfs.env<span class="tag info">注册</span>' },
+      ],
+    },
+    'mysql-local': {
+      name: 'mysql-local', display: 'MySQL 本机实例', type: 'mysql',
+      icon: 'mysql.svg', accent: '#00758f',
+      desc: '开发用 MySQL 8.0（安装器自带，未由 servy 托管）。',
+      state: 'Running', pid: 3392, threads: 42, uptime: '6 天 1 小时',
+      startType: 'Automatic', mode: 'manage', registered: false,
+      addedAt: '2026-09-25 16:03',
+      deploy: null,
+      metrics: { cpu: 0.8, mem: 742, memMax: 4096 },
+      depsPorts: [{ port: 3306, label: '自身 MySQL', ok: true }],
+      env: null,
+      logFiles: [
+        { name: 'mysql-error.log', size: '92 KB', mtime: '今天 08:00', kind: 'err' },
+        { name: 'mysql-slow.log', size: '1.2 MB', mtime: '09-27 22:14', kind: 'out' },
+      ],
+      logs: {
+        out: [
+          ['08:00:01', 'INFO', 'Starting MySQL 8.0.36 Community Server'],
+          ['08:00:03', 'INFO', "Server hostname (bind-address): '*' port: 3306"],
+          ['08:00:04', 'INFO', '/usr/sbin/mysqld: ready for connections.'],
+        ],
+        err: [['09-27 22:14', 'WARN', 'Aborted connection 8821 to db:\'oj\' user:\'oj\' (Got timeout)'],
+        ],
+      },
+      hasConf: false,
+      events: [
+        { t: '09-25 16:03', d: 'info', html: '<b>mysql-local</b> 纳管为受管服务（仅监控，未托管注册）<span class="tag info">纳管</span>' },
+        { t: '09-25 16:03', d: 'run', html: '<b>mysql-local</b> 检测到服务正在运行（PID 3392）<span class="tag ok">运行中</span>' },
+      ],
+    },
+  };
+  Object.values(SERVICES).forEach(s => {
+    // deploy.startType 与服务级 startType 同源（部署表单/命令预览读 deploy 内的值）
+    if (s.deploy && s.deploy.startType === undefined) s.deploy.startType = s.startType;
+    s.metrics.trend = {
+      cpu: mkTrend(s.name + 'c', s.metrics.cpu || 1.5, 0.4, Math.max(6, (s.metrics.cpu || 2) * 3), 1.1),
+      mem: mkTrend(s.name + 'm', s.metrics.mem || 100, (s.metrics.mem || 100) * 0.85, (s.metrics.mem || 100) * 1.2, Math.max(8, (s.metrics.mem || 100) * 0.04)),
+    };
+  });
+
+  const TREE_GROUPS = [
+    { id: 'g-java', name: 'Java', icon: 'java.svg' },
+    { id: 'g-store', name: '存储', icon: 'rustfs.png' },
+  ];
+  const groupCollapsed = {};
+
+  /* ================================================================ 状态 */
+  const $ = id => document.getElementById(id);
+  let current = null;      // 当前抽屉里的服务名
+  let activeTab = 'overview';
+  let logSel = 0;          // 日志页选中的文件下标
+  let confDirty = false;   // 配置页脏状态（跟随当前服务）
+  let confMode = 'fields';
+
+  const stateText = svc => {
+    if (svc._pending === 'starting') return '启动中…';
+    if (svc._pending === 'stopping') return '停止中…';
+    if (svc._pending === 'restarting') return '重启中…';
+    if (svc._pending === 'installing') return '安装中…';
+    if (svc._pending === 'uninstalling') return '卸载中…';
+    return svc.state === 'Running' ? '运行中' : '已停止';
+  };
+  const isPending = svc => !!svc._pending;
+  const isRunning = svc => svc.state === 'Running';
+
+  /* ================================================================ 主题 / Toast / 复制 */
+  document.querySelectorAll('.td-seg button').forEach(b => b.addEventListener('click', () => {
+    document.body.dataset.theme = b.dataset.t;
+    document.querySelectorAll('.td-seg button').forEach(x => x.classList.toggle('on', x === b));
+  }));
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+  function copyText(text, tip) {
+    const done = () => toast(tip || '已复制到剪贴板');
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { toast('复制失败，请手动复制'); }
+      ta.remove();
+    };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
+  }
+
+  /* ================================================================ 树 */
+  function renderTree() {
+    const tree = $('sbTree');
+    const byGroup = g => Object.values(SERVICES).filter(s => (g ? s._gid === g : !s._gid));
+    SERVICES['WEC-AI-PLATFORM']._gid = 'g-java';
+    SERVICES['oj-gateway']._gid = 'g-java';
+    SERVICES['rustfs-service']._gid = 'g-store';
+    SERVICES['mysql-local']._gid = null;
+
+    let html = `<div class="tree-row ${current ? '' : 'selected'}"><svg class="ic"><use href="#i-grid"/></svg>全部服务<span class="cnt">${Object.keys(SERVICES).length}</span></div>`;
+
+    const leafHtml = s => `
+      <div class="tree-row tree-leaf ${current === s.name ? 'selected' : ''}" data-svc="${s.name}" title="${s.name} · 双击打开详情">
+        <img class="leaf-ic" src="${ICON_BASE + s.icon}" alt="" />
+        <i class="leaf-dot ${isPending(s) ? 'pend' : isRunning(s) ? 'run' : 'stop'}"></i>
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.display}</span>
+        <span class="leaf-state">${stateText(s)}</span>
+      </div>`;
+
+    for (const g of TREE_GROUPS) {
+      const list = byGroup(g.id);
+      const col = groupCollapsed[g.id];
+      html += `<div class="tree-group ${col ? 'collapsed' : ''}">
+        <div class="tree-row" data-group="${g.id}">
+          <svg class="tree-chev"><use href="#i-chev"/></svg>
+          <img class="leaf-ic" src="${ICON_BASE + g.icon}" alt="" />${g.name}<span class="cnt">${list.length}</span>
+        </div>
+        <div class="tree-children">${list.map(leafHtml).join('')}</div>
+      </div>`;
+    }
+    const un = byGroup(null);
+    html += `<div class="tree-group" style="margin-top:8px">
+      <div class="tree-row" data-group="__un">
+        <svg class="tree-chev"><use href="#i-chev"/></svg>
+        <svg class="ic"><use href="#i-grid"/></svg>未分组<span class="cnt">${un.length}</span>
+      </div>
+      <div class="tree-children">${un.map(leafHtml).join('')}</div>
+    </div>`;
+    tree.innerHTML = html;
+  }
+
+  $('sbTree').addEventListener('click', e => {
+    const grp = e.target.closest('[data-group]');
+    if (grp) { const id = grp.dataset.group; groupCollapsed[id] = !groupCollapsed[id]; grp.parentElement.classList.toggle('collapsed'); return; }
+    const leaf = e.target.closest('[data-svc]');
+    if (leaf) openDrawer(leaf.dataset.svc);   // 原型：单击也打开（真实实现建议仅双击）
+  });
+  $('sbTree').addEventListener('dblclick', e => {
+    const leaf = e.target.closest('[data-svc]');
+    if (leaf) { e.preventDefault(); openDrawer(leaf.dataset.svc); }
+  });
+
+  /* 主区占位列表 */
+  function renderPhList() {
+    $('phList').innerHTML = Object.values(SERVICES).map(s => `
+      <div class="ph-row">
+        <img class="leaf-ic" src="${ICON_BASE + s.icon}" alt="" />
+        <b style="font-weight:600">${s.display}</b>
+        <span class="mono" style="font-size:11px;color:var(--gn-fg-5)">${s.name} · ${s.type}</span>
+        <span style="margin-left:auto" class="badge ${isPending(s) ? 'pend' : isRunning(s) ? 'run' : 'stop'}"><i></i>${stateText(s)}</span>
+      </div>`).join('');
+  }
+
+  /* ================================================================ 抽屉开关 */
+  function openDrawer(name) {
+    if (current !== name) { current = name; activeTab = 'overview'; logSel = 0; confDirty = false; confMode = 'fields'; }
+    renderDrawer();
+    $('drawer').classList.add('open');
+    $('drawer').setAttribute('aria-hidden', 'false');
+  }
+  function closeDrawer() {
+    $('drawer').classList.remove('open');
+    $('drawer').setAttribute('aria-hidden', 'true');
+    hideMenu();
+  }
+  $('dwClose').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if ($('modalMask').classList.contains('show')) hideConfirm();
+    else if ($('moreMenu').classList.contains('show')) hideMenu();
+    else closeDrawer();
+  });
+
+  /* ================================================================ 头部渲染 */
+  const badgeCls = svc => isPending(svc) ? 'pend' : isRunning(svc) ? 'run' : 'stop';
+
+  function renderHead() {
+    const s = SERVICES[current];
+    const ico = $('dwIcon');
+    ico.style.setProperty('--look-color', s.accent);
+    ico.innerHTML = `<img src="${ICON_BASE + s.icon}" alt="" />`;
+    $('dwName').textContent = s.display;
+    const subBits = [
+      `<span class="badge ${badgeCls(s)}"><i></i>${stateText(s)}</span>`,
+      `<span class="mono">${s.name}</span>`,
+      isRunning(s) ? `<span>· 运行 ${s.uptime}</span>` : '',
+      isRunning(s) && s.pid ? `<span>· PID <span class="mono">${s.pid}</span></span>` : '',
+      `<span>· ${startTypeText(s.startType)}</span>`,
+      s.mode === 'register' ? '<span>· servy 托管</span>' : '<span>· 纳管（未托管）</span>',
+    ];
+    $('dwSub').innerHTML = subBits.filter(Boolean).join('');
+    $('dwTip').textContent = isPending(s) ? '操作已提交，等待 Windows 服务控制器返回…' : '';
+
+    const pend = isPending(s);
+    $('btnStart').disabled = pend || isRunning(s);
+    $('btnStart').className = 'btn ' + (isRunning(s) || pend ? 'btn-ghost' : 'btn-primary');
+    $('btnStop').disabled = pend || !isRunning(s);
+    $('btnRestart').disabled = pend || !isRunning(s);
+  }
+
+  /* 启动 / 停止 / 重启（模拟 ControlWindowsService） */
+  function setState(svc, pending, finalState, eventHtml, after) {
+    svc._pending = pending;
+    renderHead(); renderTree(); renderPhList();
+    if (current === svc.name && ['overview', 'deploy', 'events'].includes(activeTab)) renderBody();
+    setTimeout(() => {
+      svc._pending = null;
+      if (finalState) svc.state = finalState;
+      if (finalState === 'Running') { svc.pid = svc.pid || 1000 + Math.floor(Math.random() * 9000); svc.threads = svc.threads || 180; if (!svc.uptime) svc.uptime = '刚刚启动'; }
+      if (finalState === 'Stopped') { svc.pid = null; svc.uptime = null; }
+      if (eventHtml) svc.events.unshift({ t: nowLabel(), d: eventHtml.d, html: eventHtml.html });
+      renderHead(); renderTree(); renderPhList();
+      renderBody();
+      if (after) after();
+    }, eventHtml.delay || 1500);
+  }
+  const nowLabel = () => {
+    const d = new Date();
+    return `今天 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
+  $('btnStart').addEventListener('click', () => {
+    const s = SERVICES[current];
+    if (isPending(s) || isRunning(s)) return;
+    setState(s, 'starting', 'Running', { d: 'run', html: `<b>${s.display}</b> 服务启动成功<span class="tag ok">启动</span>` });
+  });
+  $('btnStop').addEventListener('click', () => {
+    const s = SERVICES[current];
+    if (isPending(s) || !isRunning(s)) return;
+    setState(s, 'stopping', 'Stopped', { d: 'stop', html: `<b>${s.display}</b> 服务已停止<span class="tag ok">停止</span>` });
+  });
+  $('btnRestart').addEventListener('click', () => {
+    const s = SERVICES[current];
+    if (isPending(s) || !isRunning(s)) return;
+    setState(s, 'restarting', 'Running', { d: 'run', html: `<b>${s.display}</b> 服务重启完成<span class="tag ok">重启</span>` });
+  });
+
+  /* 更多菜单 */
+  function hideMenu() { $('moreMenu').classList.remove('show'); }
+  $('btnMore').addEventListener('click', e => { e.stopPropagation(); $('moreMenu').classList.toggle('show'); });
+  document.addEventListener('click', e => { if (!e.target.closest('.more-wrap')) hideMenu(); });
+  $('moreMenu').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const s = SERVICES[current];
+    hideMenu();
+    if (b.dataset.act === 'open-logdir') toast('原型演示：将在资源管理器打开 ' + (s.deploy ? s.deploy.logDir : '日志目录'));
+    else if (b.dataset.act === 'open-workdir') toast('原型演示：将在资源管理器打开 ' + (s.deploy ? s.deploy.workDir : '工作目录'));
+    else if (b.dataset.act === 'copy-run') copyText(runCommand(s), '启动命令已复制');
+    else if (b.dataset.act === 'uninstall') askUninstall(s);
+  });
+  const runCommand = s => {
+    const d = s.deploy; if (!d) return 'sc query ' + s.name;
+    if (s.type === 'java') return `"${d.javaPath}" ${d.jvmArgs} ${d.appArgs}`.trim();
+    return `"${d.program}" ${d.params || ''}`.trim();
+  };
+
+  /* ================================================================ 页签 */
+  $('dwTabs').addEventListener('click', e => {
+    const t = e.target.closest('.dtab'); if (!t) return;
+    activeTab = t.dataset.tab;
+    document.querySelectorAll('#dwTabs .dtab').forEach(x => x.classList.toggle('on', x === t));
+    renderBody();
+  });
+
+  function renderDrawer() {
+    renderHead();
+    document.querySelectorAll('#dwTabs .dtab').forEach(x => x.classList.toggle('on', x.dataset.tab === activeTab));
+    updateConfBadge();
+    renderBody();
+  }
+  function renderBody() {
+    const s = SERVICES[current];
+    const R = { overview: rOverview, deploy: rDeploy, conf: rConf, logs: rLogs, events: rEvents };
+    $('dwBody').innerHTML = `<div class="pane">${R[activeTab](s)}</div>`;
+    if (activeTab === 'overview') requestAnimationFrame(drawTrend);
+    if (activeTab === 'logs') scrollLogBottom();
+  }
+
+  /* ---------------- 概览 ---------------- */
+  function rOverview(s) {
+    const run = isRunning(s) && !isPending(s);
+    const m = s.metrics;
+    const memPct = Math.min(100, Math.round(m.mem / m.memMax * 100));
+    const memHot = memPct >= 80;
+    const cards = run ? `
+      <div class="metric-card">
+        <div class="mc-label">CPU 使用率</div>
+        <div class="mc-val"><span id="mCpu">${m.cpu.toFixed(1)}</span><small>%</small></div>
+        <div class="m-bar"><i id="mCpuBar" style="width:${Math.min(100, m.cpu * 8)}%;background:var(--gn-accent)"></i></div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">内存占用 ${memHot ? '<span style="color:var(--gn-warn)">▎偏高</span>' : ''}</div>
+        <div class="mc-val"><span id="mMem">${m.mem}</span><small>MB</small></div>
+        <div class="m-bar"><i id="mMemBar" style="width:${memPct}%;background:${memHot ? 'var(--gn-warn)' : 'var(--gn-info)'}"></i></div>
+        <div class="mc-note">上限 ${m.memMax} MB · 已用 ${memPct}%</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-label">线程数</div>
+        <div class="mc-val"><span id="mThr">${s.threads}</span></div>
+        <div class="mc-note">PID ${s.pid} · 2s 采样</div>
+      </div>` : `
+      <div class="metric-card"><div class="mc-label">CPU 使用率</div><div class="mc-val" style="color:var(--gn-fg-5)">—</div><div class="mc-note">服务未运行</div></div>
+      <div class="metric-card"><div class="mc-label">内存占用</div><div class="mc-val" style="color:var(--gn-fg-5)">—</div><div class="mc-note">服务未运行</div></div>
+      <div class="metric-card"><div class="mc-label">线程数</div><div class="mc-val" style="color:var(--gn-fg-5)">—</div><div class="mc-note">服务未运行</div></div>`;
+
+    const d = s.deploy;
+    const infoRows = `
+      <div class="info-row"><span class="k">启动命令</span><span class="v" title="${escAttr(runCommand(s))}">${escHtml(runCommand(s))}</span></div>
+      ${d ? `<div class="info-row"><span class="k">工作目录</span><span class="v">${escHtml(d.workDir)}</span></div>` : ''}
+      <div class="info-row"><span class="k">启动类型</span><span class="v sans">${startTypeText(s.startType)}</span></div>
+      <div class="info-row"><span class="k">进程守护</span><span class="v sans">${d && d.guard ? '异常退出自动重启' : '未启用'}</span></div>
+      <div class="info-row"><span class="k">日志目录</span><span class="v" title="${d ? escAttr(d.logDir) : ''}">${d ? escHtml(d.logDir) : '（跟随系统安装器）'}</span></div>
+      <div class="info-row"><span class="k">日志轮转</span><span class="v sans">${d && d.rotate ? '按大小轮转（stdout / stderr）' : '未启用'}</span></div>
+      <div class="info-row"><span class="k">服务来源</span><span class="v sans">${s.registered ? 'servy 注册（本机）' : '纳管（未托管注册）'}</span></div>
+      <div class="info-row"><span class="k">${s.registered ? '注册时间' : '纳管时间'}</span><span class="v sans">${s.addedAt}</span></div>`;
+
+    return `
+      <div class="metrics">${cards}</div>
+      <div class="panel">
+        <div class="p-head">
+          <h3>资源趋势 · 近 30 分钟 <span class="sub">${run ? '' : '（服务未运行）'}</span></h3>
+          <div class="legend">
+            <span><i class="lg-line" style="background:var(--gn-accent)"></i>CPU <b id="lgCpu">${run ? m.cpu.toFixed(1) + '%' : '—'}</b></span>
+            <span><i class="lg-line" style="background:var(--gn-info)"></i>内存 <b id="lgMem">${run ? m.mem + ' MB' : '—'}</b></span>
+          </div>
+        </div>
+        ${run ? '<div class="chart-wrap"><svg id="trendChart" viewBox="0 0 640 150"></svg></div>' : '<div class="chart-empty">启动服务后开始采样（每 2 秒）</div>'}
+      </div>
+      <div class="panel">
+        <div class="p-head"><h3>基本信息</h3></div>
+        <div class="info-grid">${infoRows}</div>
+      </div>`;
+  }
+
+  /* 概览趋势图 + 2s 指标轮询（模拟 SampleServiceMetrics） */
+  function drawTrend() {
+    const svg = document.getElementById('trendChart');
+    if (!svg) return;
+    const s = SERVICES[current];
+    const NS = 'http://www.w3.org/2000/svg';
+    const W = 640, H = 150, L = 8, R = 8, T = 10, B = 20;
+    const iw = W - L - R, ih = H - T - B;
+    svg.innerHTML = '';
+    const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); svg.appendChild(n); return n; };
+    [0, 0.5, 1].forEach(f => el('line', { x1: L, y1: T + ih * f, x2: W - R, y2: T + ih * f, stroke: 'var(--gn-br-1)', 'stroke-dasharray': '3 4' }));
+    [['-30m', 0], ['-15m', .5], ['now', 1]].forEach(([txt, f]) => {
+      const t = el('text', { x: L + iw * f, y: H - 5, 'text-anchor': f === 0 ? 'start' : f === 1 ? 'end' : 'middle', fill: 'var(--gn-fg-5)', 'font-size': 9.5, 'font-family': 'var(--gn-font-mono)' });
+      t.textContent = txt;
+    });
+    const { cpu, mem } = s.metrics.trend;
+    const toPath = (arr, max) => { const pts = arr.map((v, i) => [L + iw * i / (arr.length - 1), T + ih * (1 - v / max)]); return { d: pts.map(([x, y], i) => (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1)).join(' '), pts }; };
+    const cpuMax = Math.max(8, Math.max(...cpu) * 1.35);
+    const memMax = Math.max(...mem) * 1.15;
+    const c = toPath(cpu, cpuMax), m2 = toPath(mem, memMax);
+    el('path', { d: c.d + ` L ${W - R} ${T + ih} L ${L} ${T + ih} Z`, fill: 'var(--gn-accent)', opacity: 0.09 });
+    el('path', { d: m2.d, fill: 'none', stroke: 'var(--gn-info)', 'stroke-width': 1.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: .9 });
+    el('path', { d: c.d, fill: 'none', stroke: 'var(--gn-accent)', 'stroke-width': 1.8, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+    const [ex, ey] = c.pts[c.pts.length - 1];
+    el('circle', { cx: ex, cy: ey, r: 3, fill: 'var(--gn-accent)', stroke: 'var(--gn-bg-panel)', 'stroke-width': 1.5 });
+    const [mx, my] = m2.pts[m2.pts.length - 1];
+    el('circle', { cx: mx, cy: my, r: 3, fill: 'var(--gn-info)', stroke: 'var(--gn-bg-panel)', 'stroke-width': 1.5 });
+  }
+
+  setInterval(() => {
+    if (!current || !$('drawer').classList.contains('open')) return;
+    const s = SERVICES[current];
+    if (!isRunning(s) || isPending(s)) return;
+    const m = s.metrics;
+    m.cpu = Math.max(0.4, Math.min(18, m.cpu + (Math.random() - 0.5) * 1.6));
+    m.mem = Math.max(32, Math.round(Math.min(m.memMax, m.mem + (Math.random() - 0.5) * 18)));
+    m.threads = Math.max(8, (s.threads || 100) + Math.round((Math.random() - 0.5) * 6));
+    s.threads = m.threads;
+    m.trend.cpu.push(m.cpu); m.trend.cpu.shift();
+    m.trend.mem.push(m.mem); m.trend.mem.shift();
+    if (activeTab !== 'overview') return;
+    const cpuEl = $('mCpu'), memEl = $('mMem'), thrEl = $('mThr');
+    if (!cpuEl) return;
+    const memPct = Math.min(100, Math.round(m.mem / m.memMax * 100));
+    cpuEl.textContent = m.cpu.toFixed(1);
+    $('mCpuBar').style.width = Math.min(100, m.cpu * 8) + '%';
+    memEl.textContent = m.mem;
+    const memBar = $('mMemBar');
+    memBar.style.width = memPct + '%';
+    memBar.style.background = memPct >= 80 ? 'var(--gn-warn)' : 'var(--gn-info)';
+    thrEl.textContent = m.threads;
+    $('lgCpu').textContent = m.cpu.toFixed(1) + '%';
+    $('lgMem').textContent = m.mem + ' MB';
+    drawTrend();
+  }, 2000);
+
+  /* ---------------- 部署 ---------------- */
+  function rDeploy(s) {
+    const d = s.deploy;
+    const pend = isPending(s);
+    const instCard = s.registered ? `
+      <div class="inst-card ok">
+        <span class="inst-ic"><svg class="ic"><use href="#i-shield"/></svg></span>
+        <div class="inst-txt">
+          <b>servy 托管中 <span class="badge run" style="height:19px"><i></i>已注册</span></b>
+          <small>由 ServDeck 通过 servy 引擎注册为 Windows 服务；修改参数后需「重新安装」写回 SCM。</small>
+        </div>
+        <div class="inst-acts">
+          <button class="btn btn-ghost btn-sm" data-action="reinstall" ${pend ? 'disabled' : ''}><svg class="ic"><use href="#i-restart"/></svg>重新安装</button>
+          <button class="btn btn-danger-o btn-sm" data-action="uninstall" ${pend ? 'disabled' : ''}><svg class="ic"><use href="#i-trash"/></svg>卸载</button>
+        </div>
+        <div class="steps" id="instSteps"></div>
+      </div>` : `
+      <div class="inst-card info">
+        <span class="inst-ic"><svg class="ic"><use href="#i-plug"/></svg></span>
+        <div class="inst-txt">
+          <b>纳管模式 · 尚未托管注册</b>
+          <small>当前仅做状态监控。接入托管后将获得：开机自启、崩溃守护重启、日志轮转、一键重装（保留现有数据与配置）。</small>
+        </div>
+        <div class="inst-acts">
+          <button class="btn btn-primary btn-sm" data-action="adopt" ${pend ? 'disabled' : ''}><svg class="ic"><use href="#i-shield"/></svg>接入托管</button>
+        </div>
+        <div class="steps" id="instSteps"></div>
+      </div>`;
+
+    let formHtml = '';
+    if (d) {
+      const f = (label, key, val, span, hint, ro) => `
+        <div class="field ${span === 2 ? 'span2' : ''}">
+          <label>${label}${hint ? ` <span class="hint">${hint}</span>` : ''}</label>
+          <div class="input"><input class="mono" data-field="${key}" value="${escAttr(val)}" spellcheck="false" ${ro ? 'readonly style="color:var(--gn-fg-4)"' : ''} /></div>
+        </div>`;
+      const rows = [];
+      if (s.type === 'java') {
+        rows.push(f('Java 路径', 'javaPath', d.javaPath, 2));
+        rows.push(f('JVM 参数', 'jvmArgs', d.jvmArgs, 1, '如 -Xms2g -Xmx2g'));
+        rows.push(f('应用参数', 'appArgs', d.appArgs, 1, '如 -jar app.jar'));
+      } else {
+        rows.push(f('程序文件', 'program', d.program, 2));
+        rows.push(f('启动参数', 'params', d.params || '', 2));
+      }
+      rows.push(f('显示名称', 'display', s.display, 1));
+      rows.push(f('工作目录', 'workDir', d.workDir, 1));
+      rows.push(f('服务描述', 'desc', s.desc || '', 2));
+      rows.push(f('日志目录', 'logDir', d.logDir, 2, 'stdout.log / stderr.log'));
+      rows.push(`
+        <div class="field">
+          <label>启动类型</label>
+          <div class="input"><select data-field="startType">
+            ${START_TYPES.map(([v, t]) => `<option value="${v}" ${d.startType === v ? 'selected' : ''}>${t}</option>`).join('')}
+          </select></div>
+        </div>
+        <div class="field">
+          <label>守护与轮转</label>
+          <div class="switch-row" style="height:31px">
+            <button class="switch ${d.guard ? 'on' : ''}" data-action="flip" data-field="guard" title="崩溃自动重启"></button>
+            <span class="sw-label">崩溃重启<small>异常退出自动拉起</small></span>
+            <button class="switch ${d.rotate ? 'on' : ''}" data-action="flip" data-field="rotate" title="日志大小轮转" style="margin-left:10px"></button>
+            <span class="sw-label">轮转<small>--enableSizeRotation</small></span>
+          </div>
+        </div>`);
+      formHtml = `
+        <div class="panel">
+          <div class="p-head"><h3>启动参数 <span class="sub">对应 servy-cli install 的安装参数</span></h3></div>
+          <div class="fields">${rows.join('')}</div>
+          ${commandPreview(s)}
+        </div>`;
+    }
+
+    const portsHtml = `
+      <div class="panel">
+        <div class="p-head">
+          <h3>依赖端口健康 <span class="sub">安装前预检 · 运行期巡检（netstat）</span></h3>
+          <div class="h-act"><button class="chip" data-action="port-check"><svg class="ic"><use href="#i-restart"/></svg>重新检测</button></div>
+        </div>
+        <div id="portList">${s.depsPorts.map(p => `
+          <div class="port-row" data-port="${p.port}">
+            <i class="p-dot ${p.ok ? 'ok' : 'down'}"></i>
+            <span class="p-port">:${p.port}</span>
+            <span class="p-label">${p.label}</span>
+            <span class="p-state ${p.ok ? 'ok' : 'down'}">${p.ok ? '监听中' : '未检测到服务'}</span>
+          </div>`).join('')}
+        </div>
+      </div>`;
+
+    const envHtml = s.env ? `
+      <div class="panel">
+        <div class="p-head"><h3>运行环境 <span class="sub">对应脚本 Version Info</span></h3></div>
+        <div class="term">
+          <div class="cmdline"><b>$</b> ${escHtml(s.env.cmdline)}</div>
+          ${escHtml(s.env.out).split('\n').map(l => `<div>${l}</div>`).join('')}
+        </div>
+        <div class="env-row">
+          <i class="engine-dot"></i>
+          <span>servy 引擎</span>
+          <span class="mono">servy-10.1.exe · v10.1.0</span>
+          <span class="badge run" style="margin-left:auto"><i></i>就绪</span>
+        </div>
+      </div>` : '';
+
+    return instCard + formHtml + portsHtml + envHtml;
+  }
+
+  function commandPreview(s) {
+    const d = s.deploy;
+    const params = s.type === 'java' ? `${d.jvmArgs} ${d.appArgs}`.trim() : (d.params || '');
+    const program = s.type === 'java' ? d.javaPath : d.program;
+    const lines = [
+      ['servy-cli install', ''],
+      ['--path', `"${program}"`],
+      ['--params', `"${params}"`],
+      ['--name', `"${s.name}"`],
+      ['--displayName', `"${s.display}"`],
+      s.desc ? ['--description', `"${s.desc}"`] : null,
+      ['--startupDir', `"${d.workDir}"`],
+      ['--startupType', d.startType],
+      ['--stdout', `"${d.logDir}\\stdout.log"`],
+      ['--stderr', `"${d.logDir}\\stderr.log"`],
+      d.rotate ? ['--enableSizeRotation', ''] : null,
+    ].filter(Boolean);
+    return `
+      <div class="cmd-block">
+        <div class="cmd-bar">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <span class="t">安装命令预览 · 随参数实时生成</span>
+          <button class="copy" data-action="copy-cmd"><svg class="ic"><use href="#i-copy"/></svg>复制</button>
+        </div>
+        <div class="cmd-body" id="cmdBody">${lines.map(([k, v], i) =>
+          `<div><span class="flag">${escHtml(k)}</span>${v ? '=' + escHtml(v) : ''}${i < lines.length - 1 ? ' <span class="cont">^</span>' : ''}</div>`).join('')}
+        </div>
+      </div>`;
+  }
+  const buildCommand = s => {
+    const d = s.deploy;
+    const params = s.type === 'java' ? `${d.jvmArgs} ${d.appArgs}`.trim() : (d.params || '');
+    const program = s.type === 'java' ? d.javaPath : d.program;
+    return [
+      'servy-cli install',
+      `--path="${program}"`, `--params="${params}"`, `--name="${s.name}"`, `--displayName="${s.display}"`,
+      s.desc ? `--description="${s.desc}"` : null,
+      `--startupDir="${d.workDir}"`, `--startupType=${d.startType}`,
+      `--stdout="${d.logDir}\\stdout.log"`, `--stderr="${d.logDir}\\stderr.log"`,
+      d.rotate ? '--enableSizeRotation' : null,
+    ].filter(Boolean).join(' ');
+  };
+
+  /* 部署页交互（事件委托） */
+  $('dwBody').addEventListener('input', e => {
+    const el = e.target;
+    if (!el.matches('[data-field]')) return;
+    const s = SERVICES[current];
+    const k = el.dataset.field, v = el.value;
+    if (k === 'display') { s.display = v; }
+    else if (k === 'desc') { s.desc = v; }
+    else if (k === 'startType') { s.deploy.startType = v; s.startType = v; }
+    else s.deploy[k] = v;
+    if (k === 'startType') renderHead();
+    const body = $('cmdBody');
+    if (body) {
+      const pane = document.createElement('div');
+      pane.innerHTML = commandPreview(s);
+      body.closest('.cmd-block').replaceWith(pane.firstElementChild);
+    }
+  });
+  $('dwBody').addEventListener('click', e => {
+    const el = e.target.closest('[data-action]'); if (!el) return;
+    const s = SERVICES[current];
+    const act = el.dataset.action;
+    if (act === 'copy-cmd') copyText(buildCommand(s), '安装命令已复制');
+    else if (act === 'flip') {
+      const k = el.dataset.field;
+      s.deploy[k] = !s.deploy[k];
+      el.classList.toggle('on', s.deploy[k]);
+      const body = $('cmdBody');
+      if (body) {
+        const pane = document.createElement('div');
+        pane.innerHTML = commandPreview(s);
+        body.closest('.cmd-block').replaceWith(pane.firstElementChild);
+      }
+    }
+    else if (act === 'port-check') checkPorts(s);
+    else if (act === 'reinstall') runInstall(s, true);
+    else if (act === 'adopt') runInstall(s, false);
+    else if (act === 'uninstall') askUninstall(s);
+  });
+
+  function checkPorts(s) {
+    const rows = document.querySelectorAll('#portList .port-row');
+    rows.forEach(r => {
+      r.querySelector('.p-dot').className = 'p-dot chk';
+      const st = r.querySelector('.p-state');
+      st.className = 'p-state'; st.textContent = '检测中…';
+    });
+    setTimeout(() => {
+      s.depsPorts.forEach((p, i) => {
+        if (!p.ok && Math.random() < 0.6) p.ok = true;   // 演示：部分端口恢复
+        const r = rows[i]; if (!r) return;
+        r.querySelector('.p-dot').className = 'p-dot ' + (p.ok ? 'ok' : 'down');
+        const st = r.querySelector('.p-state');
+        st.className = 'p-state ' + (p.ok ? 'ok' : 'down');
+        st.textContent = p.ok ? '监听中' : '未检测到服务';
+      });
+      toast('端口检测完成');
+    }, 900);
+  }
+
+  /* 安装流程：预检依赖端口 → 停止并清理旧服务 → 注册并启动（对应脚本 :INSTALL 三步） */
+  function runInstall(s, isReinstall) {
+    if (isPending(s)) return;
+    s._pending = 'installing';
+    renderHead();
+    const box = $('instSteps');
+    if (box) {
+      box.classList.add('show');
+      box.innerHTML = [
+        ['st1', '1', '预检依赖端口', ''],
+        ['st2', '2', isReinstall ? '停止并清理旧服务' : '停止同名旧服务（如存在）', ''],
+        ['st3', '3', '注册并启动', ''],
+      ].map(([id, n, label]) => `<div class="step" id="${id}"><span class="s-ic">${n}</span>${label}<span class="s-sub"></span></div>`).join('');
+    }
+    const setStep = (id, cls, sub) => {
+      const st = $(id); if (!st) return;
+      st.className = 'step ' + cls;
+      if (sub !== undefined) st.querySelector('.s-sub').textContent = sub;
+      if (cls === 'doing') st.querySelector('.s-ic').innerHTML = '<svg class="ic spin"><use href="#i-restart"/></svg>';
+      if (cls === 'done') st.querySelector('.s-ic').innerHTML = '<svg class="ic"><use href="#i-check"/></svg>';
+      if (cls === 'warn') st.querySelector('.s-ic').innerHTML = '<svg class="ic"><use href="#i-warn"/></svg>';
+    };
+    const finish = (stateRunning, evt) => {
+      s._pending = null;
+      if (stateRunning) { s.state = 'Running'; s.pid = s.pid || 1000 + Math.floor(Math.random() * 9000); if (!s.uptime) s.uptime = '刚刚启动'; }
+      s.registered = true;
+      s.events.unshift({ t: nowLabel(), d: evt.d, html: evt.html });
+      renderHead(); renderTree(); renderPhList(); renderBody();
+      toast(isReinstall ? '重新安装完成，服务已启动' : '托管接入完成，服务已启动');
+      setTimeout(() => { const b = $('instSteps'); if (b) { b.classList.remove('show'); b.innerHTML = ''; } }, 1400);
+    };
+    setStep('st1', 'doing');
+    setTimeout(() => {
+      const down = s.depsPorts.filter(p => !p.ok).length;
+      setStep('st1', down ? 'warn' : 'done', down ? `${s.depsPorts.length - down}/${s.depsPorts.length} 端口监听` : '全部监听');
+      setStep('st2', 'doing');
+      setTimeout(() => {
+        setStep('st2', 'done', '已清理');
+        setStep('st3', 'doing');
+        setTimeout(() => {
+          setStep('st3', 'done', 'SCM 注册成功');
+          setTimeout(() => finish(true, {
+            d: 'run',
+            html: `<b>${s.display}</b> ${isReinstall ? '重新安装并启动成功' : '托管接入成功，已注册并启动'}<span class="tag ok">${isReinstall ? '重装' : '接入托管'}</span>`,
+          }), 400);
+        }, 900);
+      }, 900);
+    }, 1000);
+  }
+
+  /* 卸载（对应脚本 :UNINSTALL 的 Y/N 确认） */
+  let confirmCb = null;
+  function askUninstall(s) {
+    $('mdTitle').textContent = '卸载服务';
+    $('mdText').innerHTML =
+      `将先停止并从 Windows 服务控制器移除 <code>${escHtml(s.name)}</code>（servy 托管）。` +
+      `程序文件与日志目录会保留，注册信息可在「接入托管」中恢复。确认卸载？`;
+    $('mdOk').textContent = '确认卸载';
+    confirmCb = () => {
+      hideConfirm();
+      if (isPending(s)) return;
+      const wasRunning = isRunning(s);
+      s._pending = 'uninstalling';
+      renderHead();
+      setTimeout(() => {
+        s._pending = null;
+        s.state = 'Stopped'; s.pid = null; s.registered = false; s.uptime = null;
+        s.events.unshift({ t: nowLabel(), d: 'warn', html: `<b>${s.display}</b> 服务已卸载（servy 托管移除，文件保留）<span class="tag warn">卸载</span>` });
+        renderHead(); renderTree(); renderPhList(); renderBody();
+        toast('服务已卸载');
+      }, wasRunning ? 1400 : 800);
+    };
+    $('modalMask').classList.add('show');
+  }
+  function hideConfirm() { $('modalMask').classList.remove('show'); confirmCb = null; }
+  $('mdCancel').addEventListener('click', hideConfirm);
+  $('modalMask').addEventListener('click', e => { if (e.target === $('modalMask')) hideConfirm(); });
+  $('mdOk').addEventListener('click', () => { if (confirmCb) confirmCb(); });
+
+  /* ---------------- 配置文件 ---------------- */
+  function updateConfBadge() {
+    const s = SERVICES[current];
+    $('confDirtyBadge').style.display = confDirty && s.hasConf ? 'inline-flex' : 'none';
+  }
+  function rConf(s) {
+    if (!s.hasConf || !s.conf) {
+      return `<div class="empty">
+        <svg class="ic"><use href="#i-conf"/></svg>
+        <b>该服务未挂接配置文件托管</b>
+        <p>可在「添加服务 → 高级」中为服务关联配置文件（如 application.yml）。<br/>关联后支持字段化编辑、自动备份与「重启生效」提醒。</p>
+      </div>`;
+    }
+    const c = s.conf;
+    const fieldsHtml = c.fields.map(([k, label, val, type]) => `
+      <div class="field"><label>${label}</label>
+        <div class="input"><input class="mono" data-cf="${k}" ${type === 'password' ? 'type="password"' : ''} value="${escAttr(val)}" spellcheck="false" /></div>
+      </div>`).join('');
+    return `
+      <div class="panel">
+        <div class="conf-head">
+          <span class="cf-name">${c.file}</span>
+          <span class="cf-path">${c.path}</span>
+          <span class="seg cf-mode" id="confModeSeg">
+            <button class="${confMode === 'fields' ? 'on' : ''}" data-cm="fields">按字段编辑</button>
+            <button class="${confMode === 'raw' ? 'on' : ''}" data-cm="raw">原文编辑</button>
+          </span>
+        </div>
+        <div class="conf-body">
+          <div class="fields" id="confFields" style="display:${confMode === 'fields' ? 'grid' : 'none'};margin-top:10px">${fieldsHtml}</div>
+          <textarea class="mono" id="confRaw" style="display:${confMode === 'raw' ? 'block' : 'none'}" spellcheck="false">${escHtml(renderConfRaw(s))}</textarea>
+          <div class="conf-foot">
+            <span class="hint">修改后点击保存写回 <b>${c.file}</b>；保存前自动备份，可随时回滚。修改在服务<b>重启后生效</b>。</span>
+            <button class="btn btn-ghost btn-sm" data-action="conf-discard" style="display:${confDirty ? 'inline-flex' : 'none'}">放弃更改</button>
+            <button class="btn btn-primary btn-sm" data-action="conf-save">保存配置</button>
+          </div>
+        </div>
+      </div>
+      <div class="restart-bar ${confDirty ? 'show' : ''}" id="restartBar">
+        <span class="rb-ic"><svg class="ic"><use href="#i-restart"/></svg></span>
+        <span class="rb-text">配置已保存，需重启服务生效<small>${c.file} 已写回（原文件已自动备份）；重启约需 3~5 秒，期间服务短暂不可用。</small></span>
+        <span class="rb-actions">
+          <button class="btn btn-ghost btn-sm" data-action="conf-later">稍后重启</button>
+          <button class="btn btn-primary btn-sm" data-action="conf-restart"><svg class="ic"><use href="#i-restart"/></svg>立即重启</button>
+        </span>
+      </div>`;
+  }
+  function renderConfRaw(s) {
+    const g = k => { const el = document.querySelector(`#confFields input[data-cf="${k}"]`); return el ? el.value : ''; };
+    if (g('apiPort') === '') {
+      return s.conf.fields.map(([k, , v]) => `${k.toUpperCase()}=${v}`).join('\n');
+    }
+    return `RUSTFS_ACCESS_KEY=${g('accessKey')}\nRUSTFS_SECRET_KEY=${g('secretKey')}\nRUSTFS_VOLUMES=${g('dataDir')}\nRUSTFS_ADDRESS=0.0.0.0:${g('apiPort')}\nRUSTFS_CONSOLE_ADDRESS=0.0.0.0:${g('consolePort')}\nRUSTFS_CONSOLE_ENABLE=true\nRUST_LOG=${g('logLevel')}`;
+  }
+  function parseRawToFields(s, raw) {
+    const map = {};
+    raw.split('\n').forEach(line => {
+      const m = line.match(/^([A-Z_]+)=(.*)$/);
+      if (m) map[m[1]] = m[2].trim();
+    });
+    const set = (k, v) => { if (v === undefined) return; const f = s.conf.fields.find(x => x[0] === k); if (f) f[2] = v; };
+    set('accessKey', map.RUSTFS_ACCESS_KEY); set('secretKey', map.RUSTFS_SECRET_KEY);
+    set('dataDir', map.RUSTFS_VOLUMES);
+    if (map.RUSTFS_ADDRESS) set('apiPort', map.RUSTFS_ADDRESS.split(':').pop());
+    if (map.RUSTFS_CONSOLE_ADDRESS) set('consolePort', map.RUSTFS_CONSOLE_ADDRESS.split(':').pop());
+    set('logLevel', map.RUST_LOG);
+  }
+  $('dwBody').addEventListener('click', e => {
+    const cm = e.target.closest('[data-cm]');
+    if (cm) {
+      const s = SERVICES[current];
+      if (cm.dataset.cm === 'raw' && confMode === 'fields') $('confRaw').value = renderConfRaw(s);
+      confMode = cm.dataset.cm;
+      document.querySelectorAll('#confModeSeg button').forEach(x => x.classList.toggle('on', x === cm));
+      $('confFields').style.display = confMode === 'fields' ? 'grid' : 'none';
+      $('confRaw').style.display = confMode === 'raw' ? 'block' : 'none';
+    }
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const s = SERVICES[current];
+    const act = el.dataset.action;
+    if (act === 'conf-save') {
+      if (confMode === 'raw' && s.hasConf) parseRawToFields(s, $('confRaw').value);
+      confDirty = true; updateConfBadge(); renderBody(); toast('配置已保存（待重启生效）');
+    }
+    else if (act === 'conf-discard' || act === 'conf-later') { confDirty = false; updateConfBadge(); renderBody(); }
+    else if (act === 'conf-restart') {
+      if (isPending(s)) return;
+      setState(s, 'restarting', 'Running', { d: 'run', html: `<b>${s.display}</b> 配置变更后重启完成<span class="tag ok">重启</span>`, delay: 1600 }, () => {
+        confDirty = false; updateConfBadge(); renderBody();
+      });
+    }
+  });
+  $('dwBody').addEventListener('input', e => {
+    if (!e.target.matches('[data-cf], #confRaw')) return;
+    const s = SERVICES[current];
+    if (e.target.matches('[data-cf]') && s.hasConf) {
+      const f = s.conf.fields.find(x => x[0] === e.target.dataset.cf);
+      if (f) f[2] = e.target.value;
+    }
+    confDirty = true; updateConfBadge();
+    const foot = document.querySelector('#dwBody [data-action="conf-discard"]');
+    if (foot) foot.style.display = 'inline-flex';
+    const bar = $('restartBar'); if (bar) bar.classList.add('show');
+  });
+
+  /* ---------------- 日志 ---------------- */
+  function rLogs(s) {
+    const files = s.logFiles;
+    if (logSel >= files.length) logSel = 0;
+    const f = files[logSel];
+    const lines = f.kind === 'err' ? s.logs.err : s.logs.out;
+    const view = lines.map(([t, lv, msg]) => {
+      const cls = lv === 'ERROR' ? 'lg-error' : lv === 'WARN' ? 'lg-warn' : 'lg-info';
+      return `<div class="${cls}"><span class="lg-t">${t}</span><span class="lg-lv">${lv}</span>${escHtml(msg)}</div>`;
+    }).join('');
+    return `
+      <div class="panel" style="padding:10px 12px">
+        <div class="log-files">
+          ${files.map((fl, i) => `
+            <button class="log-file ${i === logSel ? 'on' : ''}" data-logf="${i}">
+              <span class="f-name">${fl.name}${fl.kind === 'err' ? ' <span class="errdot" style="color:var(--gn-danger)">●</span>' : ''}</span>
+              <span class="f-meta">${fl.size} · ${fl.mtime}${fl.kind === 'rot' ? ' · <span class="f-rot">轮转</span>' : ''}</span>
+            </button>`).join('')}
+        </div>
+      </div>
+      <div class="panel" style="padding:9px 12px">
+        <div class="log-toolbar">
+          <span class="mono" style="font-size:11px;color:var(--gn-fg-5)">${f.name} · ${f.size}</span>
+          <span style="flex:1"></span>
+          <button class="chip on" data-action="log-scroll"><svg class="ic"><use href="#i-chev"/></svg>自动滚动</button>
+          <button class="chip" data-action="log-open"><svg class="ic"><use href="#i-folder"/></svg>打开目录</button>
+          <button class="chip" data-action="log-download"><svg class="ic"><use href="#i-download"/></svg>下载</button>
+        </div>
+      </div>
+      <div class="log-view" id="logView">${view}</div>`;
+  }
+  $('dwBody').addEventListener('click', e => {
+    const lf = e.target.closest('[data-logf]');
+    if (lf) { logSel = +lf.dataset.logf; renderBody(); scrollLogBottom(); return; }
+    const el = e.target.closest('[data-action]'); if (!el) return;
+    const act = el.dataset.action;
+    if (act === 'log-scroll') el.classList.toggle('on');
+    else if (act === 'log-open') toast('原型演示：将在资源管理器打开日志目录');
+    else if (act === 'log-download') toast('原型演示：已导出日志压缩包');
+  });
+  function scrollLogBottom() {
+    requestAnimationFrame(() => { const v = $('logView'); if (v) v.scrollTop = v.scrollHeight; });
+  }
+
+  /* ---------------- 事件 ---------------- */
+  function rEvents(s) {
+    return `<div class="panel">${s.events.map(ev => `
+      <div class="event">
+        <i class="e-dot ${ev.d}"></i><span class="e-time">${ev.t}</span>
+        <div class="e-body">${ev.html}</div>
+      </div>`).join('')}</div>`;
+  }
+
+  /* ---------------- 工具 ---------------- */
+  function escHtml(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function escAttr(x) { return escHtml(x).replace(/"/g, '&quot;'); }
+
+  /* ================================================================ 初始化 */
+  renderTree();
+  renderPhList();
+  // 默认打开主角服务，直接展示面板内容
+  openDrawer('WEC-AI-PLATFORM');
+</script>
+</body>
+</html>

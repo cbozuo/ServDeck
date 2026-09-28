@@ -44,3 +44,4 @@ docs/*
 !docs/blog/**
 .tmp_superpowers_edit
 .gonavi-dev-signing-identity
+.workbuddy/

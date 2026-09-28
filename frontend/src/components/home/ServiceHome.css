@@ -1,6 +1,8 @@
 /* 服务总览首页（ServiceHome）组件旁样式；颜色一律走 --gn-* token。 */
 
 .svc-home {
+  max-width: 1440px;
+  margin: 0 auto;
   padding: 22px 26px 32px;
   min-height: 100%;
   overflow-y: auto;
@@ -184,8 +186,6 @@
 .ico-mem { background: color-mix(in srgb, var(--gn-warn) 13%, var(--gn-bg-panel)); color: var(--gn-warn); }
 .ico-disk { background: color-mix(in srgb, var(--gn-info) 12%, var(--gn-bg-panel)); color: var(--gn-info); }
 .ico-net { background: color-mix(in srgb, #7c3aed 12%, var(--gn-bg-panel)); color: #7c3aed; }
-.res-card-soon { opacity: 0.72; }
-.res-soon-val { color: var(--gn-fg-5) !important; }
 
 /* ===== 过滤胶囊 ===== */
 .filter-chips {
@@ -582,4 +582,10 @@
   font-family: var(--gn-font-mono);
   font-size: 10.5px;
   color: var(--gn-fg-5);
+}
+
+/* 子文案多行（磁盘读写、网络上传下载） */
+.rc-sub-lines span {
+  display: block;
+  line-height: 1.5;
 }

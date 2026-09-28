@@ -12,11 +12,11 @@ import (
 const (
 	bootstrapFileName              = "storage_root.json"
 	bootstrapLockFileName          = bootstrapFileName + ".lock"
-	sharedStorageLockFileName      = ".gonavi-storage-write.lock"
+	sharedStorageLockFileName      = ".servdeck-storage-write.lock"
 	configuredLogFileName          = "gonavi.log"
 	savedQueryDirectoryName        = "saved_queries"
-	savedQueryDirectoryProbePrefix = ".gonavi-saved-query-"
-	agentDataDirectoryProbePrefix  = ".gonavi-agent-data-"
+	savedQueryDirectoryProbePrefix = ".servdeck-saved-query-"
+	agentDataDirectoryProbePrefix  = ".servdeck-agent-data-"
 )
 const dataRootEnvName = "GONAVI_DATA_ROOT"
 
@@ -105,6 +105,7 @@ type bootstrapConfig struct {
 	LogDirectory        string `json:"logDirectory,omitempty"`
 	SavedQueryDirectory string `json:"savedQueryDirectory,omitempty"`
 	AgentDataDirectory  string `json:"agentDataDirectory,omitempty"`
+	ServyEnginePath     string `json:"servyEnginePath,omitempty"`
 }
 
 func readBootstrapConfig() (bootstrapConfig, error) {
@@ -127,7 +128,8 @@ func writeBootstrapConfig(cfg bootstrapConfig) error {
 	cfg.LogDirectory = strings.TrimSpace(cfg.LogDirectory)
 	cfg.SavedQueryDirectory = strings.TrimSpace(cfg.SavedQueryDirectory)
 	cfg.AgentDataDirectory = strings.TrimSpace(cfg.AgentDataDirectory)
-	if cfg.DataRoot == "" && cfg.LogDirectory == "" && cfg.SavedQueryDirectory == "" && cfg.AgentDataDirectory == "" {
+	cfg.ServyEnginePath = strings.TrimSpace(cfg.ServyEnginePath)
+	if cfg.DataRoot == "" && cfg.LogDirectory == "" && cfg.SavedQueryDirectory == "" && cfg.AgentDataDirectory == "" && cfg.ServyEnginePath == "" {
 		if err := os.Remove(BootstrapPath()); err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -198,6 +200,23 @@ func updateBootstrapConfig(update func(*bootstrapConfig)) (err error) {
 	return writeBootstrapConfig(cfg)
 }
 
+// ResolveServyEngineOverride 返回用户在设置中配置的 servy 引擎路径；未配置时为空串，
+// 此时 locateServyEngine 继续走默认查找链（环境变量 → 应用运行目录 → 常见目录 → PATH）。
+func ResolveServyEngineOverride() string {
+	cfg, err := readBootstrapConfig()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(cfg.ServyEnginePath)
+}
+
+// SetServyEnginePath 保存用户配置的 servy 引擎路径；传空串表示清除配置、恢复默认查找链。
+func SetServyEnginePath(path string) error {
+	return updateBootstrapConfig(func(cfg *bootstrapConfig) {
+		cfg.ServyEnginePath = strings.TrimSpace(path)
+	})
+}
+
 func configuredRootOverride() string {
 	return strings.TrimSpace(os.Getenv(dataRootEnvName))
 }
@@ -207,7 +226,7 @@ func DefaultRoot() string {
 	if err != nil || strings.TrimSpace(homeDir) == "" {
 		return "."
 	}
-	return filepath.Join(homeDir, ".gonavi")
+	return filepath.Join(homeDir, ".servdeck")
 }
 
 func BootstrapPath() string {

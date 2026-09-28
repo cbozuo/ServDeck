@@ -51,6 +51,7 @@ export const DirectoryPathDisplay: React.FC<DirectoryPathDisplayProps> = ({
 );
 
 export type DirectoryMetaItem = {
+  hint?: React.ReactNode;
   label: React.ReactNode;
   value?: React.ReactNode;
 };
@@ -61,6 +62,7 @@ export const DirectoryMetaGrid: React.FC<{ items: DirectoryMetaItem[] }> = ({ it
       <div className="gn-storage-meta" key={`${String(item.label)}-${index}`}>
         <span className="gn-storage-meta__label">{item.label}</span>
         <span className="gn-storage-meta__value">{item.value || '-'}</span>
+        {item.hint ? <span className="gn-storage-meta__hint">{item.hint}</span> : null}
       </div>
     ))}
   </div>

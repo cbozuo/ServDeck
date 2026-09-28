@@ -82,5 +82,7 @@ func sampleHostResources() (hostResourceSample, error) {
 		UsedPct: usedPct,
 	})
 
+	sampleHostExtraMetrics(&sample)
+
 	return sample, nil
 }

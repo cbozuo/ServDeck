@@ -22,6 +22,7 @@ import {
 } from './serviceTreeModel';
 import { ServiceTreeContextMenu } from './ServiceTreeContextMenu';
 import { ManageServiceGroupsModal } from './ManageServiceGroupsModal';
+import { ServiceTreeEngineBar } from './ServiceTreeEngineBar';
 import './serviceTreeSidebar.css';
 
 export interface ServiceTreeSidebarProps {
@@ -278,7 +279,8 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
       : null;
 
   return (
-    <div className="gn-v2-sidebar-redesign" style={{ display: 'flex', height: '100%', minHeight: 0 }}>
+    <div className="gn-v2-sidebar-redesign" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
       <aside
         className="gn-v2-connection-rail"
         data-sidebar-fixed-rail="true"
@@ -421,6 +423,9 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
           </div>
         </div>
       </div>
+      </div>
+
+      <ServiceTreeEngineBar />
 
       {contextMenu && typeof document !== 'undefined' && createPortal(
         <div

@@ -303,21 +303,21 @@ import { useWorkbenchTabs } from './hooks/useWorkbenchTabs';
 import { isWailsDevNativeContextMenu, shouldAllowNativeContextMenu } from './utils/nativeContextMenu';
 import {
   ApplyDataRootDirectory,
-  ApplyLogDirectory,
+  ApplyServyEnginePath,
   ApplySavedQueryDirectory,
   CancelApplicationQuit,
   ForceQuitApplication,
   GetDataRootDirectoryInfo,
+  GetServyEngineConfig,
   GetSavedConnections,
   GetSavedQueries,
   ListInstalledFontFamilies,
   OpenDataRootDirectory,
-  OpenLogDirectory,
   OpenSavedQueryDirectory,
   RestartApplication,
   SelectDataRootDirectory,
-  SelectLogDirectory,
   SelectSavedQueryDirectory,
+  SelectServyEngineFile,
   SetWindowTranslucency,
 } from '../wailsjs/go/app/App';
 import { getAntdLocale } from './i18n/frameworkLocale';
@@ -3967,13 +3967,14 @@ function App() {
   const [isDataRootModalOpen, setIsDataRootModalOpen] = useState(false);
   const [dataRootInfo, setDataRootInfo] = useState<any>(null);
   const [selectedDataRootPath, setSelectedDataRootPath] = useState('');
-  const [selectedLogDirectoryPath, setSelectedLogDirectoryPath] = useState('');
   const [selectedSavedQueryDirectoryPath, setSelectedSavedQueryDirectoryPath] = useState('');
   const [dataRootLoading, setDataRootLoading] = useState(false);
   const [dataRootApplying, setDataRootApplying] = useState(false);
-  const [logDirectoryApplying, setLogDirectoryApplying] = useState(false);
   const [savedQueryDirectoryApplying, setSavedQueryDirectoryApplying] = useState(false);
-  const directorySettingsApplying = dataRootApplying || logDirectoryApplying || savedQueryDirectoryApplying;
+  const [servyEngineConfig, setServyEngineConfig] = useState<any>(null);
+  const [servyEnginePathDraft, setServyEnginePathDraft] = useState('');
+  const [servyEngineApplying, setServyEngineApplying] = useState(false);
+  const directorySettingsApplying = dataRootApplying || savedQueryDirectoryApplying;
 
   const appliedGlobalProxyDraft = useMemo(() => (
       createGlobalProxyComparableDraft(globalProxy)
@@ -4402,7 +4403,6 @@ function App() {
           const data = (res?.data || {}) as any;
           setDataRootInfo(data);
           setSelectedDataRootPath(String(data.path || ''));
-          setSelectedLogDirectoryPath(String(data.logDirectory || data.defaultLogDirectory || ''));
           setSelectedSavedQueryDirectoryPath(String(
               data.savedQueryDirectory || data.defaultSavedQueryDirectory || '',
           ));
@@ -4474,62 +4474,80 @@ function App() {
       }
   }, [t]);
 
-  const handleSelectLogDirectory = useCallback(async () => {
-      try {
-          const res = await SelectLogDirectory(
-              selectedLogDirectoryPath || dataRootInfo?.logDirectory || dataRootInfo?.defaultLogDirectory || '',
-          );
-          if (!res?.success) {
-              if (String(res?.message || '') !== '已取消') {
-                  throw new Error(res?.message || t('common.unknown'));
-              }
-              return;
-          }
-          const data = (res?.data || {}) as any;
-          setSelectedLogDirectoryPath(String(data.directory || ''));
-      } catch (error) {
-          const errMsg = error instanceof Error ? error.message : String(error || t('common.unknown'));
-          void message.error(t('app.data_root.log_directory.message.select_failed_with_error', { error: errMsg }));
-      }
-  }, [dataRootInfo?.defaultLogDirectory, dataRootInfo?.logDirectory, selectedLogDirectoryPath, t]);
-
-  const handleApplyLogDirectory = useCallback(async (useDefaultPath = false) => {
-      const nextPath = useDefaultPath
-          ? String(dataRootInfo?.defaultLogDirectory || '')
-          : String(selectedLogDirectoryPath || '').trim();
-      if (!nextPath) {
-          void message.warning(t('app.data_root.log_directory.message.select_valid_first'));
+  const handleCopyDataRoot = useCallback(() => {
+      const text = String(dataRootInfo?.path || '');
+      if (!text) {
           return;
       }
-      setLogDirectoryApplying(true);
+      if (navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(text).then(() => {
+              void message.success(t('app.data_root.message.copied'));
+          }, () => {
+              void message.error(t('common.unknown'));
+          });
+      }
+  }, [dataRootInfo?.path, t]);
+
+  const loadServyEngineConfig = useCallback(async () => {
       try {
-          const res = await ApplyLogDirectory(nextPath);
+          const res = await GetServyEngineConfig();
           if (!res?.success) {
               throw new Error(res?.message || t('common.unknown'));
           }
           const data = (res?.data || {}) as any;
-          setDataRootInfo(data);
-          setSelectedLogDirectoryPath(String(data.logDirectory || data.defaultLogDirectory || nextPath));
-          void message.success(res?.message || t('app.data_root.log_directory.message.updated'));
+          setServyEngineConfig(data);
+          setServyEnginePathDraft(String(data.configuredPath || ''));
       } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error || t('common.unknown'));
-          void message.error(t('app.data_root.log_directory.message.apply_failed_with_error', { error: errMsg }));
-      } finally {
-          setLogDirectoryApplying(false);
+          void message.error(errMsg);
       }
-  }, [dataRootInfo?.defaultLogDirectory, selectedLogDirectoryPath, t]);
+  }, [t]);
 
-  const handleOpenLogDirectory = useCallback(async () => {
+  useEffect(() => {
+      if (!isDataRootModalOpen && !activeSettingsCenterPane?.key.startsWith('data-root')) {
+          return;
+      }
+      void loadServyEngineConfig();
+  }, [activeSettingsCenterPane?.key, isDataRootModalOpen, loadServyEngineConfig]);
+
+  const handleBrowseServyEngineFile = useCallback(async () => {
       try {
-          const res = await OpenLogDirectory();
+          const res = await SelectServyEngineFile();
           if (!res?.success) {
-              throw new Error(res?.message || t('common.unknown'));
+              return;
+          }
+          const data = (res?.data || {}) as { path?: string };
+          const picked = String(data.path || '').trim();
+          if (picked) {
+              setServyEnginePathDraft(picked);
           }
       } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error || t('common.unknown'));
-          void message.error(t('app.data_root.log_directory.message.open_failed_with_error', { error: errMsg }));
+          void message.error(t('app.data_root.message.select_failed_with_error', { error: errMsg }));
       }
   }, [t]);
+
+  const handleApplyServyEnginePath = useCallback(async (useDefault = false) => {
+      const nextPath = useDefault ? '' : String(servyEnginePathDraft || '').trim();
+      setServyEngineApplying(true);
+      try {
+          const res = await ApplyServyEnginePath(nextPath);
+          if (!res?.success) {
+              throw new Error(res?.message || t('common.unknown'));
+          }
+          const data = (res?.data || {}) as any;
+          setServyEngineConfig(data);
+          setServyEnginePathDraft(String(data.configuredPath || ''));
+          // 侧栏底部引擎状态栏据此刻刷新
+          window.dispatchEvent(new Event('gonavi:servy-engine-updated'));
+          void message.success(res?.message || t('app.engine.backend.message.applied'));
+      } catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error || t('common.unknown'));
+          void message.error(errMsg);
+      } finally {
+          setServyEngineApplying(false);
+      }
+  }, [servyEnginePathDraft, t]);
 
   const handleSelectSavedQueryDirectory = useCallback(async () => {
       try {
@@ -4687,75 +4705,6 @@ function App() {
       </DataDirectoryPage>
   );
 
-  const renderLogDirectorySettings = (readOnly = false) => {
-      const editable = dataRootInfo?.logDirectoryEditable !== false;
-      const managedByEnvironment = dataRootInfo?.logDirectorySource === 'environment';
-      const restartRequired = dataRootInfo?.logDirectoryRestartRequired === true;
-      return (
-          <section className="gn-storage-panel" data-log-directory-settings="true">
-              <div className="gn-storage-panel__body">
-                  <div className="gn-storage-panel__header">
-                      <DirectorySectionHeading
-                          title={t('app.data_root.log_directory.title')}
-                          description={t('app.data_root.log_directory.description')}
-                      />
-                      {!readOnly && (
-                          <Button onClick={() => void handleOpenLogDirectory()}>
-                              {t('app.data_root.action.open_current')}
-                          </Button>
-                      )}
-                  </div>
-                  <div className="gn-storage-path-editor">
-                      <Input
-                          readOnly
-                          disabled={!editable}
-                          value={selectedLogDirectoryPath}
-                          placeholder={t('app.data_root.log_directory.placeholder')}
-                          aria-label={t('app.data_root.log_directory.title')}
-                      />
-                      {!readOnly && (
-                          <div className="gn-storage-path-editor__actions">
-                              <Button
-                                  icon={<FolderOpenOutlined />}
-                                  disabled={!editable || directorySettingsApplying}
-                                  onClick={() => void handleSelectLogDirectory()}
-                              >
-                                  {t('app.data_root.action.select')}
-                              </Button>
-                              <Button
-                                  disabled={!editable || directorySettingsApplying}
-                                  loading={logDirectoryApplying}
-                                  onClick={() => void handleApplyLogDirectory(true)}
-                              >
-                                  {t('app.data_root.action.restore_default_directory')}
-                              </Button>
-                              <Button
-                                  type="primary"
-                                  disabled={!editable || directorySettingsApplying}
-                                  loading={logDirectoryApplying}
-                                  onClick={() => void handleApplyLogDirectory(false)}
-                              >
-                                  {t('app.data_root.log_directory.action.save')}
-                              </Button>
-                          </div>
-                      )}
-                  </div>
-                  <DirectoryMetaGrid items={[
-                      { label: t('app.data_root.log_directory.current_file'), value: dataRootInfo?.logFilePath || '-' },
-                      { label: t('app.data_root.log_directory.default_directory'), value: dataRootInfo?.defaultLogDirectory || '-' },
-                  ]} />
-                  {managedByEnvironment ? (
-                      <Alert type="warning" showIcon message={t('app.data_root.log_directory.environment_hint')} />
-                  ) : restartRequired ? (
-                      <Alert type="info" showIcon message={t('app.data_root.log_directory.pending_restart')} />
-                  ) : (
-                      <DirectoryNote>{t('app.data_root.log_directory.restart_hint')}</DirectoryNote>
-                  )}
-              </div>
-          </section>
-      );
-  };
-
   const renderDataDirectorySettings = (
       section: 'all' | 'application' | 'agent' | 'saved-queries' = 'all',
       readOnly = false,
@@ -4779,34 +4728,108 @@ function App() {
                       data-data-directory-section="application"
                   >
                       <div className="gn-storage-panel__body">
-                          <DirectorySectionHeading
-                              title={t('app.data_root.current_location')}
-                              description={t('app.data_root.application.current_description')}
-                          />
+                          <div className="gn-storage-panel__header">
+                              <DirectorySectionHeading
+                                  title={t('app.data_root.current_location')}
+                                  description={t('app.data_root.application.current_description')}
+                              />
+                              {!readOnly && (
+                                  <div style={{ display: 'flex', gap: 8 }}>
+                                      <Button icon={<FolderOpenOutlined />} onClick={() => void handleOpenDataRoot()}>
+                                          {t('app.data_root.action.open_current')}
+                                      </Button>
+                                      <Button icon={<CopyOutlined />} onClick={handleCopyDataRoot}>
+                                          {t('app.data_root.action.copy_path')}
+                                      </Button>
+                                  </div>
+                              )}
+                          </div>
                           <DirectoryPathDisplay
                               label={t('app.data_root.current_directory')}
                               path={dataRootInfo?.path || ''}
-                              action={!readOnly ? (
-                                  <Button onClick={() => void handleOpenDataRoot()}>
-                                      {t('app.data_root.action.open_current')}
-                                  </Button>
-                              ) : undefined}
                           />
                           <div>
                               <div className="gn-storage-field-label">{t('app.data_root.application.stores')}</div>
                               <div className="gn-storage-tags">
-                                  <span className="gn-storage-tag">{t('app.data_root.application.content.connections')}</span>
-                                  <span className="gn-storage-tag">{t('app.data_root.application.content.drivers')}</span>
+                                  <span className="gn-storage-tag">{t('app.data_root.application.content.service_registry')}</span>
+                                  <span className="gn-storage-tag">{t('app.data_root.application.content.managed_config')}</span>
+                                  <span className="gn-storage-tag">{t('app.data_root.application.content.managed_logs')}</span>
                               </div>
                           </div>
                           <DirectoryMetaGrid items={[
-                              { label: t('app.data_root.default_directory'), value: dataRootInfo?.defaultPath || '-' },
-                              { label: t('app.data_root.driver_directory'), value: dataRootInfo?.driverPath || '-' },
+                              {
+                                  label: t('app.data_root.service_log_root'),
+                                  value: dataRootInfo?.path ? `${dataRootInfo.path}\\services` : '-',
+                                  hint: t('app.data_root.service_log_root_hint'),
+                              },
+                              {
+                                  label: t('app.data_root.engine_default_dir'),
+                                  value: servyEngineConfig?.appDir || '-',
+                                  hint: t('app.data_root.engine_default_dir_hint'),
+                              },
                           ]} />
                       </div>
                   </section>
 
                   {!readOnly && (
+                      <section className="gn-storage-panel" data-servy-engine-settings="true">
+                          <div className="gn-storage-panel__body">
+                              <div className="gn-storage-panel__header">
+                                  <DirectorySectionHeading
+                                      title={t('app.engine.title')}
+                                      description={t('app.engine.description')}
+                                  />
+                                  <span className="gn-storage-tag">
+                                      {servyEngineConfig?.available ? t('app.engine.ready') : t('app.engine.missing')}
+                                  </span>
+                              </div>
+                              <DirectoryMetaGrid items={[
+                                  {
+                                      label: t('app.engine.info.version'),
+                                      value: servyEngineConfig?.version ? `v${servyEngineConfig.version}` : '-',
+                                  },
+                                  {
+                                      label: t('app.engine.info.app_dir'),
+                                      value: servyEngineConfig?.appDir || '-',
+                                  },
+                              ]} />
+                              <div className="gn-storage-path-editor">
+                                  <Input
+                                      value={servyEnginePathDraft}
+                                      placeholder={servyEngineConfig?.available && servyEngineConfig?.path
+                                          ? servyEngineConfig.path
+                                          : t('app.engine.path_input_placeholder')}
+                                      aria-label={t('app.engine.path_label')}
+                                      onChange={(event) => setServyEnginePathDraft(event.target.value)}
+                                  />
+                                  <div className="gn-storage-path-editor__actions">
+                                      <Button
+                                          disabled={servyEngineApplying}
+                                          onClick={() => void handleBrowseServyEngineFile()}
+                                      >
+                                          {t('app.engine.action.browse')}
+                                      </Button>
+                                      <Button
+                                          disabled={servyEngineApplying}
+                                          onClick={() => void handleApplyServyEnginePath(true)}
+                                      >
+                                          {t('app.data_root.action.restore_default_directory')}
+                                      </Button>
+                                      <Button
+                                          type="primary"
+                                          loading={servyEngineApplying}
+                                          onClick={() => void handleApplyServyEnginePath(false)}
+                                      >
+                                          {t('app.engine.action.apply')}
+                                      </Button>
+                                  </div>
+                              </div>
+                              <DirectoryNote>{t('app.engine.hint.default_location')}{t('app.engine.hint.no_re-register')}</DirectoryNote>
+                          </div>
+                      </section>
+              )}
+
+              {!readOnly && (
                       <section className="gn-storage-panel">
                           <div className="gn-storage-panel__body">
                               <DirectorySectionHeading
@@ -4872,10 +4895,9 @@ function App() {
                           </div>
                       </section>
                   )}
-
-                  {renderLogDirectorySettings(readOnly)}
               </DataDirectoryPage>
               )}
+
 
               {(section === 'all' || section === 'saved-queries') && renderSavedQueryDirectorySettings(readOnly)}
           </div>
@@ -5297,6 +5319,16 @@ function App() {
           window.removeEventListener('gonavi:open-tab-display-settings', handleOpenTabDisplaySettingsEvent as EventListener);
       };
   }, []);
+
+  useEffect(() => {
+      const handleOpenServyEngineSettingsEvent = () => {
+          handleOpenToolCenterPane('config', 'data-root-application');
+      };
+      window.addEventListener('gonavi:open-servy-engine-settings', handleOpenServyEngineSettingsEvent as EventListener);
+      return () => {
+          window.removeEventListener('gonavi:open-servy-engine-settings', handleOpenServyEngineSettingsEvent as EventListener);
+      };
+  }, [handleOpenToolCenterPane]);
 
   useEffect(() => {
       const handleCreateQueryTabEvent = () => {

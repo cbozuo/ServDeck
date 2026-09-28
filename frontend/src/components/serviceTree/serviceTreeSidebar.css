@@ -276,3 +276,81 @@
   font-size: 12px;
   color: var(--gn-fg-3, var(--gn-fg-2));
 }
+
+/* ===== 底部 servy 引擎状态栏 ===== */
+.gst-engine-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-top: 1px solid var(--gn-br-1);
+  font-size: 11.5px;
+  color: var(--gn-fg-3);
+  background: var(--gn-bg-panel);
+}
+button.gst-engine-bar {
+  border: 0;
+  border-top: 1px solid var(--gn-br-1);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.gst-engine-bar.is-missing {
+  color: var(--gn-danger);
+  transition: background 0.12s;
+}
+button.gst-engine-bar.is-missing:hover {
+  background: color-mix(in srgb, var(--gn-danger) 7%, var(--gn-bg-panel));
+}
+.gst-engine-bar__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gn-accent);
+  box-shadow: 0 0 0 3px var(--gn-accent-soft);
+  flex-shrink: 0;
+}
+.gst-engine-bar__warn {
+  font-size: 12px;
+  color: var(--gn-danger);
+  flex-shrink: 0;
+}
+.gst-engine-bar__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gst-engine-bar__text i {
+  font-style: normal;
+  margin: 0 5px;
+  opacity: 0.6;
+}
+.gst-engine-bar__ver {
+  margin-left: auto;
+  font-family: var(--gn-font-mono);
+  font-size: 10.5px;
+  color: var(--gn-fg-5);
+  flex-shrink: 0;
+}
+.gst-engine-bar__action {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+.gst-engine-bar__action::after {
+  content: "›";
+  margin-left: 4px;
+  transition: transform 0.12s;
+}
+button.gst-engine-bar.is-missing:hover .gst-engine-bar__action::after {
+  transform: translateX(2px);
+}
+.gst-engine-bar__shield {
+  font-size: 13px;
+  color: var(--gn-accent);
+  flex-shrink: 0;
+}

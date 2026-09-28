@@ -5,9 +5,14 @@ package app
 import "errors"
 
 type hostResourceSample struct {
-	CPU    map[string]uint64 `json:"cpu"`
-	Memory map[string]uint64 `json:"memory"`
-	Disks  []hostDiskInfo    `json:"disks"`
+	CPU           map[string]uint64 `json:"cpu"`
+	Memory        map[string]uint64 `json:"memory"`
+	Disks         []hostDiskInfo    `json:"disks"`
+	UptimeSeconds uint64            `json:"uptimeSeconds"`
+	NetUpBps      float64           `json:"netUpBps"`
+	NetDownBps    float64           `json:"netDownBps"`
+	DiskReadBps   float64           `json:"diskReadBps"`
+	DiskWriteBps  float64           `json:"diskWriteBps"`
 }
 
 type hostDiskInfo struct {

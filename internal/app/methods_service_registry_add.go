@@ -20,11 +20,17 @@ func (a *App) ListWindowsServices() connection.QueryResult {
 }
 
 // hostResourceSample 是一次本机资源快照。CPU 三个累计时间为系统启动以来的
-// 总量，前端以两次轮询的差值计算占用百分比（后端无状态）。
+// 总量，前端以两次轮询的差值计算占用百分比（后端无状态）。UptimeSeconds 为
+// 开机秒数；Net*/Disk* 为 PDH 计数器给出的即时速率（字节/秒），不可用时为 0。
 type hostResourceSample struct {
-	CPU    map[string]uint64 `json:"cpu"`
-	Memory map[string]uint64 `json:"memory"`
-	Disks  []hostDiskInfo    `json:"disks"`
+	CPU           map[string]uint64 `json:"cpu"`
+	Memory        map[string]uint64 `json:"memory"`
+	Disks         []hostDiskInfo    `json:"disks"`
+	UptimeSeconds uint64            `json:"uptimeSeconds"`
+	NetUpBps      float64           `json:"netUpBps"`
+	NetDownBps    float64           `json:"netDownBps"`
+	DiskReadBps   float64           `json:"diskReadBps"`
+	DiskWriteBps  float64           `json:"diskWriteBps"`
 }
 
 type hostDiskInfo struct {

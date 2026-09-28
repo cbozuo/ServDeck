@@ -676,7 +676,8 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
     </span>
   );
 
-  const wrappedLabel = <Tooltip
+  // 设置中心没有连接/Host/库表元数据可展示，悬停信息卡纯属噪音，直接跳过。
+  const wrappedLabel = tab.type === 'settings-center' ? labelNode : <Tooltip
       title={(
         <TabHoverInfo
           tab={tab}

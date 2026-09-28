@@ -16,7 +16,7 @@ func TestResolveActiveRootDefaultsToLegacyGonaviDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveActiveRoot returned error: %v", err)
 	}
-	expected := filepath.Join(homeDir, ".gonavi")
+	expected := filepath.Join(homeDir, ".servdeck")
 	if root != expected {
 		t.Fatalf("expected default root %q, got %q", expected, root)
 	}
@@ -60,7 +60,7 @@ func TestSetActiveRootResetToDefaultRemovesBootstrap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetActiveRoot default returned error: %v", err)
 	}
-	expectedDefault := filepath.Join(homeDir, ".gonavi")
+	expectedDefault := filepath.Join(homeDir, ".servdeck")
 	if defaultRoot != expectedDefault {
 		t.Fatalf("expected default root %q, got %q", expectedDefault, defaultRoot)
 	}
@@ -232,7 +232,7 @@ func TestSavedQueryDirectoryAndOtherSettingsPreserveEachOtherInBootstrap(t *test
 	if _, err := os.Stat(BootstrapPath()); !os.IsNotExist(err) {
 		t.Fatalf("bootstrap should be removed when all settings use defaults, got err=%v", err)
 	}
-	defaultSavedQueryDirectory := filepath.Join(homeDir, ".gonavi", savedQueryDirectoryName)
+	defaultSavedQueryDirectory := filepath.Join(homeDir, ".servdeck", savedQueryDirectoryName)
 	resolvedSavedQueryDirectory, err = ResolveSavedQueryDirectory("")
 	if err != nil || resolvedSavedQueryDirectory != defaultSavedQueryDirectory {
 		t.Fatalf("default saved query directory = %q, %v; want %q", resolvedSavedQueryDirectory, err, defaultSavedQueryDirectory)

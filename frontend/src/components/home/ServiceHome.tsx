@@ -15,6 +15,7 @@ import { LocateServyEngine, SampleHostResources } from '../../../wailsjs/go/app/
 import { useServiceRegistryStore } from '../../serviceRegistryStore';
 import { useServiceRuntime, type ServiceControlAction, type ServiceRuntimeRow } from './useServiceRuntime';
 import { HomeEventsCard } from './HomeEventsCard';
+import { fmtRate, fmtUptime } from './resourceFormat';
 import './ServiceHome.css';
 
 export interface ServiceHomeProps {
@@ -27,6 +28,11 @@ interface ResourceSample {
   cpu: { idle: number; kernel: number; user: number };
   memory: { total: number; avail: number; memoryLoad: number };
   disks: Array<{ drive: string; total: number; free: number; used: number; usedPct: number }>;
+  uptimeSeconds: number;
+  netUpBps: number;
+  netDownBps: number;
+  diskReadBps: number;
+  diskWriteBps: number;
 }
 
 const POLL_MS = 2000;
@@ -89,9 +95,20 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
 
   const [filter, setFilter] = useState<FilterKey>('all');
   const [search, setSearch] = useState('');
-  const [resource, setResource] = useState({ cpuPct: 0, memPct: 0, memUsed: 0, memTotal: 0, disk: null as null | { usedPct: number; used: number; total: number } });
+  const [resource, setResource] = useState({
+    cpuPct: 0,
+    memPct: 0,
+    memUsed: 0,
+    memTotal: 0,
+    disk: null as null | { usedPct: number; used: number; total: number },
+    uptimeSeconds: 0,
+    netUp: 0,
+    netDown: 0,
+    diskRead: 0,
+    diskWrite: 0,
+  });
   const [cpuHistory, setCpuHistory] = useState<number[]>([]);
-  const [engine, setEngine] = useState<{ available: boolean; path?: string; reason?: string } | null>(null);
+  const [engine, setEngine] = useState<{ available: boolean; path?: string; reason?: string; version?: string } | null>(null);
 
   const prevSampleRef = useRef<ResourceSample | null>(null);
   const prevPctRef = useRef(0);
@@ -109,7 +126,18 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
       const model = toResourceModel(sample, prevSampleRef.current, prevPctRef.current);
       prevSampleRef.current = sample;
       prevPctRef.current = model.cpuPct;
-      setResource({ cpuPct: model.cpuPct, memPct: model.memPct, memUsed: model.memUsed, memTotal: model.memTotal, disk: model.disk });
+      setResource({
+        cpuPct: model.cpuPct,
+        memPct: model.memPct,
+        memUsed: model.memUsed,
+        memTotal: model.memTotal,
+        disk: model.disk,
+        uptimeSeconds: sample.uptimeSeconds ?? 0,
+        netUp: sample.netUpBps ?? 0,
+        netDown: sample.netDownBps ?? 0,
+        diskRead: sample.diskReadBps ?? 0,
+        diskWrite: sample.diskWriteBps ?? 0,
+      });
       setCpuHistory((prev) => [...prev.slice(-(CPU_HISTORY_LIMIT - 1)), model.cpuPct]);
     } catch {
       // 采样失败（如非 Windows 构建）时保留上次数值。
@@ -121,7 +149,7 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
     void (async () => {
       try {
         const result = await LocateServyEngine();
-        setEngine((result.data ?? null) as { available: boolean; path?: string; reason?: string } | null);
+        setEngine((result.data ?? null) as { available: boolean; path?: string; reason?: string; version?: string } | null);
       } catch {
         setEngine({ available: false });
       }
@@ -161,7 +189,8 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
   ];
 
   const engineName = engine?.available && engine.path ? engine.path.split(/[\\/]/).pop() ?? '' : '';
-  const engineVersion = engineName.match(/(\d+(?:\.\d+)*)/)?.[1] ?? '';
+  // 版本优先用后端 --version 探测结果；引擎改名后文件名里未必还有版本号
+  const engineVersion = engine?.version || engineName.match(/(\d+(?:\.\d+)*)/)?.[1] || '';
 
   return (
     <div className="svc-home">
@@ -169,8 +198,18 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
         <div>
           <h1>{t('home.title')}</h1>
           <div className="sub">
-            {t(greetingKey(new Date().getHours()))}<b>{runtime.counts.all}</b>{t('home.summary.mid')}
-            <b>{runtime.counts.running}</b>{t('home.summary.tail')}
+            {t(greetingKey(new Date().getHours()))}
+            {runtime.counts.all === 0 ? (
+              <span>{t('home.summary.none')}</span>
+            ) : (
+              <>
+                <b>{runtime.counts.all}</b>{t('home.summary.mid')}
+                <b>{runtime.counts.running}</b>{t('home.summary.tail')}
+              </>
+            )}
+            {resource.uptimeSeconds > 0 && (
+              <span>· {t('home.res.uptime', { duration: fmtUptime(resource.uptimeSeconds, t) })}</span>
+            )}
             <span className="live-dot" />
             <span>{t('home.autoRefresh')}</span>
           </div>
@@ -195,22 +234,8 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
         </div>
       </div>
 
-      {runtime.rows.length === 0 ? (
-        <div className="empty-hero">
-          <div className="eh-ico"><ServerGlyph /></div>
-          <h3>{t('home.empty.title')}</h3>
-          <p>{t('home.empty.desc')}</p>
-          <div className="eh-actions">
-            <button className="h-btn h-btn-primary" onClick={() => onAddService?.()}>
-              <PlusOutlined style={{ fontSize: 13 }} />
-              {t('home.action.register')}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* 本机资源四卡 */}
-          <div className="res-row">
+      {/* 本机资源四卡（机器资源与纳管服务无关，始终展示） */}
+      <div className="res-row">
             <div className="res-card">
               <div className="rc-top">
                 <span className="rc-ico ico-cpu"><CpuIcon /></span>
@@ -243,25 +268,48 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
                 <span className="rc-label">{t('home.res.disk')}</span>
               </div>
               <div className="rc-val">{resource.disk?.usedPct ?? '—'}<small>%</small></div>
-              <div className="rc-sub">
-                {resource.disk
-                  ? t('home.res.diskSub', { used: fmtGB(resource.disk.used / 1024 ** 3), total: fmtGB(resource.disk.total / 1024 ** 3) })
-                  : '—'}
+              <div className="rc-sub rc-sub-lines">
+                <span>
+                  {resource.disk
+                    ? t('home.res.diskSub', { used: fmtGB(resource.disk.used / 1024 ** 3), total: fmtGB(resource.disk.total / 1024 ** 3) })
+                    : '—'}
+                </span>
+                <span>
+                  {t('home.res.diskRead')} {fmtRate(resource.diskRead)} · {t('home.res.diskWrite')} {fmtRate(resource.diskWrite)}
+                </span>
               </div>
               <div className="rc-viz">
                 <div className="rc-bar"><i style={{ width: `${resource.disk?.usedPct ?? 0}%`, background: 'var(--gn-info)' }} /></div>
               </div>
             </div>
-            <div className="res-card res-card-soon">
+            <div className="res-card">
               <div className="rc-top">
                 <span className="rc-ico ico-net"><NetIcon /></span>
                 <span className="rc-label">{t('home.res.net')}</span>
               </div>
-              <div className="rc-val res-soon-val">—</div>
-              <div className="rc-sub">{t('home.res.netSub')}</div>
+              <div className="rc-val">{fmtRate(resource.netDown + resource.netUp)}</div>
+              <div className="rc-sub rc-sub-lines">
+                <span>↓ {fmtRate(resource.netDown)}</span>
+                <span>↑ {fmtRate(resource.netUp)}</span>
+              </div>
             </div>
           </div>
 
+          {/* 无纳管服务时：空态大卡替代列表区（资源四卡保持常驻） */}
+          {runtime.rows.length === 0 ? (
+            <div className="empty-hero">
+              <div className="eh-ico"><ServerGlyph /></div>
+              <h3>{t('home.empty.title')}</h3>
+              <p>{t('home.empty.desc')}</p>
+              <div className="eh-actions">
+                <button className="h-btn h-btn-primary" onClick={() => onAddService?.()}>
+                  <PlusOutlined style={{ fontSize: 13 }} />
+                  {t('home.action.register')}
+                </button>
+              </div>
+            </div>
+          ) : (
+          <>
           {/* 过滤胶囊 */}
           <div className="filter-chips">
             {chips.map((chip) => (
@@ -302,8 +350,8 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
               </div>
             </div>
           </div>
-        </>
-      )}
+          </>
+          )}
     </div>
   );
 };

@@ -1,0 +1,417 @@
+/* 「选择 JDK」弹窗（JdkPickerModal）组件旁样式；对齐 design/jdk-picker-v1.html。
+   颜色一律走 --gn-* token，浅/深/自定义主题自动跟随。 */
+
+.asm-jdk {
+  display: flex;
+  flex-direction: column;
+  background: var(--gn-bg-panel);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* ── 头部：图标位 + 标题 + 说明 + 关闭 ── */
+.asm-jdk-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 18px 14px;
+}
+.asm-jdk-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--gn-accent-soft);
+  color: var(--gn-accent-2);
+  border: 1px solid color-mix(in srgb, var(--gn-accent) 22%, transparent);
+}
+.asm-jdk-ico img {
+  width: 18px;
+  height: 18px;
+}
+.asm-jdk-head-main {
+  flex: 1;
+  min-width: 0;
+}
+.asm-jdk-head h3 {
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--gn-fg-1);
+}
+.asm-jdk-head p {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--gn-fg-4);
+}
+.asm-jdk-x {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: var(--gn-fg-4);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.asm-jdk-x:hover {
+  background: var(--gn-bg-hover);
+  color: var(--gn-fg-1);
+}
+
+.asm-jdk-body {
+  padding: 0 18px 16px;
+}
+
+/* ── 检测元信息 + 重新检测 ── */
+.asm-jdk-detect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.asm-jdk-detect-hint {
+  font-size: 11.5px;
+  color: var(--gn-fg-5);
+}
+.asm-jdk-redetect {
+  margin-left: auto;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gn-fg-2);
+  background: var(--gn-bg-panel);
+  border: 1px solid var(--gn-br-2);
+  box-shadow: var(--gn-shadow-card);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.asm-jdk-redetect:hover:not(:disabled) {
+  background: var(--gn-bg-hover);
+}
+.asm-jdk-redetect:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* ── 候选项列表 ── */
+.asm-jdk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 120ms ease;
+}
+/* 手动指定生效：列表降权但保留可点（点回即切回列表选择） */
+.asm-jdk-list.dim {
+  opacity: 0.72;
+}
+.asm-jdk-list.dim:hover {
+  opacity: 1;
+}
+.asm-jdk-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-align: left;
+  background: var(--gn-bg-panel);
+  border: 1px solid var(--gn-br-1);
+  box-shadow: var(--gn-shadow-card);
+  cursor: pointer;
+  transition: background 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+.asm-jdk-item:hover {
+  background: var(--gn-bg-hover);
+}
+.asm-jdk-item.on {
+  border-color: transparent;
+  box-shadow: 0 0 0 1.5px var(--gn-accent), var(--gn-shadow-card);
+  background: color-mix(in srgb, var(--gn-accent) 4%, var(--gn-bg-panel));
+}
+.asm-jdk-ver {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--gn-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--gn-warn-soft);
+  color: var(--gn-warn);
+}
+/* 17 及以上按强调色区分主版本（与高保真一致） */
+.asm-jdk-ver.v17 {
+  background: var(--gn-accent-soft);
+  color: var(--gn-accent-2);
+}
+.asm-jdk-main {
+  flex: 1;
+  min-width: 0;
+}
+.asm-jdk-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gn-fg-1);
+  min-width: 0;
+}
+.asm-jdk-tag {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gn-accent-2);
+  background: var(--gn-accent-soft);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.asm-jdk-path {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--gn-font-mono);
+  font-size: 10.5px;
+  color: var(--gn-fg-5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 单选点：选中填充 accent，圆点用 on-accent（深色主题自动换深色前景） */
+.asm-jdk-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1.5px solid var(--gn-br-2);
+  background: var(--gn-bg-panel);
+  display: grid;
+  place-items: center;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.asm-jdk-item:hover .asm-jdk-radio {
+  border-color: var(--gn-br-3);
+}
+.asm-jdk-item.on .asm-jdk-radio {
+  border-color: var(--gn-accent);
+  background: var(--gn-accent);
+}
+.asm-jdk-item.on .asm-jdk-radio::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gn-on-accent);
+}
+
+/* ── 检测中骨架屏 ── */
+.asm-jdk-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.asm-jdk-skeleton-row {
+  height: 52px;
+  border-radius: 10px;
+  background: var(--gn-bg-panel);
+  box-shadow: var(--gn-shadow-card);
+  position: relative;
+  overflow: hidden;
+}
+.asm-jdk-skeleton-row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--gn-bg-hover), transparent);
+  animation: jdk-shimmer 1.4s infinite;
+}
+@keyframes jdk-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* ── 空态 ── */
+.asm-jdk-empty {
+  padding: 16px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--gn-warn) 8%, var(--gn-bg-panel));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-warn) 26%, transparent);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--gn-fg-2);
+}
+
+/* ── 「或」分隔 ── */
+.asm-jdk-or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 10px;
+}
+.asm-jdk-or::before,
+.asm-jdk-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--gn-br-1);
+}
+.asm-jdk-or span {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--gn-fg-5);
+  letter-spacing: 0.06em;
+}
+
+/* ── 手动指定（与列表互斥单选） ── */
+.asm-jdk-manual-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gn-fg-3);
+  margin-bottom: 7px;
+}
+.asm-jdk-manual {
+  display: flex;
+  gap: 8px;
+}
+.asm-jdk-manual-field {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  background: var(--gn-bg-input);
+  border: 1px solid var(--gn-br-2);
+  box-shadow: var(--gn-shadow-card);
+  transition: background 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+/* 校验通过：接管选中态，与列表行同一套 accent 语言 */
+.asm-jdk-manual-field.on {
+  border-color: transparent;
+  box-shadow: 0 0 0 1.5px var(--gn-accent), var(--gn-shadow-card);
+  background: color-mix(in srgb, var(--gn-accent) 4%, var(--gn-bg-panel));
+}
+.asm-jdk-manual-field.on .asm-jdk-radio {
+  border-color: var(--gn-accent);
+  background: var(--gn-accent);
+}
+.asm-jdk-manual-field.on .asm-jdk-radio::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gn-on-accent);
+}
+.asm-jdk-manual-ico {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--gn-fg-5);
+}
+.asm-jdk-manual input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 11.5px;
+  color: var(--gn-fg-1);
+}
+.asm-jdk-manual input::placeholder {
+  color: var(--gn-fg-5);
+}
+.asm-jdk-manual-clear {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  color: var(--gn-fg-5);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.asm-jdk-manual-clear:hover {
+  background: var(--gn-bg-active);
+  color: var(--gn-fg-2);
+}
+.asm-jdk-manual-ok,
+.asm-jdk-manual-bad {
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.asm-jdk-manual-ok {
+  color: var(--gn-accent-2);
+}
+.asm-jdk-manual-bad {
+  color: var(--gn-danger);
+}
+
+/* ── 底栏 ── */
+.asm-jdk-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 18px;
+  border-top: 1px solid var(--gn-br-1);
+  background: var(--gn-bg-panel-2);
+}
+.asm-jdk-foot-hint {
+  font-size: 11px;
+  color: var(--gn-fg-5);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asm-jdk-foot-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.asm-jdk-foot .ant-btn {
+  height: 32px;
+  padding: 0 15px;
+  border-radius: 9px;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asm-jdk-skeleton-row::after {
+    animation: none;
+  }
+
+  .asm-jdk-item,
+  .asm-jdk-manual-field,
+  .asm-jdk-radio {
+    transition-duration: 1ms;
+  }
+}

@@ -457,6 +457,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                   <ProbeActionButton
                     probing={probing}
                     phase={probePhase}
+                    failed={probePhase === 'error' || probeFileMissing}
                     onProbe={() => void runProbe()}
                   />
                 </Tooltip>

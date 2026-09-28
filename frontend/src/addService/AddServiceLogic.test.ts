@@ -8,7 +8,7 @@ import {
   SERVICE_TEMPLATE_LIST,
   SERVICE_TEMPLATES,
 } from './serviceTemplates';
-import { buildServyPreviewCommand } from './useAddServiceForm';
+import { buildServyPreviewCommand, collectProbeProgramFiles } from './useAddServiceForm';
 
 
 
@@ -177,5 +177,38 @@ describe('duplicate managed-service guard', () => {
     expect(modalSource).toContain('managedServices.some(');
     expect(modalSource).toContain('|| alreadyManaged');
     expect(modalSource).toContain('service.modal.managed.exists');
+  });
+});
+
+describe('probe file collection', () => {
+  const basicOf = (programFile: string) => ({
+    programFile,
+    serviceName: 'order-service',
+    displayName: 'order-service',
+    startType: '自动',
+    restart: true,
+  });
+
+  it('java 校验 JVM 路径与程序文件两个文件（回归：jar 缺失也必须报出来）', () => {
+    const template = SERVICE_TEMPLATES.java;
+    const files = collectProbeProgramFiles(template, initialValues(template), basicOf('D:\\apps\\order\\order.jar'));
+    expect(files).toEqual([
+      'C:\\Program Files\\Java\\jdk-17\\bin\\java.exe',
+      'D:\\apps\\order\\order.jar',
+    ]);
+  });
+
+  it('java 的 JVM 路径为空时回落到程序文件本身并去重', () => {
+    const template = SERVICE_TEMPLATES.java;
+    const values = initialValues(template);
+    values.jvmPath = '';
+    const files = collectProbeProgramFiles(template, values, basicOf('D:\\apps\\order\\order.jar'));
+    expect(files).toEqual(['D:\\apps\\order\\order.jar']);
+  });
+
+  it('非 java 类型只校验程序文件本身', () => {
+    const template = SERVICE_TEMPLATES.rustfs;
+    const files = collectProbeProgramFiles(template, initialValues(template), basicOf('D:\\rustfs\\rustfs.exe'));
+    expect(files).toEqual(['D:\\rustfs\\rustfs.exe']);
   });
 });

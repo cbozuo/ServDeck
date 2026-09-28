@@ -78,6 +78,8 @@ export function ConfigureDriverRuntimeDirectory(arg1:string):Promise<connection.
 
 export function ConfigureGlobalProxy(arg1:boolean,arg2:connection.ProxyConfig):Promise<connection.QueryResult>;
 
+export function ControlWindowsService(arg1:string,arg2:string):Promise<connection.QueryResult>;
+
 export function CopyTable(arg1:connection.ConnectionConfig,arg2:string,arg3:string,arg4:string):Promise<connection.QueryResult>;
 
 export function CreateDatabase(arg1:connection.ConnectionConfig,arg2:string,arg3:string,arg4:string):Promise<connection.QueryResult>;
@@ -717,6 +719,8 @@ export function RevealSavedConnectionPrimaryPassword(arg1:string):Promise<string
 export function RevealSavedQueryInFolder(arg1:string):Promise<connection.QueryResult>;
 
 export function SampleHostResources():Promise<connection.QueryResult>;
+
+export function SampleServiceMetrics(arg1:Array<string>):Promise<connection.QueryResult>;
 
 export function SaveCloudBackupConfig(arg1:app.CloudBackupConfigInput):Promise<app.CloudBackupConfig>;
 

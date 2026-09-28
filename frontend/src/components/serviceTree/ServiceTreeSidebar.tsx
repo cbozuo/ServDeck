@@ -338,21 +338,8 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
         style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, flex: 1 }}
       >
         <div
-          className="gn-v2-explorer-actions"
-          role="toolbar"
-          aria-label={t('service.tree.rail.label')}
-          data-sidebar-explorer-actions="true"
-        >
-          <span className="gst-panel-title">{t('service.tree.title')}</span>
-          <span className="gst-panel-title-spring" />
-          <span className="gst-panel-count" data-service-tree-count="true">
-            {t('service.tree.count', { count: services.length })}
-          </span>
-        </div>
-
-        <div
           className="gn-v2-explorer-search"
-          style={{ padding: '8px 14px', borderBottom: '1px solid var(--gn-br-1)' }}
+          style={{ padding: '8px 14px 4px' }}
         >
           <div className="gn-v2-explorer-filter-row" data-v2-sidebar-search-mode="filter">
             <Input
@@ -376,6 +363,15 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
               </button>
             </Tooltip>
           </div>
+        </div>
+
+        <div className="gst-all-services-row" data-service-tree-all-row="true" data-sidebar-explorer-actions="true">
+          <AppstoreOutlined className="gst-all-services-icon" />
+          <span className="gst-panel-title">{t('service.tree.title')}</span>
+          <span className="gst-panel-title-spring" />
+          <span className="gst-panel-count" data-service-tree-count="true">
+            {services.length}
+          </span>
         </div>
 
         <div

@@ -134,6 +134,10 @@ export function ConfigureGlobalProxy(arg1, arg2) {
   return window['go']['app']['App']['ConfigureGlobalProxy'](arg1, arg2);
 }
 
+export function ControlWindowsService(arg1, arg2) {
+  return window['go']['app']['App']['ControlWindowsService'](arg1, arg2);
+}
+
 export function CopyTable(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['CopyTable'](arg1, arg2, arg3, arg4);
 }
@@ -1412,6 +1416,10 @@ export function RevealSavedQueryInFolder(arg1) {
 
 export function SampleHostResources() {
   return window['go']['app']['App']['SampleHostResources']();
+}
+
+export function SampleServiceMetrics(arg1) {
+  return window['go']['app']['App']['SampleServiceMetrics'](arg1);
 }
 
 export function SaveCloudBackupConfig(arg1) {

@@ -8053,7 +8053,7 @@ function App() {
              )}
              <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'row', position: 'relative' }}>
                <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'transparent', marginBottom: isLogPanelOpen ? 8 : 0, borderRadius: isLogPanelOpen ? 'var(--gonavi-border-radius)' : 0, clipPath: isLogPanelOpen ? 'inset(0 round var(--gonavi-border-radius))' : 'none' }}>
-                  <TabManager onFocusSidebarSearch={handleFocusSidebarSearch} />
+                  <TabManager onFocusSidebarSearch={handleFocusSidebarSearch} onAddService={() => setIsAddServiceModalOpen(true)} />
                   <FloatingWorkbenchWindows />
                   <FloatingQueryResultWindows />
                   <NativeDetachedWindowController />

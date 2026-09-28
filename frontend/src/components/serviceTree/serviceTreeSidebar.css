@@ -10,12 +10,30 @@
   vertical-align: -3px;
 }
 
-/* 头部：标题 + 计数 */
-.gst-panel-title {
+/* 头部：搜索框在最上，其下是「全部服务」行（图标 + 标题 + 右侧计数） */
+.gst-all-services-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 12px 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--gn-accent-soft);
+}
+
+.gst-all-services-icon {
   font-size: 13px;
-  font-weight: 600;
+  color: var(--gn-accent-2);
+  flex-shrink: 0;
+}
+
+.gst-panel-title {
+  font-size: 12.5px;
+  font-weight: 700;
   color: var(--gn-fg-1);
-  padding-left: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .gst-panel-title-spring {
@@ -23,12 +41,11 @@
 }
 
 .gst-panel-count {
-  font-size: 11px;
-  line-height: 18px;
-  padding: 0 8px;
-  border-radius: 999px;
-  color: var(--gn-fg-2);
-  background: var(--gn-bg-hover, rgba(128, 128, 128, 0.14));
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gn-accent-2);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
 /* 树节点 */

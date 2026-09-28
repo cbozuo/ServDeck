@@ -971,6 +971,10 @@ const renderRoot = async () => {
         const { default: PerfDataGridHarness } = await import('./dev/PerfDataGridHarness');
         rootComponent = <PerfDataGridHarness />;
     }
+    if (devHarnessMode === 'home') {
+        const { default: HomeHarness } = await import('./dev/HomeHarness');
+        rootComponent = <HomeHarness />;
+    }
 
     ReactDOM.createRoot(rootNode).render(
       <React.StrictMode>

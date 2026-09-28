@@ -131,8 +131,10 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
   }, [addManagedService, closeModal, form, look, managedServices, template]);
 
   const probePhase = form.probe.phase;
+  const probeFileMissing = probePhase === 'ok' && !form.probe.fileExists;
   const primaryDisabled = probePhase === 'none'
     || probePhase === 'probing'
+    || probeFileMissing
     || form.addPhase !== 'idle'
     || alreadyManaged;
   const stepIndex = step === 'select' ? 1 : 2;
@@ -317,6 +319,15 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                 <span className="asm-probe-text">
                   {t('service.modal.managed.exists', { name: form.basic.serviceName.trim() })}
                   <small>{t('service.modal.managed.existsHint')}</small>
+                </span>
+              </div>
+            ) : probeFileMissing ? (
+              <div className="asm-probe-bar error show">
+                <span className="asm-probe-ico">
+                  <CloseOutlined />
+                </span>
+                <span className="asm-probe-text">
+                  {t('service.modal.probe.fileMissing', { file: form.probe.missingFile || '' })}
                 </span>
               </div>
             ) : probePhase !== 'none' ? (

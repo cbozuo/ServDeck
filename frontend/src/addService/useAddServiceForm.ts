@@ -19,6 +19,8 @@ export interface ProbeOutcome {
   state?: string;
   startType?: string;
   fileExists: boolean;
+  /** fileExists 为 false 时，第一个不存在的文件路径 */
+  missingFile?: string;
   message?: string;
 }
 
@@ -133,16 +135,29 @@ export function useAddServiceForm(template: ServiceTemplate) {
 
   const probeNow = useCallback(async (): Promise<ProbeOutcome> => {
     setProbeOutcome((prev) => ({ ...prev, phase: 'probing' }));
-    const programFile = resolveProgramFile(template, values, basic);
+    const files = collectProbeProgramFiles(template, values, basic);
     try {
-      const result = await ProbeWindowsService(trim(basic.serviceName), programFile);
+      const result = await ProbeWindowsService(trim(basic.serviceName), files[0] ?? '');
       const data = (result.data ?? {}) as Partial<ServiceProbeResult>;
+      let fileExists = data.fileExists !== false;
+      let missingFile = fileExists ? undefined : files[0] ?? '';
+      // Java 会涉及 JVM 路径与程序文件两个路径，逐个补查存在性，任何一个缺失都算不过。
+      for (const extra of files.slice(1)) {
+        const extraResult = await ProbeWindowsService(trim(basic.serviceName), extra);
+        const extraData = (extraResult.data ?? {}) as Partial<ServiceProbeResult>;
+        const extraExists = extraData.fileExists !== false;
+        if (!extraExists && !missingFile) {
+          missingFile = extra;
+        }
+        fileExists = fileExists && extraExists;
+      }
       const outcome: ProbeOutcome = {
         phase: data.exists ? 'exists' : 'ok',
         exists: Boolean(data.exists),
         state: data.state,
         startType: data.startType,
-        fileExists: data.fileExists !== false,
+        fileExists,
+        missingFile,
       };
       setProbeOutcome(outcome);
       return outcome;
@@ -239,4 +254,18 @@ function resolveProgramFile(
     return jvmPath || trim(basic.programFile);
   }
   return trim(basic.programFile);
+}
+
+/**
+ * 探测要校验存在的文件清单：Java 是 -p 用的 JVM 路径 + 用户填的程序文件（jar/war），
+ * 其余类型只有程序文件本身；去重、去空。
+ */
+export function collectProbeProgramFiles(
+  template: ServiceTemplate,
+  values: FieldValues,
+  basic: BasicInfo,
+): string[] {
+  const primary = resolveProgramFile(template, values, basic);
+  const files = template.id === 'java' ? [primary, trim(basic.programFile)] : [primary];
+  return [...new Set(files.filter((file) => file !== ''))];
 }

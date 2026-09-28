@@ -328,7 +328,6 @@ button.gst-engine-bar.is-missing:hover {
   opacity: 0.6;
 }
 .gst-engine-bar__ver {
-  margin-left: auto;
   font-family: var(--gn-font-mono);
   font-size: 10.5px;
   color: var(--gn-fg-5);

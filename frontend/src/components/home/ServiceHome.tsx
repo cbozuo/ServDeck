@@ -11,8 +11,9 @@ import {
 } from '@ant-design/icons';
 import { useI18n } from '../../i18n/provider';
 import type { I18nParams } from '../../i18n/types';
-import { LocateServyEngine, SampleHostResources } from '../../../wailsjs/go/app/App';
+import { SampleHostResources } from '../../../wailsjs/go/app/App';
 import { useServiceRegistryStore } from '../../serviceRegistryStore';
+import { getDbIconAssetSrc } from '../DatabaseIcons';
 import { useServiceRuntime, type ServiceControlAction, type ServiceRuntimeRow } from './useServiceRuntime';
 import { HomeEventsCard } from './HomeEventsCard';
 import { fmtRate, fmtUptime } from './resourceFormat';
@@ -108,7 +109,6 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
     diskWrite: 0,
   });
   const [cpuHistory, setCpuHistory] = useState<number[]>([]);
-  const [engine, setEngine] = useState<{ available: boolean; path?: string; reason?: string; version?: string } | null>(null);
 
   const prevSampleRef = useRef<ResourceSample | null>(null);
   const prevPctRef = useRef(0);
@@ -146,14 +146,6 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
 
   useEffect(() => {
     void refreshResources();
-    void (async () => {
-      try {
-        const result = await LocateServyEngine();
-        setEngine((result.data ?? null) as { available: boolean; path?: string; reason?: string; version?: string } | null);
-      } catch {
-        setEngine({ available: false });
-      }
-    })();
     const timer = window.setInterval(() => {
       void refreshResources();
     }, POLL_MS);
@@ -187,10 +179,6 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
     { key: 'error', label: t('home.filter.error'), count: runtime.counts.error },
     { key: 'auto', label: t('home.filter.auto'), count: runtime.counts.auto },
   ];
-
-  const engineName = engine?.available && engine.path ? engine.path.split(/[\\/]/).pop() ?? '' : '';
-  // 版本优先用后端 --version 探测结果；引擎改名后文件名里未必还有版本号
-  const engineVersion = engine?.version || engineName.match(/(\d+(?:\.\d+)*)/)?.[1] || '';
 
   return (
     <div className="svc-home">
@@ -338,16 +326,6 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
 
             <div className="side-col">
               <HomeEventsCard />
-              <div className="side-card">
-                <h4>{t('home.side.engine')}</h4>
-                <div className="engine-card" title={engine?.available ? engine.path : engine?.reason}>
-                  <i className={engine?.available === false ? 'engine-dot missing' : 'engine-dot'} />
-                  <span className="ec-text">
-                    {engine === null ? '…' : engine.available ? `${engineName} · ${t('home.engine.ready')}` : t('home.engine.missing')}
-                  </span>
-                  <span className="ec-ver">{engine?.available ? engineVersion && `v${engineVersion}` : '—'}</span>
-                </div>
-              </div>
             </div>
           </div>
           </>
@@ -370,11 +348,11 @@ const ServiceRowItem: React.FC<{
   return (
     <div className={isTerminal ? 'svc-row' : 'svc-row err'}>
       <span className="svc-ico">
-        <img src={`/db-icons/${row.serviceType}.svg`} alt="" />
+        <img src={getDbIconAssetSrc(row.serviceType)} alt="" />
       </span>
       <span className="svc-id">
         <span className="svc-name">
-          {row.displayName}
+          <span className="svc-name-text">{row.displayName}</span>
           {row.autoStart && <span className="auto">{t('home.badge.auto')}</span>}
         </span>
         <span className="svc-real">{row.name} · {row.serviceType}</span>

@@ -1,6 +1,11 @@
 /* 服务总览首页（ServiceHome）组件旁样式；颜色一律走 --gn-* token。 */
 
 .svc-home {
+  /* 宿主是 flex column 容器（TabManager workbench）：必须显式 width:100%，
+     否则 margin:auto 会让 flex 子项按 fit-content 收缩，整页缩窄/溢出。
+     全局是 content-box，border-box 防止 padding 把总宽撑出容器。 */
+  box-sizing: border-box;
+  width: 100%;
   max-width: 1440px;
   margin: 0 auto;
   padding: 22px 26px 32px;
@@ -12,7 +17,8 @@
 .svc-home-head {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
   margin-bottom: 20px;
 }
 .svc-home-head h1 {
@@ -27,6 +33,7 @@
   color: var(--gn-fg-4);
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 .svc-home-head .sub b {
@@ -61,7 +68,6 @@
   gap: 7px;
   padding: 0 11px;
   color: var(--gn-fg-5);
-  box-shadow: var(--gn-shadow-card);
 }
 .h-search input {
   flex: 1;
@@ -87,7 +93,6 @@
   background: var(--gn-bg-panel);
   border: 1px solid var(--gn-br-2);
   color: var(--gn-fg-2);
-  box-shadow: var(--gn-shadow-card);
 }
 .h-btn-ghost:hover {
   background: var(--gn-bg-hover);
@@ -95,7 +100,7 @@
 .h-btn-primary {
   background: var(--gn-accent-strong);
   color: var(--gn-on-accent);
-  box-shadow: var(--gn-shadow-md);
+  border: 1px solid transparent;
 }
 .h-btn-primary:hover {
   background: var(--gn-accent-strong-hover);
@@ -185,7 +190,7 @@
 .ico-cpu { background: var(--gn-accent-soft); color: var(--gn-accent-2); }
 .ico-mem { background: color-mix(in srgb, var(--gn-warn) 13%, var(--gn-bg-panel)); color: var(--gn-warn); }
 .ico-disk { background: color-mix(in srgb, var(--gn-info) 12%, var(--gn-bg-panel)); color: var(--gn-info); }
-.ico-net { background: color-mix(in srgb, #7c3aed 12%, var(--gn-bg-panel)); color: #7c3aed; }
+.ico-net { background: color-mix(in srgb, var(--gn-purple) 12%, var(--gn-bg-panel)); color: var(--gn-purple); }
 
 /* ===== 过滤胶囊 ===== */
 .filter-chips {
@@ -197,6 +202,7 @@
 .chip {
   height: 30px;
   padding: 0 13px;
+  border: 1px solid var(--gn-br-2);
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -205,15 +211,15 @@
   font-weight: 600;
   color: var(--gn-fg-3);
   background: var(--gn-bg-panel);
-  box-shadow: var(--gn-shadow-card);
 }
 .chip:hover {
   color: var(--gn-fg-1);
+  border-color: var(--gn-br-3);
 }
 .chip.on {
-  background: var(--gn-fg-1);
-  color: #fff;
-  box-shadow: none;
+  background: var(--gn-accent);
+  border-color: var(--gn-accent);
+  color: var(--gn-on-accent);
 }
 .chip .n {
   font-family: var(--gn-font-mono);
@@ -227,9 +233,18 @@
 /* ===== 主区两栏 ===== */
 .main-cols {
   display: grid;
-  grid-template-columns: 1fr 330px;
+  /* 1fr 必须收敛为 minmax(0,1fr)：否则行内固定宽度列（状态/指标/操作）
+     会把轨道最小宽度撑到内容宽，右栏被推出视口。 */
+  grid-template-columns: minmax(0, 1fr) 330px;
   gap: 16px;
   align-items: start;
+}
+
+/* 窄视口：右栏撤下双栏，堆到服务列表下方，避免服务行被 330px 右栏挤碎。 */
+@media (max-width: 1280px) {
+  .main-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* 服务列表 */
@@ -283,7 +298,7 @@
   height: 23px;
 }
 .svc-id {
-  min-width: 0;
+  min-width: 140px;
   flex: 1;
 }
 .svc-name {
@@ -293,6 +308,13 @@
   display: flex;
   align-items: center;
   gap: 7px;
+  min-width: 0;
+}
+.svc-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .svc-name .auto {
   font-size: 9.5px;
@@ -308,6 +330,9 @@
   font-family: var(--gn-font-mono);
   font-size: 10.5px;
   color: var(--gn-fg-5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .svc-state-cell {
   width: 96px;
@@ -355,6 +380,7 @@
   gap: 22px;
   flex-shrink: 0;
   width: 170px;
+  min-width: 0;
 }
 .svc-m {
   min-width: 56px;
@@ -554,33 +580,6 @@
 .events-empty {
   padding: 14px 0 4px;
   font-size: 12px;
-  color: var(--gn-fg-5);
-}
-.engine-dot.missing {
-  background: var(--gn-danger);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gn-danger) 14%, transparent);
-}
-.engine-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-}
-.engine-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--gn-accent);
-  box-shadow: 0 0 0 3px var(--gn-accent-soft);
-}
-.engine-card .ec-text {
-  font-size: 12px;
-  color: var(--gn-fg-2);
-}
-.engine-card .ec-ver {
-  margin-left: auto;
-  font-family: var(--gn-font-mono);
-  font-size: 10.5px;
   color: var(--gn-fg-5);
 }
 

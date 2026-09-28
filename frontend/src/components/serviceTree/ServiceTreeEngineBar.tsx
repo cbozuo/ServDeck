@@ -6,7 +6,6 @@ import './serviceTreeSidebar.css';
 
 type EngineBarState = {
   available: boolean;
-  name: string;
   version: string;
   path: string;
 };
@@ -14,12 +13,10 @@ type EngineBarState = {
 /** 解析 LocateServyEngine 的返回；后端不可达（非 Windows 构建等）按未找到处理。 */
 const toEngineState = (data: unknown): EngineBarState => {
   const payload = (data ?? {}) as { available?: boolean; path?: string; version?: string };
-  const path = String(payload.path || '');
   return {
-    available: payload.available === true && path !== '',
-    path,
+    available: payload.available === true && String(payload.path || '') !== '',
+    path: String(payload.path || ''),
     version: String(payload.version || ''),
-    name: path ? path.split(/[\\/]/).pop() || '' : '',
   };
 };
 
@@ -33,7 +30,7 @@ export const ServiceTreeEngineBar: React.FC = () => {
       const result = await LocateServyEngine();
       setEngine(toEngineState(result?.data));
     } catch {
-      setEngine({ available: false, name: '', version: '', path: '' });
+      setEngine({ available: false, version: '', path: '' });
     }
   }, []);
 
@@ -62,11 +59,7 @@ export const ServiceTreeEngineBar: React.FC = () => {
       >
         <span className="gst-engine-bar__dot" />
         <SafetyOutlined className="gst-engine-bar__shield" />
-        <span className="gst-engine-bar__text">
-          {engine.name}
-          <i>·</i>
-          {t('home.engine.ready')}
-        </span>
+        <span className="gst-engine-bar__text">{t('home.engine.ready')}</span>
         <span className="gst-engine-bar__ver">{engine.version ? `v${engine.version}` : ''}</span>
       </div>
     );

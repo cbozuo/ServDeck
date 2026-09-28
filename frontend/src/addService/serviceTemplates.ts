@@ -37,7 +37,6 @@ export interface ServiceTemplate {
   labelKey: string;
   iconSrc: string;
   cardDescKey: string;
-  tags: Array<{ labelKey: string; hot?: boolean }>;
   sectionKey: string;
   file: string;
   fileHintKey: string;
@@ -67,10 +66,6 @@ export const SERVICE_TEMPLATES: Record<ServiceTemplateId, ServiceTemplate> = {
     labelKey: 'service.template.java.name',
     iconSrc: '/db-icons/java.svg',
     cardDescKey: 'service.template.java.desc',
-    tags: [
-      { labelKey: 'service.tag.official', hot: true },
-      { labelKey: 'service.tag.jvmDetect' },
-    ],
     sectionKey: 'service.section.java',
     file: 'D:\\apps\\order\\order.jar',
     fileHintKey: 'service.fileHint.java',
@@ -83,13 +78,19 @@ export const SERVICE_TEMPLATES: Record<ServiceTemplateId, ServiceTemplate> = {
         type: 'text',
         value: 'C:\\Program Files\\Java\\jdk-17\\bin\\java.exe',
       },
-      { key: 'xmx', labelKey: 'service.field.xmx', type: 'select', value: '512m', options: ['256m', '512m', '1g', '2g'] },
-      { key: 'jvmArgs', labelKey: 'service.field.jvmArgs', type: 'text', value: '', placeholder: '-XX:+UseG1GC -Dspring.profiles.active=prod' },
-      { key: 'appArgs', labelKey: 'service.field.appArgs', type: 'text', value: '--server.port=8080' },
+      // JVM 参数即完整 JVM 串：堆内存滑杆把 -Xms/-Xmx 同值写在最前，其余参数原位保留
+      // （与服务详情页「常用参数」同一交互）。程序启动参数由应用自身配置文件承载，不再单列。
+      {
+        key: 'jvmArgs',
+        labelKey: 'service.field.jvmArgs',
+        type: 'text',
+        value: '-Xms2g -Xmx2g',
+        placeholder: '-XX:+UseG1GC -Dspring.profiles.active=prod',
+      },
     ],
     executable: (values) => str(values, 'jvmPath'),
     params: (values, programFile) =>
-      [`-Xmx${str(values, 'xmx')}`, str(values, 'jvmArgs'), `-jar "${programFile}"`, str(values, 'appArgs')]
+      [str(values, 'jvmArgs'), `-jar "${programFile}"`]
         .filter((part) => part.trim() !== '')
         .join(' '),
   },
@@ -99,10 +100,6 @@ export const SERVICE_TEMPLATES: Record<ServiceTemplateId, ServiceTemplate> = {
     labelKey: 'service.template.mysql.name',
     iconSrc: '/db-icons/mysql.svg',
     cardDescKey: 'service.template.mysql.desc',
-    tags: [
-      { labelKey: 'service.tag.official', hot: true },
-      { labelKey: 'service.tag.confGen' },
-    ],
     sectionKey: 'service.section.mysql',
     file: 'D:\\mysql\\bin\\mysqld.exe',
     fileHintKey: 'service.fileHint.mysql',
@@ -144,10 +141,6 @@ export const SERVICE_TEMPLATES: Record<ServiceTemplateId, ServiceTemplate> = {
     labelKey: 'service.template.redis.name',
     iconSrc: '/db-icons/redis.ico',
     cardDescKey: 'service.template.redis.desc',
-    tags: [
-      { labelKey: 'service.tag.official', hot: true },
-      { labelKey: 'service.tag.confGen' },
-    ],
     sectionKey: 'service.section.redis',
     file: 'D:\\redis\\redis-server.exe',
     fileHintKey: 'service.fileHint.redis',
@@ -188,10 +181,6 @@ export const SERVICE_TEMPLATES: Record<ServiceTemplateId, ServiceTemplate> = {
     labelKey: 'service.template.rustfs.name',
     iconSrc: '/db-icons/rustfs.png',
     cardDescKey: 'service.template.rustfs.desc',
-    tags: [
-      { labelKey: 'service.tag.official', hot: true },
-      { labelKey: 'service.tag.confGen' },
-    ],
     sectionKey: 'service.section.rustfs',
     file: 'D:\\rustfs\\rustfs.exe',
     fileHintKey: 'service.fileHint.rustfs',

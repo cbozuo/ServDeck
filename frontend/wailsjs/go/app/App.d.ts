@@ -24,6 +24,8 @@ export function ApplyLogDirectory(arg1:string):Promise<connection.QueryResult>;
 
 export function ApplySavedQueryDirectory(arg1:string):Promise<connection.QueryResult>;
 
+export function ApplyServyEnginePath(arg1:string):Promise<connection.QueryResult>;
+
 export function AuthorizeMCPConnectionSQL(arg1:connection.ConnectionConfig,arg2:string):Promise<void>;
 
 export function BootstrapConnectionSidebarLayout(arg1:connection.ConnectionSidebarLayoutInput):Promise<connection.ConnectionSidebarLayout>;
@@ -282,6 +284,8 @@ export function DeleteSQLFile(arg1:string):Promise<connection.QueryResult>;
 
 export function DeleteSavedQueryGroup(arg1:string):Promise<void>;
 
+export function DetectJavaRuntimes():Promise<connection.QueryResult>;
+
 export function DiagnoseQuery(arg1:connection.ConnectionConfig,arg2:string,arg3:string):Promise<connection.QueryResult>;
 
 export function DismissSecurityUpdateReminder():Promise<app.SecurityUpdateStatus>;
@@ -401,6 +405,8 @@ export function GetSavedQueries():Promise<Array<connection.SavedQuery>>;
 export function GetSavedQueryGroups():Promise<Array<connection.SavedQueryGroup>>;
 
 export function GetSecurityUpdateStatus():Promise<app.SecurityUpdateStatus>;
+
+export function GetServyEngineConfig():Promise<connection.QueryResult>;
 
 export function GetSlowQueries(arg1:connection.ConnectionConfig,arg2:string,arg3:string,arg4:number):Promise<connection.QueryResult>;
 
@@ -767,6 +773,8 @@ export function SelectSSHKnownHostsFile(arg1:string):Promise<connection.QueryRes
 export function SelectSavedQueryDirectory(arg1:string):Promise<connection.QueryResult>;
 
 export function SelectServiceProgramFile(arg1:string):Promise<connection.QueryResult>;
+
+export function SelectServyEngineFile():Promise<connection.QueryResult>;
 
 export function SetLanguage(arg1:string):Promise<void>;
 

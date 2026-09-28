@@ -13,6 +13,11 @@ interface SegmentedControlProps<T extends string> {
   onChange: (value: T) => void;
   /** sm 对应旧的 .asm-compact-seg（24px 高），默认 md（26px） */
   size?: 'md' | 'sm';
+  /**
+   * 主题色滑块变体：选中项滑块填 accent 底色 + 反白文字。
+   * 用于表单里的主选择（启动类型）；工具型分段（字段/原文切换）保持白滑块。
+   */
+  accent?: boolean;
   /** 无障碍名称，通常传该行的字段标签 */
   ariaLabel?: string;
   className?: string;
@@ -33,6 +38,7 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
   size = 'md',
+  accent = false,
   ariaLabel,
   className,
 }: SegmentedControlProps<T>) {
@@ -76,6 +82,18 @@ export function SegmentedControl<T extends string>({
     return () => cancelAnimationFrame(raf);
   }, [syncThumb]);
 
+  // 容器尺寸变化时重新量：弹窗开场缩放动画期间 getBoundingClientRect 会拿到
+  // 被 transform 缩放的宽度（46px 量成 9.2px），动画结束后 ResizeObserver 触发重测自愈。
+  useEffect(() => {
+    const box = listRef.current;
+    if (!box || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(() => syncThumb());
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [syncThumb]);
+
   // 一帧之后再开过渡，首帧瞬时落位。
   useEffect(() => {
     const id = requestAnimationFrame(() => setAnimate(true));
@@ -85,6 +103,9 @@ export function SegmentedControl<T extends string>({
   const classes = ['asm-seg'];
   if (size === 'sm') {
     classes.push('asm-compact-seg');
+  }
+  if (accent) {
+    classes.push('asm-seg-accent');
   }
   if (className) {
     classes.push(className);

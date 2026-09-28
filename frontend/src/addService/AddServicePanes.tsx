@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
-import { message } from 'antd';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { message, Tooltip } from 'antd';
 import {
   EyeInvisibleOutlined,
   EyeOutlined,
   FolderOutlined,
+  ThunderboltOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import { useI18n } from '../i18n/provider';
@@ -12,11 +13,14 @@ import {
   type ServiceTemplate,
 } from './serviceTemplates';
 import type { ServiceFieldType, ServiceFieldValues } from './serviceFieldTypes';
-import { SelectImageFile, SelectServiceProgramFile } from '../../wailsjs/go/app/App';
+import { SelectImageFile, SelectServiceProgramFile, DetectJavaRuntimes } from '../../wailsjs/go/app/App';
 import { SegmentedControl } from './SegmentedControl';
+import { HeapMemoryField } from './HeapMemoryField';
+import { JdkPickerModal } from './JdkPickerModal';
+import { APP_NESTED_MODAL_Z_INDEX } from '../utils/overlayZIndex';
 import { normalizeIconDataUrl } from './customIcon';
 
-/** 程序文件（servy install 的 -p 来源）+ 识别条；位于基本 tab 顶部。 */
+/** 程序文件（servy install 的 -p 来源）；位于基本 tab 顶部，空值起步由用户填写。 */
 export const AddServiceProgramSection: React.FC<{
   template: ServiceTemplate;
   programFile: string;
@@ -46,81 +50,155 @@ export const AddServiceProgramSection: React.FC<{
     <div className="asm-sec">
       <div className="asm-sec-title">{t('service.modal.program.heading')}</div>
       <div className="asm-input-row">
-        <div className="asm-input asm-input-with-icon" style={{ flex: 1 }}>
-          <FolderOutlined className="asm-input-lead-ic" />
-          <input
-            className="mono"
-            value={programFile}
-            spellCheck={false}
-            onChange={(event) => onChange(event.target.value)}
-          />
-        </div>
+        <Tooltip title={t(template.fileHintKey)} placement="top" overlayStyle={{ maxWidth: 560 }}>
+          <div className="asm-input asm-input-with-icon" style={{ flex: 1 }}>
+            <FolderOutlined className="asm-input-lead-ic" />
+            <input
+              className="mono"
+              value={programFile}
+              placeholder={t(template.fileHintKey)}
+              spellCheck={false}
+              onChange={(event) => onChange(event.target.value)}
+            />
+          </div>
+        </Tooltip>
         <button type="button" className="asm-browse-btn" disabled={browsing} onClick={() => void browse()}>
           {t('service.modal.program.browse')}
         </button>
       </div>
-      <div className="asm-hint">{t(template.fileHintKey)}</div>
-      <div className="asm-detect">
-        <span className="asm-detect-glyph">✦</span>
-        <span className="asm-detect-main">
-          {t('service.modal.detect.known', { type: t(template.labelKey) })}
-        </span>
-        <span className="asm-tag asm-tag-hot">{t('service.modal.detect.knownTag')}</span>
-      </div>
     </div>
   );
 };
 
-/** 服务名 + 显示名称。 */
+/** 根据程序文件名生成服务名：取文件名去扩展名，非法字符折叠为「-」；大写转换由输入侧统一处理。 */
+export function serviceNameFromFile(programFile: string): string {
+  const base = String(programFile ?? '')
+    .trim()
+    .replace(/^.*[\\/]/, '')
+    .replace(/\.[^.]+$/, '');
+  return base.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+const fieldTooltip = (text: string) => ({
+  title: text,
+  placement: 'top' as const,
+  // 弹框内容区约 680px，提示框限宽保证永不超出弹框；长文案换行展示
+  overlayStyle: { maxWidth: 560 },
+  overlayInnerStyle: { whiteSpace: 'normal' as const },
+});
+
+/** 高保真同款 Java 杯图标（「选择 JDK」入口按钮）。 */
+const JavaCupIcon: React.FC = () => (
+  <svg viewBox="0 0 16 16" width={13} height={13} fill="none" aria-hidden="true">
+    <path
+      d="M4 6.9h7v3.4a3 3 0 0 1-3 3h-1a3 3 0 0 1-3-3z"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M11 7.5h.8a1.7 1.7 0 0 1 0 3.4h-.9"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+    />
+    <path
+      d="M6.4 3.2c-.5.8.5 1.1 0 2M9.1 3.2c-.5.8.5 1.1 0 2"
+      stroke="currentColor"
+      strokeWidth="1.1"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+/** 服务名 + 显示名称 + 服务描述（描述非必填），各占一行；悬浮输入框出美化提示框。 */
 export const AddServiceBasicSection: React.FC<{
+  programFile: string;
   serviceName: string;
   displayName: string;
+  description: string;
   onNameChange: (value: string) => void;
   onDisplayNameChange: (value: string) => void;
-}> = ({ serviceName, displayName, onNameChange, onDisplayNameChange }) => {
+  onDescriptionChange: (value: string) => void;
+}> = ({ programFile, serviceName, displayName, description, onNameChange, onDisplayNameChange, onDescriptionChange }) => {
   const { t } = useI18n();
+  const namePlaceholder = t('service.modal.basic.serviceNamePlaceholder');
+  const generatedName = serviceNameFromFile(programFile);
   return (
     <div className="asm-sec">
       <div className="asm-sec-title">{t('service.modal.basic.identity')}</div>
+      {/* 服务名 / 显示名称 / 服务描述各占一行：placeholder 提示较长，整行才放得下 */}
       <div className="asm-field-grid">
-        <div className="asm-field">
+        <div className="asm-field" style={{ gridColumn: '1 / -1' }}>
           <label>
             {t('service.modal.basic.serviceName')}
             <em>*</em>
           </label>
-          <input
-            className="asm-input mono"
-            value={serviceName}
-            spellCheck={false}
-            onChange={(event) => onNameChange(event.target.value)}
-          />
-          <span className="asm-hint">{t('service.modal.basic.serviceNameHint')}</span>
+          <div className="asm-input-row">
+            <Tooltip {...fieldTooltip(namePlaceholder)}>
+              <input
+                className="asm-input"
+                style={{ flex: 1 }}
+                value={serviceName}
+                placeholder={namePlaceholder}
+                spellCheck={false}
+                onChange={(event) => onNameChange(event.target.value)}
+              />
+            </Tooltip>
+            <Tooltip title={t('service.modal.basic.genName')} placement="top">
+              <button
+                type="button"
+                className="asm-browse-btn"
+                disabled={!generatedName}
+                onClick={() => onNameChange(generatedName)}
+              >
+                <ThunderboltOutlined />
+                {t('service.modal.basic.genNameShort')}
+              </button>
+            </Tooltip>
+          </div>
         </div>
-        <div className="asm-field">
+        <div className="asm-field" style={{ gridColumn: '1 / -1' }}>
           <label>
             {t('service.modal.basic.displayName')}
             <em>*</em>
           </label>
-          <input
-            className="asm-input"
-            value={displayName}
-            spellCheck={false}
-            onChange={(event) => onDisplayNameChange(event.target.value)}
-          />
-          <span className="asm-hint">{t('service.modal.basic.displayNameHint')}</span>
+          <Tooltip {...fieldTooltip(t('service.modal.basic.displayNamePlaceholder'))}>
+            <input
+              className="asm-input"
+              value={displayName}
+              placeholder={t('service.modal.basic.displayNamePlaceholder')}
+              spellCheck={false}
+              onChange={(event) => onDisplayNameChange(event.target.value)}
+            />
+          </Tooltip>
+        </div>
+        <div className="asm-field" style={{ gridColumn: '1 / -1' }}>
+          <label>{t('service.modal.basic.desc')}</label>
+          <Tooltip {...fieldTooltip(t('service.modal.basic.descPlaceholder'))}>
+            <input
+              className="asm-input"
+              value={description}
+              placeholder={t('service.modal.basic.descPlaceholder')}
+              spellCheck={false}
+              onChange={(event) => onDescriptionChange(event.target.value)}
+            />
+          </Tooltip>
         </div>
       </div>
     </div>
   );
 };
 
-/** 启动类型 + 崩溃守护。 */
+/** 启动与守护（高级 tab）：启动类型 + 崩溃重启 / 轮转双开关，对齐高保真「守护与轮转」。 */
 export const AddServiceStartSection: React.FC<{
   startType: string;
   restart: boolean;
+  rotate: boolean;
   onStartTypeChange: (value: string) => void;
   onRestartChange: (value: boolean) => void;
-}> = ({ startType, restart, onStartTypeChange, onRestartChange }) => {
+  onRotateChange: (value: boolean) => void;
+}> = ({ startType, restart, rotate, onStartTypeChange, onRestartChange, onRotateChange }) => {
   const { t } = useI18n();
   const startTypeLabel = (value: string): string => {
     if (value === 'Automatic (Delayed)') {
@@ -133,29 +211,43 @@ export const AddServiceStartSection: React.FC<{
   };
   return (
     <div className="asm-sec">
-      <div className="asm-sec-title">
-        {t('service.modal.start.heading')}
-        <span className="asm-sec-opt">{t('service.modal.start.common')}</span>
+      <div className="asm-sec-title">{t('service.modal.start.heading')}</div>
+      <div className="asm-field" style={{ gridColumn: '1 / -1' }}>
+        <label>{t('service.modal.basic.startType')}</label>
+        <SegmentedControl
+          accent
+          options={SERVICE_START_TYPES.map((value) => ({ value, label: startTypeLabel(value) }))}
+          value={startType}
+          onChange={onStartTypeChange}
+          ariaLabel={t('service.modal.basic.startType')}
+        />
       </div>
-      <div className="asm-start-grid">
-        <div className="asm-field">
-          <label>{t('service.modal.basic.startType')}</label>
-          <SegmentedControl
-            options={SERVICE_START_TYPES.map((value) => ({ value, label: startTypeLabel(value) }))}
-            value={startType}
-            onChange={onStartTypeChange}
-            ariaLabel={t('service.modal.basic.startType')}
-          />
-        </div>
-        <div className="asm-field asm-switch-field">
+      <div className="asm-field" style={{ gridColumn: '1 / -1' }}>
+        <label>{t('service.modal.basic.guardRotate')}</label>
+        <div className="asm-switch-line">
           <span
             className={restart ? 'asm-switch on' : 'asm-switch'}
             role="switch"
             aria-checked={restart}
-            aria-label={t('service.modal.basic.restart')}
+            aria-label={t('service.modal.basic.guard')}
             onClick={() => onRestartChange(!restart)}
           />
-          <span>{t('service.modal.basic.restart')}</span>
+          <span className="asm-switch-name">
+            {t('service.modal.basic.guard')}
+            <small>{t('service.modal.basic.guardHint')}</small>
+          </span>
+          <span
+            className={rotate ? 'asm-switch on' : 'asm-switch'}
+            role="switch"
+            aria-checked={rotate}
+            aria-label={t('service.modal.basic.rotate')}
+            style={{ marginLeft: 22 }}
+            onClick={() => onRotateChange(!rotate)}
+          />
+          <span className="asm-switch-name">
+            {t('service.modal.basic.rotate')}
+            <small className="mono">{t('service.modal.basic.rotateHint')}</small>
+          </span>
         </div>
       </div>
     </div>
@@ -265,15 +357,94 @@ const inputWidthClass = (type: ServiceFieldType): string => {
   return '';
 };
 
-/** 参数配置 tab：模板专属字段 + 配置文件生成卡（按字段生成 / 高级编辑）。 */
+/**
+ * 高保真「常用参数」开关：点击追加 / 移除 jvmArgs 里的布尔类参数。
+ * 与服务详情页部署参数的开关组同一套（flags 也一致）。
+ */
+const JAVA_FLAG_PRESETS = [
+  { labelKey: 'service.preset.oomDump', flag: '-XX:+HeapDumpOnOutOfMemoryError', hintKey: 'service.preset.oomDump.hint' },
+  { labelKey: 'service.preset.g1', flag: '-XX:+UseG1GC', hintKey: 'service.preset.g1.hint' },
+  { labelKey: 'service.preset.zgc', flag: '-XX:+UseZGC', hintKey: 'service.preset.zgc.hint' },
+  { labelKey: 'service.preset.utf8', flag: '-Dfile.encoding=UTF-8', hintKey: 'service.preset.utf8.hint' },
+  { labelKey: 'service.preset.tz', flag: '-Duser.timezone=Asia/Shanghai', hintKey: 'service.preset.tz.hint' },
+  {
+    labelKey: 'service.preset.debug',
+    flag: '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005',
+    hintKey: 'service.preset.debug.hint',
+  },
+] as const;
+
+/** 参数配置 tab：Java 对齐高保真（全宽行 + 常用参数组），其余类型走模板字段栅格 + 配置文件生成卡。 */
 export const AddServiceParamsPane: React.FC<{
   template: ServiceTemplate;
   values: ServiceFieldValues;
   onChange: (key: string, value: string | boolean) => void;
   onPickDirectory?: (title: string, current: string) => Promise<string | null>;
-}> = ({ template, values, onChange, onPickDirectory }) => {
+  /** 宿主弹窗的 zIndex；JDK 选择等嵌套弹层在其上叠放。 */
+  nestedZIndex?: number;
+}> = ({ template, values, onChange, onPickDirectory, nestedZIndex }) => {
   const { t } = useI18n();
   const [confMode, setConfMode] = useState<'preview' | 'raw'>('preview');
+  const [jdkOpen, setJdkOpen] = useState(false);
+  /** JVM 路径超长提示：仅当路径文本超出输入框宽度时出现，内容是完整路径。
+      用原生 mouseenter/mouseleave（非 React 合成事件），悬停即时计算溢出。 */
+  const [jdkTipOpen, setJdkTipOpen] = useState(false);
+  const jdkPathInputRef = useRef<HTMLInputElement>(null);
+  /** JVM 参数输入框：调堆内存 / 点开关后保持聚焦，让改动落在看得见的地方。 */
+  const jvmArgsInputRef = useRef<HTMLInputElement>(null);
+  /** JVM 路径默认值：本机检测到的最低版本 JDK（仅当用户没改过模板默认值时自动替换一次）。 */
+  const jdkDefaultAppliedRef = useRef(false);
+  useEffect(() => {
+    if (template.id !== 'java' || jdkDefaultAppliedRef.current) {
+      return;
+    }
+    const templateDefault = template.fields.find((item) => item.key === 'jvmPath')?.value ?? '';
+    if (String(values.jvmPath ?? '') !== templateDefault) {
+      // 用户已经填了自己的路径，不再动它
+      jdkDefaultAppliedRef.current = true;
+      return;
+    }
+    let alive = true;
+    DetectJavaRuntimes()
+      .then((result) => {
+        if (!alive || jdkDefaultAppliedRef.current || !result.success) {
+          return;
+        }
+        const list =
+          (result.data as { candidates?: { version: number; path: string }[] } | null | undefined)
+            ?.candidates ?? [];
+        const lowest = list.reduce<{ version: number; path: string } | null>(
+          (min, item) => (min === null || item.version < min.version ? item : min),
+          null,
+        );
+        if (lowest) {
+          jdkDefaultAppliedRef.current = true;
+          onChange('jvmPath', lowest.path);
+        }
+      })
+      .catch(() => {
+        // 检测不可用时保留模板默认路径。
+      });
+    return () => {
+      alive = false;
+    };
+    // 仅在进入参数配置时执行一次（values.jvmPath 故意不进依赖）。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template.id]);
+  useEffect(() => {
+    const el = jdkPathInputRef.current;
+    if (!el) {
+      return;
+    }
+    const show = () => setJdkTipOpen(el.scrollWidth > el.clientWidth + 1);
+    const hide = () => setJdkTipOpen(false);
+    el.addEventListener('mouseenter', show);
+    el.addEventListener('mouseleave', hide);
+    return () => {
+      el.removeEventListener('mouseenter', show);
+      el.removeEventListener('mouseleave', hide);
+    };
+  }, []);
 
   const confContent = useMemo(() => {
     if (!template.conf) {
@@ -282,12 +453,212 @@ export const AddServiceParamsPane: React.FC<{
     return template.conf.render(values, template.file);
   }, [template, values]);
 
-  return (
-    <div className="asm-sec">
-      <div className="asm-sec-title">
-        {t(template.sectionKey)}
-        <span className="asm-sec-badge">{t('service.modal.conf.templateOnly')}</span>
+  const renderFieldControl = (field: (typeof template.fields)[number]) => {
+    if (field.type === 'switch') {
+      return (
+        <span
+          className={values[field.key] ? 'asm-switch on' : 'asm-switch'}
+          role="switch"
+          aria-checked={Boolean(values[field.key])}
+          aria-label={t(field.labelKey)}
+          onClick={() => onChange(field.key, !values[field.key])}
+        />
+      );
+    }
+    if (field.type === 'directory') {
+      return (
+        <DirectoryField
+          title={t(field.labelKey)}
+          value={String(values[field.key] ?? '')}
+          placeholder={field.placeholder}
+          browseLabel={t('service.modal.program.browse')}
+          onValueChange={(value) => onChange(field.key, value)}
+          onPick={onPickDirectory}
+        />
+      );
+    }
+    if (field.type === 'select') {
+      return (
+        <select
+          className={`asm-input asm-select${inputWidthClass(field.type)}`}
+          value={String(values[field.key] ?? '')}
+          onChange={(event) => onChange(field.key, event.target.value)}
+        >
+          {(field.options ?? []).map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    if (field.type === 'password') {
+      return (
+        <PasswordField
+          value={String(values[field.key] ?? '')}
+          placeholder={field.placeholder}
+          showLabel={t('service.modal.password.show')}
+          hideLabel={t('service.modal.password.hide')}
+          onChange={(value) => onChange(field.key, value)}
+        />
+      );
+    }
+    return (
+      <input
+        className={`asm-input${inputWidthClass(field.type)}`}
+        type="text"
+        value={String(values[field.key] ?? '')}
+        placeholder={field.placeholder ?? ''}
+        spellCheck={false}
+        onChange={(event) => onChange(field.key, event.target.value)}
+      />
+    );
+  };
+
+  /* 全宽行 + label 内联提示（对齐高保真：JVM 路径 / JVM 参数都是整行），
+     控件悬浮出与基本信息同款的提示框 */
+  const fieldRow = (key: string, hintKey?: string) => {
+    const field = template.fields.find((item) => item.key === key);
+    if (!field) {
+      return null;
+    }
+    return (
+      <div className="asm-field" style={{ gridColumn: '1 / -1' }}>
+        <label>
+          {t(field.labelKey)}
+          {hintKey ? <span className="asm-label-hint">{t(hintKey)}</span> : null}
+        </label>
+        {hintKey ? (
+          <Tooltip {...fieldTooltip(t(hintKey))}>{renderFieldControl(field)}</Tooltip>
+        ) : (
+          renderFieldControl(field)
+        )}
       </div>
+    );
+  };
+
+  let fieldsPart: React.ReactNode;
+  if (template.id === 'java') {
+    /* Java 对齐服务详情页高保真：JVM 路径（内嵌「选择 JDK」）+ JVM 参数（堆内存滑杆
+       直接把 -Xms/-Xmx 写进参数串最前，输入框实时可见），程序启动参数由应用自身
+       配置文件承载，不再单列。调堆内存 / 点开关后 JVM 参数输入框回到聚焦态，
+       提示用户改动都体现在这串参数里。 */
+    const jvmArgs = String(values.jvmArgs ?? '');
+    const jvmPathField = template.fields.find((item) => item.key === 'jvmPath');
+    const jvmArgsField = template.fields.find((item) => item.key === 'jvmArgs');
+    if (!jvmPathField || !jvmArgsField) {
+      fieldsPart = null;
+    } else {
+      const focusJvmArgs = () => {
+        const el = jvmArgsInputRef.current;
+        if (!el) {
+          return;
+        }
+        el.focus();
+        const end = el.value.length;
+        el.setSelectionRange(end, end);
+      };
+      fieldsPart = (
+        <React.Fragment>
+          <div className="asm-field" style={{ gridColumn: '1 / -1' }}>
+            <label>
+              {t(jvmPathField.labelKey)}
+              <span className="asm-label-hint">{t('service.field.jvmPathHint')}</span>
+            </label>
+            {/* 悬浮提示只在路径超出输入框宽度时出现，内容是完整路径 */}
+            <Tooltip
+              title={String(values.jvmPath ?? '')}
+              open={jdkTipOpen}
+              placement="top"
+              overlayStyle={{ maxWidth: 560 }}
+            >
+              <div className="asm-input asm-input-with-icon" style={{ width: '100%' }}>
+                <input
+                  ref={jdkPathInputRef}
+                  className="mono"
+                  style={{ flex: 1 }}
+                  value={String(values.jvmPath ?? '')}
+                  spellCheck={false}
+                  onChange={(event) => onChange('jvmPath', event.target.value)}
+                />
+                <Tooltip title={t('service.modal.jdk.pick')} placement="top">
+                  <button type="button" className="asm-in-act" onClick={() => setJdkOpen(true)}>
+                    <JavaCupIcon />
+                  </button>
+                </Tooltip>
+              </div>
+            </Tooltip>
+          </div>
+          <div className="asm-field" style={{ gridColumn: '1 / -1' }}>
+            <label>{t(jvmArgsField.labelKey)}</label>
+            <input
+              ref={jvmArgsInputRef}
+              className="asm-input mono"
+              style={{ width: '100%' }}
+              type="text"
+              value={jvmArgs}
+              placeholder={jvmArgsField.placeholder ?? ''}
+              spellCheck={false}
+              onChange={(event) => onChange('jvmArgs', event.target.value)}
+            />
+          </div>
+          <div className="asm-field" style={{ gridColumn: '1 / -1' }}>
+            <label>
+              {t('service.field.presets')}
+              <span className="asm-label-hint">{t('service.field.presetsHint')}</span>
+            </label>
+            <div className="asm-preset-row">
+              <span className="asm-preset-label">{t('service.field.heapShort')}</span>
+              <HeapMemoryField
+                jvmArgs={jvmArgs}
+                onChange={(value) => {
+                  onChange('jvmArgs', value);
+                  focusJvmArgs();
+                }}
+              />
+            </div>
+            <div className="asm-preset-row">
+              <span className="asm-preset-label">{t('service.field.flagsLabel')}</span>
+              <div className="asm-chips">
+                {JAVA_FLAG_PRESETS.map((preset) => {
+                  const on = jvmArgs.includes(preset.flag);
+                  return (
+                    <button
+                      key={preset.flag}
+                      type="button"
+                      className={on ? 'asm-chip on' : 'asm-chip'}
+                      title={`${preset.flag} · ${t(preset.hintKey)}`}
+                      onClick={() => {
+                        const args = jvmArgs.split(/\s+/).filter(Boolean);
+                        const next = args.includes(preset.flag)
+                          ? args.filter((arg) => arg !== preset.flag)
+                          : [...args, preset.flag];
+                        onChange('jvmArgs', next.join(' '));
+                        focusJvmArgs();
+                      }}
+                    >
+                      {t(preset.labelKey)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <JdkPickerModal
+            open={jdkOpen}
+            currentPath={String(values.jvmPath ?? '')}
+            zIndex={(nestedZIndex ?? APP_NESTED_MODAL_Z_INDEX) + 10}
+            onClose={() => setJdkOpen(false)}
+            onApply={(path) => {
+              onChange('jvmPath', path);
+              setJdkOpen(false);
+            }}
+          />
+        </React.Fragment>
+      );
+    }
+  } else {
+    fieldsPart = (
       <div className={`asm-field-grid${template.fields.length > 3 ? ' cols-3' : ''}`}>
         {template.fields.map((field) => (
           <div
@@ -296,56 +667,17 @@ export const AddServiceParamsPane: React.FC<{
             style={field.span === 2 ? { gridColumn: '1 / -1' } : undefined}
           >
             <label>{t(field.labelKey)}</label>
-            {field.type === 'switch' ? (
-              <span
-                className={values[field.key] ? 'asm-switch on' : 'asm-switch'}
-                role="switch"
-                aria-checked={Boolean(values[field.key])}
-                aria-label={t(field.labelKey)}
-                onClick={() => onChange(field.key, !values[field.key])}
-              />
-            ) : field.type === 'directory' ? (
-              <DirectoryField
-                title={t(field.labelKey)}
-                value={String(values[field.key] ?? '')}
-                placeholder={field.placeholder}
-                browseLabel={t('service.modal.program.browse')}
-                onValueChange={(value) => onChange(field.key, value)}
-                onPick={onPickDirectory}
-              />
-            ) : field.type === 'select' ? (
-              <select
-                className={`asm-input asm-select${inputWidthClass(field.type)}`}
-                value={String(values[field.key] ?? '')}
-                onChange={(event) => onChange(field.key, event.target.value)}
-              >
-                {(field.options ?? []).map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            ) : field.type === 'password' ? (
-              <PasswordField
-                value={String(values[field.key] ?? '')}
-                placeholder={field.placeholder}
-                showLabel={t('service.modal.password.show')}
-                hideLabel={t('service.modal.password.hide')}
-                onChange={(value) => onChange(field.key, value)}
-              />
-            ) : (
-              <input
-                className={`asm-input${inputWidthClass(field.type)}`}
-                type="text"
-                value={String(values[field.key] ?? '')}
-                placeholder={field.placeholder ?? ''}
-                spellCheck={false}
-                onChange={(event) => onChange(field.key, event.target.value)}
-              />
-            )}
+            {renderFieldControl(field)}
           </div>
         ))}
       </div>
+    );
+  }
+
+  return (
+    <div className="asm-sec">
+      <div className="asm-sec-title">{t(template.sectionKey)}</div>
+      {fieldsPart}
 
       {template.conf ? (
         <div className="asm-conf-card">
@@ -566,44 +898,6 @@ export const AddServiceLookPane: React.FC<{
           {t('service.modal.look.reset')}
         </button>
       </div>
-    </div>
-  );
-};
-
-/** 高级 tab（对齐高保真）：运行身份 / 进程优先级 / 环境变量。 */
-export const AddServiceAdvancedPane: React.FC = () => {
-  const { t } = useI18n();
-  return (
-    <div className="asm-sec">
-      <div className="asm-field-grid">
-        <div className="asm-field">
-          <label>{t('service.modal.advanced.account')}</label>
-          <select className="asm-input asm-select" defaultValue="LocalSystem">
-            <option value="LocalSystem">LocalSystem</option>
-            <option value="LocalService">LocalService</option>
-            <option value="NetworkService">NetworkService</option>
-          </select>
-          <span className="asm-hint">{t('service.modal.advanced.accountHint')}</span>
-        </div>
-        <div className="asm-field">
-          <label>{t('service.modal.advanced.priority')}</label>
-          <select className="asm-input asm-select" defaultValue="Normal">
-            <option value="Normal">Normal</option>
-            <option value="High">High</option>
-            <option value="BelowNormal">BelowNormal</option>
-          </select>
-        </div>
-        <div className="asm-field" style={{ gridColumn: '1 / -1' }}>
-          <label>{t('service.modal.advanced.env')}</label>
-          <input
-            className="asm-input mono"
-            placeholder="TZ=Asia/Shanghai; LANG=zh_CN"
-            spellCheck={false}
-          />
-          <span className="asm-hint">{t('service.modal.advanced.envHint')}</span>
-        </div>
-      </div>
-      <div className="asm-global-note">{t('service.modal.advanced.note')}</div>
     </div>
   );
 };

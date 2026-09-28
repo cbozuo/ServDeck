@@ -1,5 +1,5 @@
 import { Button, Modal, Tooltip, message } from 'antd';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckCircleFilled,
   CloseOutlined,
@@ -16,7 +16,6 @@ import {
   type ServiceTemplate,
 } from '../addService/serviceTemplates';
 import {
-  AddServiceAdvancedPane,
   AddServiceBasicSection,
   AddServiceLookPane,
   AddServiceParamsPane,
@@ -39,6 +38,16 @@ export interface AddServiceModalProps {
 type Step = 'select' | 'config';
 type TabKey = 'basic' | 'params' | 'look' | 'advanced';
 
+/** 页签顺序（对齐走查结论）：基本 → 参数配置 → 高级（启动与守护）→ 外观。 */
+const CONFIG_TABS: Array<[TabKey, string]> = [
+  ['basic', 'service.modal.tab.basic'],
+  ['params', 'service.modal.tab.params'],
+  ['advanced', 'service.modal.tab.advanced'],
+  ['look', 'service.modal.tab.look'],
+];
+/** 探测前要求浏览过的页签：这三个页签的取值直接影响注册结果。 */
+const VISIT_REQUIRED_TABS: TabKey[] = ['basic', 'params', 'advanced'];
+
 /**
  * 添加服务弹框（对齐高保真两步结构）：
  * Step1 选类型 → Step2 配参数（四 tab：基本 | 参数配置 | 外观 | 高级）。
@@ -51,6 +60,11 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
   const [tab, setTab] = useState<TabKey>('basic');
   const [probing, setProbing] = useState(false);
   const [look, setLook] = useState<ServiceLook>(DEFAULT_SERVICE_LOOK);
+  /** 探测前要求浏览过的页签集合：落在基本页，点过哪页记哪页，换模板重置。 */
+  const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<TabKey>>(() => new Set<TabKey>(['basic']));
+  /** footer 提示条（页签浏览守卫 / 基本信息必填前置校验）。null 表示不展示；
+       kind 决定它何时撤下：tabs 类在必看页签集齐后撤，basic 类在必填补齐后撤。 */
+  const [probeNotice, setProbeNotice] = useState<{ kind: 'tabs' | 'basic'; text: string } | null>(null);
   const addManagedService = useServiceRegistryStore((state) => state.addService);
   const managedServices = useServiceRegistryStore((state) => state.services);
 
@@ -59,9 +73,9 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
     [templateId],
   );
   const form = useAddServiceForm(template ?? SERVICE_TEMPLATE_LIST[0]);
-  // 服务名唯一：已在纳管列表里的服务不允许再次加入（无论是注册还是纳管模式）。
+  // 服务名唯一（SCM 名称不区分大小写）：已在纳管列表里的服务不允许再次加入。
   const alreadyManaged = managedServices.some(
-    (item) => item.name === form.basic.serviceName.trim(),
+    (item) => item.name.toLowerCase() === form.basic.serviceName.trim().toLowerCase(),
   );
 
   const closeModal = useCallback(() => {
@@ -77,17 +91,71 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
     form.applyTemplate(next);
     // 换服务类型就换一套图标与配色，上一个类型挑的外观不能带过来
     setLook(DEFAULT_SERVICE_LOOK);
+    setVisitedTabs(new Set<TabKey>(['basic']));
+    setProbeNotice(null);
+    setTab('basic');
     setStep('config');
   };
 
+  const switchTab = (key: TabKey) => {
+    setTab(key);
+    setVisitedTabs((prev) => {
+      const next = prev.has(key) ? prev : new Set(prev).add(key);
+      // 必看页签集齐后，「先查看页签」提示随之撤下
+      if (VISIT_REQUIRED_TABS.every((tabKey) => next.has(tabKey))) {
+        setProbeNotice((current) => (current?.kind === 'tabs' ? null : current));
+      }
+      return next;
+    });
+  };
+
+  /* 基本信息必填补齐后，「请先填写…」提示随之撤下（按序口径与 runProbe 一致）。 */
+  useEffect(() => {
+    setProbeNotice((current) => {
+      if (current?.kind !== 'basic') {
+        return current;
+      }
+      const stillMissing =
+        form.basic.programFile.trim() === '' ||
+        form.basic.serviceName.trim() === '' ||
+        form.basic.displayName.trim() === '';
+      return stillMissing ? current : null;
+    });
+  }, [form.basic]);
+
   const runProbe = useCallback(async () => {
+    /* ① 基本信息必填按序前置校验（程序文件 → 服务名 → 显示名称）；
+       ② 页签浏览守卫；③ 通过后才发起探测（探测内部再做文件存在性等校验）。 */
+    const basicMessage =
+      form.basic.programFile.trim() === ''
+        ? t('service.modal.probe.programRequired')
+        : form.basic.serviceName.trim() === ''
+          ? t('service.modal.probe.nameRequired')
+          : form.basic.displayName.trim() === ''
+            ? t('service.modal.probe.displayNameRequired')
+            : '';
+    if (basicMessage) {
+      setProbeNotice({ kind: 'basic', text: basicMessage });
+      return;
+    }
+    const missing = VISIT_REQUIRED_TABS.filter((key) => !visitedTabs.has(key));
+    if (missing.length > 0) {
+      setProbeNotice({
+        kind: 'tabs',
+        text: t('service.modal.probe.visitTabs', {
+          tabs: missing.map((key) => t(CONFIG_TABS.find(([tabKey]) => tabKey === key)?.[1] ?? '')).join('、'),
+        }),
+      });
+      return;
+    }
+    setProbeNotice(null);
     setProbing(true);
     try {
       await form.probeNow();
     } finally {
       setProbing(false);
     }
-  }, [form]);
+  }, [form, t, visitedTabs]);
 
   /** 目录字段的「浏览…」：打开系统目录选择框，取消时返回 null 让调用方保持原值。 */
   const pickDirectory = useCallback(async (title: string, current: string) => {
@@ -134,6 +202,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
   const probeFileMissing = probePhase === 'ok' && !form.probe.fileExists;
   const primaryDisabled = probePhase === 'none'
     || probePhase === 'probing'
+    || probePhase === 'error'
     || probeFileMissing
     || form.addPhase !== 'idle'
     || alreadyManaged;
@@ -227,16 +296,6 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                         <span className="asm-type-desc">{t(item.cardDescKey)}</span>
                       </span>
                     </span>
-                    <span className="asm-type-tags">
-                      {item.tags.map((tag) => (
-                        <span
-                          key={tag.labelKey}
-                          className={tag.hot ? 'asm-tag asm-tag-hot' : 'asm-tag'}
-                        >
-                          {t(tag.labelKey)}
-                        </span>
-                      ))}
-                    </span>
                   </button>
                 ))}
               </div>
@@ -245,24 +304,14 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
         ) : (
           <React.Fragment>
             <div className="asm-tabs">
-              {(
-                [
-                  ['basic', t('service.modal.tab.basic')],
-                  ['params', t('service.modal.tab.params')],
-                  ['look', t('service.modal.tab.look')],
-                  ['advanced', t('service.modal.tab.advanced')],
-                ] as const
-              ).map(([key, label]) => (
+              {CONFIG_TABS.map(([key, labelKey]) => (
                 <button
                   key={key}
                   type="button"
                   className={tab === key ? 'active' : ''}
-                  onClick={() => setTab(key)}
+                  onClick={() => switchTab(key)}
                 >
-                  {label}
-                  {key === 'params' && template ? (
-                    <span className="asm-tab-badge">{t(template.labelKey)}</span>
-                  ) : null}
+                  {t(labelKey)}
                 </button>
               ))}
             </div>
@@ -276,16 +325,13 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                     onChange={(value) => form.setBasicField('programFile', value)}
                   />
                   <AddServiceBasicSection
+                    programFile={form.basic.programFile}
                     serviceName={form.basic.serviceName}
                     displayName={form.basic.displayName}
+                    description={form.basic.description}
                     onNameChange={(value) => form.setBasicField('serviceName', value)}
                     onDisplayNameChange={(value) => form.setBasicField('displayName', value)}
-                  />
-                  <AddServiceStartSection
-                    startType={form.basic.startType}
-                    restart={form.basic.restart}
-                    onStartTypeChange={(value) => form.setBasicField('startType', value)}
-                    onRestartChange={(value) => form.setBasicField('restart', value)}
+                    onDescriptionChange={(value) => form.setBasicField('description', value)}
                   />
                 </React.Fragment>
               ) : tab === 'params' ? (
@@ -294,6 +340,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                   values={form.values}
                   onChange={form.setFieldValue}
                   onPickDirectory={pickDirectory}
+                  nestedZIndex={zIndex ?? APP_NESTED_MODAL_Z_INDEX}
                 />
               ) : tab === 'look' ? (
                 <AddServiceLookPane
@@ -302,7 +349,16 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                   onChange={setLook}
                 />
               ) : (
-                <AddServiceAdvancedPane />
+                /* 高级 = 启动与守护：注册类启动项（启动类型 / 崩溃重启 / 轮转），其余装饰性
+                   高级字段（运行账户 / 进程优先级 / 环境变量）未接入注册链路，已删除。 */
+                <AddServiceStartSection
+                  startType={form.basic.startType}
+                  restart={form.basic.restart}
+                  rotate={form.basic.rotate}
+                  onStartTypeChange={(value) => form.setBasicField('startType', value)}
+                  onRestartChange={(value) => form.setBasicField('restart', value)}
+                  onRotateChange={(value) => form.setBasicField('rotate', value)}
+                />
               )
             ) : null}
             </div>
@@ -312,22 +368,35 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
         {step === 'config' ? (
           <footer className="asm-foot">
             {alreadyManaged ? (
-              <div className="asm-probe-bar info">
-                <span className="asm-probe-ico">
-                  <InfoCircleFilled />
-                </span>
-                <span className="asm-probe-text">
-                  {t('service.modal.managed.exists', { name: form.basic.serviceName.trim() })}
-                  <small>{t('service.modal.managed.existsHint')}</small>
-                </span>
-              </div>
-            ) : probeFileMissing ? (
+              /* 与已纳管服务重名 = 报错：不能重复添加，需更换服务名后重新探测。 */
               <div className="asm-probe-bar error show">
                 <span className="asm-probe-ico">
                   <CloseOutlined />
                 </span>
                 <span className="asm-probe-text">
-                  {t('service.modal.probe.fileMissing', { file: form.probe.missingFile || '' })}
+                  {t('service.modal.managed.duplicate', { name: form.basic.serviceName.trim() })}
+                  <small>{t('service.modal.managed.duplicateHint')}</small>
+                </span>
+              </div>
+            ) : probeNotice ? (
+              /* 页签浏览守卫 / 基本信息必填前置校验：与探测结果同一条位的信息条（非报错）。 */
+              <div className="asm-probe-bar info show">
+                <span className="asm-probe-ico">
+                  <InfoCircleFilled />
+                </span>
+                <span className="asm-probe-text">{probeNotice.text}</span>
+              </div>
+            ) : probeFileMissing || probePhase === 'error' ? (
+              /* 基本信息没填对（文件缺失 / 服务名问题等）：信息提示而非报错——
+                 还没探测通过，谈不上「失败」，填好再点探测即可。 */
+              <div className="asm-probe-bar info show">
+                <span className="asm-probe-ico">
+                  <InfoCircleFilled />
+                </span>
+                <span className="asm-probe-text">
+                  {probeFileMissing
+                    ? t('service.modal.probe.fileMissing', { file: form.probe.missingFile || '' })
+                    : form.probe.message}
                 </span>
               </div>
             ) : probePhase !== 'none' ? (
@@ -379,41 +448,30 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                           type: template ? t(template.labelKey) : '',
                         })}
               </span>
-              <Tooltip title={t('service.modal.footer.previewTitle')} placement="top">
-                <Button
-                  type="text"
-                  className="asm-cmd-toggle"
-                  icon={<RightOutlined style={{ transform: 'rotate(-90deg)' }} />}
-                  onClick={(event) => {
-                    const box = (event.currentTarget as HTMLElement)
-                      .closest('.asm-foot')
-                      ?.querySelector('.asm-cmd-box');
-                    box?.classList.toggle('show');
-                  }}
-                >
-                  {t('service.modal.footer.preview')}
-                </Button>
-              </Tooltip>
               <span className="asm-foot-spring" />
               <div className="asm-foot-actions">
-                <Button
-                  type="text"
-                  className="asm-probe-btn"
-                  icon={probing ? <LoadingOutlined /> : <RightOutlined style={{ transform: 'rotate(90deg)' }} />}
-                  disabled={probing}
-                  onClick={() => void runProbe()}
-                >
-                  {probing
-                    ? t('service.modal.probe.probing')
-                    : probePhase === 'none'
-                      ? t('service.modal.probe.action')
-                      : t('service.modal.probe.again')}
-                </Button>
+                <Tooltip title={t('service.modal.probe.actionTip')} placement="top">
+                  <Button
+                    type="text"
+                    className="asm-probe-btn"
+                    icon={probing ? <LoadingOutlined /> : <RightOutlined style={{ transform: 'rotate(90deg)' }} />}
+                    disabled={probing}
+                    onClick={() => void runProbe()}
+                  >
+                    {probing
+                      ? t('service.modal.probe.probing')
+                      : probePhase === 'none'
+                        ? t('service.modal.probe.action')
+                        : t('service.modal.probe.again')}
+                  </Button>
+                </Tooltip>
                 <Button className="asm-btn-ghost" onClick={closeModal}>
                   {t('common.cancel')}
                 </Button>
                 <Tooltip title={primaryDisabled
-                  ? (alreadyManaged ? t('service.modal.managed.exists', { name: form.basic.serviceName.trim() }) : t('service.modal.probe.required'))
+                  ? (alreadyManaged
+                    ? t('service.modal.managed.duplicate', { name: form.basic.serviceName.trim() })
+                    : t('service.modal.probe.required'))
                   : ''}
                 >
                   <Button
@@ -438,7 +496,6 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                 </Tooltip>
               </div>
             </div>
-            <pre className="asm-cmd-box">{form.previewCommand}</pre>
           </footer>
         ) : (
           <footer className="asm-foot">

@@ -11,6 +11,7 @@ export namespace app {
 	    workDir: string;
 	    startType: string;
 	    restart: boolean;
+	    rotate: boolean;
 	    confName: string;
 	    confContent: string;
 	
@@ -30,6 +31,7 @@ export namespace app {
 	        this.workDir = source["workDir"];
 	        this.startType = source["startType"];
 	        this.restart = source["restart"];
+	        this.rotate = source["rotate"];
 	        this.confName = source["confName"];
 	        this.confContent = source["confContent"];
 	    }

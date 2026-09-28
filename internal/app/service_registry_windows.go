@@ -22,6 +22,9 @@ import (
 
 const servyCommandTimeout = 60 * time.Second
 
+// servyVersionProbeTimeout 是 --version 探测的上限；引擎文件损坏时不能卡住设置页。
+const servyVersionProbeTimeout = 5 * time.Second
+
 // servyCommandContext 是 exec.CommandContext 的接缝，便于测试替换。
 var servyCommandContext = exec.CommandContext
 
@@ -126,31 +129,89 @@ func serviceFileExists(path string) bool {
 	return err == nil && !info.IsDir()
 }
 
-// locateServyEngine 按固定顺序查找 servy-10.1.exe：
-// 环境变量 SERVDECK_SERVY_PATH → 可执行文件同目录 → 常见工具目录 → PATH。
+// locateServyEngine 按固定顺序查找 servy 引擎：
+// 环境变量 SERVDECK_SERVY_PATH → 设置中配置的引擎路径（bootstrap 配置）→ 可执行文件同目录 → 常见工具目录 → PATH。
+// 不依赖固定文件名（新版本可能改名）：目录内按 servy*.exe 通配发现候选，
+// 每个候选都用 --version 输出验证确实是 Servy CLI 后才采用。
 func locateServyEngine() (string, error) {
-	const engineName = "servy-10.1.exe"
 	if custom := strings.TrimSpace(os.Getenv("SERVDECK_SERVY_PATH")); custom != "" {
 		if serviceFileExists(custom) {
 			return custom, nil
 		}
 	}
+	if configured := appdata.ResolveServyEngineOverride(); configured != "" {
+		if serviceFileExists(configured) {
+			return configured, nil
+		}
+	}
 	if exePath, err := os.Executable(); err == nil {
-		candidate := filepath.Join(filepath.Dir(exePath), engineName)
-		if serviceFileExists(candidate) {
-			return candidate, nil
+		if found := findServyEngineInDir(filepath.Dir(exePath)); found != "" {
+			return found, nil
 		}
 	}
 	for _, dir := range []string{"C:\\workspace\\assets", "C:\\tools\\servy"} {
-		candidate := filepath.Join(dir, engineName)
-		if serviceFileExists(candidate) {
-			return candidate, nil
+		if found := findServyEngineInDir(dir); found != "" {
+			return found, nil
 		}
 	}
-	if path, err := exec.LookPath(engineName); err == nil {
-		return path, nil
+	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+		if found := findServyEngineInDir(dir); found != "" {
+			return found, nil
+		}
 	}
 	return "", errors.New("servy engine not found (set SERVDECK_SERVY_PATH)")
+}
+
+// findServyEngineInDir 在单个目录里按 servy*.exe 通配找引擎候选，
+// 逐个跑 --version 验证，返回第一个能确认是 Servy CLI 的路径。
+func findServyEngineInDir(dir string) string {
+	matches, err := filepath.Glob(filepath.Join(dir, "servy*.exe"))
+	if err != nil {
+		return ""
+	}
+	for _, candidate := range matches {
+		if isServyCLI(candidate) {
+			return candidate
+		}
+	}
+	return ""
+}
+
+// isServyCLI 运行 --version 判断可执行文件是不是 Servy CLI（改名后的引擎靠它识别）。
+func isServyCLI(path string) bool {
+	return servyEngineVersion(path) != ""
+}
+
+// servyEngineVersion 运行引擎的 --version 并解析版本号（如 10.1.0）；
+// 执行失败或输出不是 Servy.CLI 格式时返回空串。
+func servyEngineVersion(path string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), servyVersionProbeTimeout)
+	defer cancel()
+	cmd := servyCommandContext(ctx, path, "--version")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW}
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return parseServyVersionOutput(string(output))
+}
+
+// parseServyVersionOutput 解析 servy 引擎 --version 的输出，形如
+// "Servy.CLI 10.1.0+976276e089e81fdd729dfdd81c7b8265eb459c73"，返回 10.1.0。
+func parseServyVersionOutput(output string) string {
+	fields := strings.Fields(strings.TrimSpace(output))
+	if len(fields) < 2 || fields[0] != "Servy.CLI" {
+		return ""
+	}
+	version := fields[1]
+	if plus := strings.Index(version, "+"); plus > 0 {
+		version = version[:plus]
+	}
+	// 语义化版本以数字开头（如 10.1.0）；"+abc" 这类输出不是版本号。
+	if version == "" || version[0] < '0' || version[0] > '9' {
+		return ""
+	}
+	return version
 }
 
 func servicesLogDir(name string) (string, error) {
@@ -203,7 +264,7 @@ func buildServyInstallArgs(request AddServiceRequest, logDir string) []string {
 	if strings.TrimSpace(request.Params) != "" {
 		args = append(args, "--params", request.Params)
 	}
-	if request.Restart {
+	if request.Rotate {
 		args = append(args, "--enableSizeRotation")
 	}
 	return args

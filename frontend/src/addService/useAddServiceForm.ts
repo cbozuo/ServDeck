@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useI18n } from '../i18n/provider';
 import { ProbeWindowsService, AddManagedService } from '../../wailsjs/go/app/App';
 import type { ServiceProbeResult } from './serviceFieldTypes';
@@ -10,7 +10,7 @@ import {
 } from './serviceTemplates';
 
 type FieldValues = Record<string, string | boolean>;
-type ProbePhase = 'none' | 'probing' | 'ok' | 'exists';
+type ProbePhase = 'none' | 'probing' | 'ok' | 'exists' | 'error';
 type AddPhase = 'idle' | 'adding' | 'done';
 
 export interface ProbeOutcome {
@@ -28,55 +28,30 @@ export interface BasicInfo {
   programFile: string;
   serviceName: string;
   displayName: string;
+  /** 服务描述，非必填；注册时写进 SCM description（servy --description）。 */
+  description: string;
   startType: string;
   restart: boolean;
+  /** 日志按大小轮转（servy --enableSizeRotation）。 */
+  rotate: boolean;
 }
 
 const trim = (value: string | boolean | undefined): string => String(value ?? '').trim();
-
-/** servy install 完整命令预览（与后端 buildServyInstallArgs 口径一致，日志目录用占位符）。 */
-export function buildServyPreviewCommand(
-  template: ServiceTemplate,
-  values: FieldValues,
-  basic: BasicInfo,
-): string {
-  const programFile = trim(basic.programFile) || '<程序文件>';
-  const exe = trim(template.executable(values)) || programFile;
-  const workDir = programFile.replace(/[\\/][^\\/]*$/, '') || '<工作目录>';
-  const params = template.params(values, programFile);
-  const logDir = '<LOG_DIR>';
-  const name = trim(basic.serviceName) || '<服务名>';
-  const args = [
-    'install',
-    '--name', `"${name}"`,
-    '-p', `"${exe}"`,
-    '--displayName', `"${trim(basic.displayName) || '<显示名称>'}"`,
-    '--startupDir', `"${workDir}"`,
-    '--startupType', basic.startType,
-    '--stdout', `"${logDir}\\service-out.log"`,
-    '--stderr', `"${logDir}\\service-err.log"`,
-  ];
-  if (params) {
-    args.push('--params', `"${params}"`);
-  }
-  if (basic.restart) {
-    args.push('--enableSizeRotation');
-  }
-  const install = ['servy-10.1.exe', ...args].join(' ');
-  const start = `servy-10.1.exe start --name "${name}"`;
-  return `${install}\n${start}`;
-}
 
 /** 添加服务弹框的全部表单状态与动作。 */
 export function useAddServiceForm(template: ServiceTemplate) {
   const { t } = useI18n();
   const [values, setValues] = useState<FieldValues>(() => initialValues(template));
+  /* 三个基本输入框（程序文件 / 服务名 / 显示名称）一律空值起步，由用户自己填写；
+     参数配置页仍保留模板默认参数（JVM 路径、堆内存等），那是「已知服务模板」的价值所在。 */
   const [basic, setBasic] = useState<BasicInfo>(() => ({
-    programFile: template.file,
-    serviceName: template.serviceName,
-    displayName: t(template.displayNameKey),
+    programFile: '',
+    serviceName: '',
+    displayName: '',
+    description: '',
     startType: SERVICE_START_TYPES[0],
     restart: true,
+    rotate: true,
   }));
   const [probeOutcome, setProbeOutcome] = useState<ProbeOutcome>({
     phase: 'none',
@@ -95,11 +70,13 @@ export function useAddServiceForm(template: ServiceTemplate) {
     touchedFieldsRef.current = new Set();
     setValues(initialValues(next));
     setBasic({
-      programFile: next.file,
-      serviceName: next.serviceName,
-      displayName: t(next.displayNameKey),
+      programFile: '',
+      serviceName: '',
+      displayName: '',
+      description: '',
       startType: SERVICE_START_TYPES[0],
       restart: true,
+      rotate: true,
     });
     setProbeOutcome({ phase: 'none', exists: false, fileExists: false });
     setAddPhase('idle');
@@ -112,8 +89,11 @@ export function useAddServiceForm(template: ServiceTemplate) {
   }, []);
 
   const setBasicField = useCallback((key: keyof BasicInfo, value: string | boolean) => {
-    setBasic((prev) => ({ ...prev, [key]: value }));
-    if (key === 'serviceName') {
+    /* Windows 服务名惯例全大写：用户手输的小写自动转成大写（模板预填值不动）。 */
+    const normalized = key === 'serviceName' && typeof value === 'string' ? value.toUpperCase() : value;
+    setBasic((prev) => ({ ...prev, [key]: normalized }));
+    if (key === 'serviceName' || key === 'programFile' || key === 'displayName') {
+      /* 这三个字段参与探测校验，改动后上次探测结果即过期，回到「未探测」。 */
       setProbeOutcome({ phase: 'none', exists: false, fileExists: false });
     }
     if (key === 'programFile' && typeof value === 'string') {
@@ -133,19 +113,56 @@ export function useAddServiceForm(template: ServiceTemplate) {
     }
   }, [template]);
 
+  /* 探测/提交按序校验（口径一致）：
+     ① 程序文件为空 → ② 程序文件存在（后端文件校验，先于服务名）→
+     ③ 服务名为空 → ④ 服务名重复（SCM 已存在走纳管分支 / 已在纳管列表由弹窗拦截）→
+     ⑤ 显示名称为空。哪一步在前先报哪一步。 */
   const probeNow = useCallback(async (): Promise<ProbeOutcome> => {
+    const fail = (message: string): ProbeOutcome => {
+      const outcome: ProbeOutcome = {
+        phase: 'error',
+        exists: false,
+        fileExists: true,
+        message,
+      };
+      setProbeOutcome(outcome);
+      return outcome;
+    };
+    if (trim(basic.programFile) === '') {
+      return fail(t('service.modal.probe.programRequired'));
+    }
     setProbeOutcome((prev) => ({ ...prev, phase: 'probing' }));
     const files = collectProbeProgramFiles(template, values, basic);
     try {
       const result = await ProbeWindowsService(trim(basic.serviceName), files[0] ?? '');
+      /* 后端拒绝（如 SCM 异常）必须当作探测失败展示，不能把空 Data 当「通过」。 */
+      if (!result.success) {
+        return fail(result.message || t('service.modal.probe.failed'));
+      }
       const data = (result.data ?? {}) as Partial<ServiceProbeResult>;
-      let fileExists = data.fileExists !== false;
-      let missingFile = fileExists ? undefined : files[0] ?? '';
+      if (data.fileExists === false) {
+        const missing: ProbeOutcome = {
+          phase: 'ok',
+          exists: false,
+          fileExists: false,
+          missingFile: files[0] ?? '',
+        };
+        setProbeOutcome(missing);
+        return missing;
+      }
+      if (trim(basic.serviceName) === '') {
+        return fail(t('service.modal.probe.nameRequired'));
+      }
+      if (trim(basic.displayName) === '') {
+        return fail(t('service.modal.probe.displayNameRequired'));
+      }
       // Java 会涉及 JVM 路径与程序文件两个路径，逐个补查存在性，任何一个缺失都算不过。
+      let fileExists = true;
+      let missingFile: string | undefined;
       for (const extra of files.slice(1)) {
         const extraResult = await ProbeWindowsService(trim(basic.serviceName), extra);
         const extraData = (extraResult.data ?? {}) as Partial<ServiceProbeResult>;
-        const extraExists = extraData.fileExists !== false;
+        const extraExists = extraResult.success !== false && extraData.fileExists !== false;
         if (!extraExists && !missingFile) {
           missingFile = extra;
         }
@@ -179,9 +196,27 @@ export function useAddServiceForm(template: ServiceTemplate) {
     message: string;
     mode: 'register' | 'manage';
   }> => {
+    /* 兜底校验：按钮禁用态被绕过（回车提交等）时同样拦住，口径与 probeNow 一致。 */
+    if (trim(basic.programFile) === '') {
+      const programMessage = t('service.modal.probe.programRequired');
+      setAddError(programMessage);
+      return { ok: false, message: programMessage, mode: 'register' };
+    }
     let outcome = probeOutcome;
     if (outcome.phase === 'none' || outcome.phase === 'probing') {
       outcome = await probeNow();
+    }
+    /* 探测失败（服务名被拒 / 程序文件缺失）不允许继续注册。 */
+    if (outcome.phase === 'error' || !outcome.fileExists) {
+      const probeMessage = outcome.message || t('service.modal.probe.failed');
+      setAddError(probeMessage);
+      return { ok: false, message: probeMessage, mode: 'register' };
+    }
+    /* 显示名称可能在探测通过后又被清空，提交前按序复验。 */
+    if (trim(basic.displayName) === '') {
+      const displayMessage = t('service.modal.probe.displayNameRequired');
+      setAddError(displayMessage);
+      return { ok: false, message: displayMessage, mode: 'register' };
     }
     setAddPhase('adding');
     setAddError('');
@@ -192,13 +227,14 @@ export function useAddServiceForm(template: ServiceTemplate) {
           mode,
           serviceType: template.id,
           name: trim(basic.serviceName),
-          displayName: trim(basic.displayName) || trim(basic.serviceName),
-          description: '',
+          displayName: trim(basic.displayName),
+          description: trim(basic.description),
           programFile: resolveProgramFile(template, values, basic),
           params: template.params(values, trim(basic.programFile)),
           workDir: trim(basic.programFile).replace(/[\\/][^\\/]*$/, ''),
           startType: basic.startType,
           restart: basic.restart,
+          rotate: basic.rotate,
           confName: template.conf?.name ?? '',
           confContent: template.conf ? template.conf.render(values, trim(basic.programFile)) : '',
         });
@@ -218,11 +254,6 @@ export function useAddServiceForm(template: ServiceTemplate) {
     }
   }, [basic, probeNow, probeOutcome, template, values]);
 
-  const previewCommand = useMemo(
-    () => buildServyPreviewCommand(template, values, basic),
-    [template, values, basic],
-  );
-
   const resetAll = useCallback(() => {
     applyTemplate(template);
   }, [applyTemplate, template]);
@@ -233,7 +264,6 @@ export function useAddServiceForm(template: ServiceTemplate) {
     probe: probeOutcome,
     addPhase,
     addError,
-    previewCommand,
     setFieldValue,
     setBasicField,
     applyTemplate,

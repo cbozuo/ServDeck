@@ -26,6 +26,10 @@ export function ApplySavedQueryDirectory(arg1) {
   return window['go']['app']['App']['ApplySavedQueryDirectory'](arg1);
 }
 
+export function ApplyServyEnginePath(arg1) {
+  return window['go']['app']['App']['ApplyServyEnginePath'](arg1);
+}
+
 export function AuthorizeMCPConnectionSQL(arg1, arg2) {
   return window['go']['app']['App']['AuthorizeMCPConnectionSQL'](arg1, arg2);
 }
@@ -542,6 +546,10 @@ export function DeleteSavedQueryGroup(arg1) {
   return window['go']['app']['App']['DeleteSavedQueryGroup'](arg1);
 }
 
+export function DetectJavaRuntimes() {
+  return window['go']['app']['App']['DetectJavaRuntimes']();
+}
+
 export function DiagnoseQuery(arg1, arg2, arg3) {
   return window['go']['app']['App']['DiagnoseQuery'](arg1, arg2, arg3);
 }
@@ -780,6 +788,10 @@ export function GetSavedQueryGroups() {
 
 export function GetSecurityUpdateStatus() {
   return window['go']['app']['App']['GetSecurityUpdateStatus']();
+}
+
+export function GetServyEngineConfig() {
+  return window['go']['app']['App']['GetServyEngineConfig']();
 }
 
 export function GetSlowQueries(arg1, arg2, arg3, arg4) {
@@ -1512,6 +1524,10 @@ export function SelectSavedQueryDirectory(arg1) {
 
 export function SelectServiceProgramFile(arg1) {
   return window['go']['app']['App']['SelectServiceProgramFile'](arg1);
+}
+
+export function SelectServyEngineFile() {
+  return window['go']['app']['App']['SelectServyEngineFile']();
 }
 
 export function SetLanguage(arg1) {

@@ -323,6 +323,11 @@
   .rc-spark { margin-top: 9px; height: 28px; }
   .rc-spark svg { display: block; width: 100%; height: 28px; }
   .rc-note { margin-top: auto; padding-top: 8px; font-size: 10.5px; color: var(--gn-fg-5); font-family: var(--gn-font-mono); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  /* 事件摘要卡（资源区第 8 格）：两行截断，点击跳转事件页签 */
+  .rc-evt { margin-top: 9px; font-size: 12.5px; line-height: 1.6; color: var(--gn-fg-1); font-weight: 500; font-family: var(--gn-font-sans); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .res-card.clickable { cursor: pointer; }
+  .res-card.clickable:hover { box-shadow: var(--gn-shadow-md); }
+  .res-card.clickable .rc-note b { color: var(--gn-accent-2); font-weight: 600; }
   .rc-note b { color: var(--gn-fg-4); font-weight: 600; }
   .m-bar { margin-top: 10px; height: 5px; border-radius: 3px; background: var(--gn-bg-hover); overflow: hidden; }
   .m-bar i { display: block; height: 100%; border-radius: 3px; transition: width .6s ease; }
@@ -350,10 +355,11 @@
 
   /* 只读键值清单（纳管信息）：单列，每行一个字段，与可编辑表单形成明确区分 */
   .kv-list { border: 1px solid var(--gn-br-1); border-radius: 9px; overflow: hidden; }
-  .kv-row { display: grid; grid-template-columns: 100px 1fr; gap: 10px; padding: 8px 13px; font-size: 12px; border-bottom: 1px solid var(--gn-br-1); background: var(--gn-bg-panel-2); }
+  .kv-row { display: flex; align-items: center; gap: 10px; padding: 8px 13px; font-size: 12px; border-bottom: 1px solid var(--gn-br-1); background: var(--gn-bg-panel-2); }
   .kv-row:nth-child(even) { background: transparent; }
   .kv-row:last-child { border-bottom: 0; }
-  .kv-row .k { color: var(--gn-fg-4); }
+  .kv-row .k { width: 100px; flex-shrink: 0; color: var(--gn-fg-4); }
+  .kv-row .v { flex: 1; min-width: 0; }
   .kv-row .v { color: var(--gn-fg-1); font-family: var(--gn-font-mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .kv-row .v.sans { font-family: var(--gn-font-sans); font-size: 12px; }
 
@@ -402,6 +408,38 @@
   .field.span2 { grid-column: span 2; }
   .field label { font-size: 11.5px; font-weight: 600; color: var(--gn-fg-2); display: flex; align-items: center; gap: 6px; }
   .field label .hint { font-weight: 400; color: var(--gn-fg-5); font-size: 10.5px; }
+  /* JVM 常用参数快捷开关：布尔类参数点击追加 / 移除，激活态跟随输入框内容 */
+  .jvm-presets .preset-chips { margin-top: 7px; display: flex; flex-wrap: wrap; gap: 7px; }
+  .preset-chip { height: 24px; padding: 0 11px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--gn-fg-3); border: 1px solid var(--gn-br-2); background: var(--gn-bg-panel-2); transition: all .12s ease; }
+  .preset-chip:hover { border-color: var(--gn-accent); color: var(--gn-fg-1); }
+  .preset-chip.on { background: var(--gn-accent-soft); border-color: color-mix(in srgb, var(--gn-accent) 42%, transparent); color: var(--gn-accent-2); }
+  .preset-chip:disabled { opacity: .45; cursor: not-allowed; }
+  /* 堆内存单选行 / 开关多选行的分组标签 */
+  .preset-row { display: flex; align-items: center; gap: 9px; margin-top: 7px; }
+  .preset-row:first-of-type { margin-top: 2px; }
+  .preset-label { width: 52px; flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4); }
+  /* 启动类型分段选择（与添加服务弹窗同构）：紧凑灰底容器，选中项滑块填充主题色
+     （真实实现用 antd Segmented，选中底色取 --gn-accent，滑块位移随选项） */
+  .seg-group { display: inline-flex; align-self: flex-start; background: var(--gn-bg-hover); border-radius: 7px; padding: 2px; gap: 2px; }
+  .seg-btn { height: 22px; padding: 0 10px; border-radius: 5px; font-size: 11px; font-weight: 600; color: var(--gn-fg-4); white-space: nowrap; transition: background-color .15s ease, color .15s ease; }
+  .seg-btn:hover:not(:disabled):not(.on) { color: var(--gn-fg-1); }
+  .seg-btn.on { background: var(--gn-accent); color: var(--gn-on-accent); }
+  .seg-btn:disabled { opacity: .5; cursor: not-allowed; }
+  /* 堆内存拖拽滑杆 + 数值输入框：拖动吸附档位，也可直接键入（回车 / 失焦提交）；
+     上限 = 自动检测的本机可用内存（HOST_MEM_GB × 75%，见 HEAP_MAX_GB），超出机器内存的堆设置无意义。
+     滑杆定宽，避免在双列表单里被拉成通栏 */
+  input.heap-range { -webkit-appearance: none; appearance: none; width: 210px; height: 16px; background: transparent; cursor: pointer; margin: 0; flex-shrink: 0; }
+  input.heap-range::-webkit-slider-runnable-track { height: 5px; border-radius: 999px; background: linear-gradient(to right, var(--gn-accent) var(--fill, 0%), var(--gn-bg-active) var(--fill, 0%)); }
+  input.heap-range::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--gn-bg-panel); border: 2px solid var(--gn-accent); box-shadow: var(--gn-shadow-card); margin-top: -4px; transition: transform .12s ease; }
+  input.heap-range:active:not(:disabled)::-webkit-slider-thumb { transform: scale(1.2); }
+  input.heap-range::-moz-range-track { height: 5px; border-radius: 999px; background: var(--gn-bg-active); }
+  input.heap-range::-moz-range-progress { height: 5px; border-radius: 999px; background: var(--gn-accent); }
+  input.heap-range::-moz-range-thumb { width: 9px; height: 9px; border-radius: 50%; background: var(--gn-bg-panel); border: 2px solid var(--gn-accent); box-shadow: var(--gn-shadow-card); }
+  input.heap-range:disabled { opacity: .45; cursor: not-allowed; }
+  input.heap-range:disabled::-webkit-slider-thumb { border-color: var(--gn-fg-5); }
+  .input.heap-input { width: 78px; height: 26px; border-radius: 6px; flex-shrink: 0; }
+  .input.heap-input input { text-align: center; font-size: 11.5px; }
+  .heap-cap { flex-shrink: 0; font-size: 10.5px; color: var(--gn-fg-5); font-family: var(--gn-font-mono); white-space: nowrap; }
   .input { height: 31px; border-radius: 7px; background: var(--gn-bg-input); border: 1px solid var(--gn-br-2); display: flex; align-items: center; padding: 0 9px; font-size: 12px; min-width: 0; transition: border-color .12s ease, box-shadow .12s ease; }
   .input input, .input select { flex: 1; border: 0; outline: 0; background: transparent; font-size: 12px; min-width: 0; }
   .input input.mono { font-family: var(--gn-font-mono); }
@@ -734,6 +772,7 @@
     ['Disabled', '已禁用'],
   ];
   const startTypeText = v => (START_TYPES.find(s => s[0] === v) || ['', v])[1];
+  const START_SHORT = { Automatic: '自动', 'Automatic (Delayed)': '自动（延迟）', Manual: '手动', Disabled: '禁用' };
 
   /* 原型演示：本机检测到的 Java 运行时。
      真实实现应扫描 JAVA_HOME、注册表 HKLM\SOFTWARE\JavaSoft\JDK 与常见安装目录。 */
@@ -742,6 +781,19 @@
     { ver: '21', name: 'Oracle 21.0.1+12', path: 'C:\\Program Files\\Java\\jdk-21\\bin\\java.exe' },
     { ver: '8', name: 'Zulu 8.0.392', path: 'D:\\tools\\zulu-8\\bin\\java.exe' },
   ];
+
+  /* 堆内存滑杆：上限自动检测本机可用内存（原型演示 32G 物理内存）。
+     真实实现应通过 Wails 绑定返回物理内存（gopsutil mem.VirtualMemory().Total），
+     堆上限 = 物理 × 75% 向下取整到 0.5G——超出机器内存的 -Xmx 会让 JVM 起不来；
+     档位吸附（非连续取值）避免拖出 -Xms1023m 这类难排查的参数。 */
+  const HOST_MEM_GB = 32;
+  const HEAP_MAX_GB = Math.max(1, Math.floor(HOST_MEM_GB * 0.75 * 2) / 2);
+  const HEAP_STOPS = [0.5, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64].filter(g => g <= HEAP_MAX_GB);
+  const heapLabel = g => (g < 1 ? Math.round(g * 1024) + 'M' : g + 'G');
+  /* jvmArgs 里的 -Xmx → GB（浮点）；未设置返回 NaN */
+  const heapParse = t => { const m = String(t || '').match(/-Xmx(\d+)([mMgG])/); return m ? parseInt(m[1], 10) * (m[2].toLowerCase() === 'm' ? 1 / 1024 : 1) : NaN; };
+  /* GB → JVM 规范写法：整数 GB 用 g，其余四舍五入到 MB（JVM 不接受「小数+单位」） */
+  const heapNum = gb => { const mb = Math.round(gb * 1024); return mb % 1024 === 0 ? (mb / 1024) + 'g' : mb + 'm'; };
 
   /* 确定式伪随机趋势（同一服务每次渲染形状一致） */
   function mkTrend(seed, v0, min, max, amp) {
@@ -765,9 +817,6 @@
       deploy: {
         javaPath: 'C:\\Program Files\\Java\\jdk-17\\bin\\java.exe',
         jvmArgs: '-Xms2g -Xmx2g',
-        appArgs: '-jar wec-ai-platform.jar',
-        workDir: 'D:\\wec-ai-platform',
-        logDir: 'D:\\wec-ai-platform\\applogs',
         rotate: true, guard: true, startType: 'Automatic',
         cli: 'servy-cli.exe',
       },
@@ -775,7 +824,7 @@
         cpu: 2.1, mem: 486, memMax: 2048,
         threads: 214, handles: 1284,
         diskR: 1.8, diskW: 0.64, netRx: 12.4, netTx: 3.1,
-        dirUsed: 2.4, dirFree: 128, dirLabel: '工作目录',
+        dirUsed: 2.4, dirLabel: '工作目录',
         netTotalRx: '1.2 GB', netTotalTx: '240 MB',
       },
       depsPorts: [
@@ -786,12 +835,6 @@
         cmdline: '"C:\\Program Files\\Java\\jdk-17\\bin\\java.exe" -version',
         out: 'openjdk version "17.0.9" 2023-10-17\nOpenJDK Runtime Environment Temurin-17.0.9+9 (build 17.0.9+9)\nOpenJDK 64-Bit Server VM Temurin-17.0.9+9 (build 17.0.9+9, mixed mode, sharing)',
       },
-      checks: [
-        { k: 'servy-cli.exe', v: 'D:\\wec-ai-platform\\servy-cli.exe', ok: true },
-        { k: 'Java 运行时', v: 'jdk-17 · 已就绪', ok: true },
-        { k: 'JAR 包（取最新）', v: 'wec-ai-platform.jar · 86.4 MB · 09-20 14:05', ok: true },
-        { k: '日志目录', v: 'applogs · 可写', ok: true },
-      ],
       logFiles: [
         { name: 'stdout.log', size: '12.4 MB', mtime: '今天 11:26', kind: 'out' },
         { name: 'stderr.log', size: '210 KB', mtime: '今天 09:47', kind: 'err' },
@@ -832,16 +875,13 @@
       deploy: {
         javaPath: 'C:\\Program Files\\Java\\jdk-17\\bin\\java.exe',
         jvmArgs: '-Xms512m -Xmx1g',
-        appArgs: '-jar oj-gateway.jar --spring.profiles.active=prod',
-        workDir: 'D:\\oj\\gateway',
-        logDir: 'D:\\oj\\gateway\\logs',
         rotate: true, guard: false, startType: 'Manual',
         cli: 'servy-cli.exe',
       },
       res: {
         cpu: 0, mem: 0, memMax: 1024, threads: 0, handles: 0,
         diskR: 0, diskW: 0, netRx: 0, netTx: 0,
-        dirUsed: 0.9, dirFree: 128, dirLabel: '工作目录',
+        dirUsed: 0.9, dirLabel: '工作目录',
         netTotalRx: '—', netTotalTx: '—',
       },
       depsPorts: [{ port: 3306, label: '依赖 · MySQL', ok: true, pid: 3392 }],
@@ -849,12 +889,6 @@
         cmdline: '"C:\\Program Files\\Java\\jdk-17\\bin\\java.exe" -version',
         out: 'openjdk version "17.0.9" 2023-10-17\nOpenJDK Runtime Environment Temurin-17.0.9+9 (build 17.0.9+9)\nOpenJDK 64-Bit Server VM Temurin-17.0.9+9 (build 17.0.9+9, mixed mode, sharing)',
       },
-      checks: [
-        { k: 'servy-cli.exe', v: 'D:\\oj\\gateway\\servy-cli.exe', ok: true },
-        { k: 'Java 运行时', v: 'jdk-17 · 已就绪', ok: true },
-        { k: 'JAR 包（取最新）', v: 'oj-gateway.jar · 42.1 MB · 09-18 09:58', ok: true },
-        { k: '日志目录', v: 'logs · 可写', ok: true },
-      ],
       logFiles: [
         { name: 'stdout.log', size: '3.1 MB', mtime: '09-27 20:12', kind: 'out' },
         { name: 'stderr.log', size: '18 KB', mtime: '09-27 20:12', kind: 'err' },
@@ -884,15 +918,13 @@
       startType: 'Automatic', mode: 'register', registered: true, addedAt: '2026-09-16 09:41',
       deploy: {
         params: 'server D:\\rustfs\\data --console-enable --console-address :9001 --address :9000',
-        workDir: 'D:\\rustfs',
-        logDir: 'D:\\rustfs\\logs',
         rotate: true, guard: true, startType: 'Automatic',
         cli: 'servy-cli.exe',
       },
       res: {
         cpu: 1.4, mem: 312, memMax: 1024, threads: 96, handles: 842,
         diskR: 24.6, diskW: 8.2, netRx: 2867, netTx: 640,
-        dirUsed: 340, dirFree: 1160, dirLabel: '数据目录',
+        dirUsed: 340, dirLabel: '数据目录',
         netTotalRx: '428 GB', netTotalTx: '96 GB',
       },
       depsPorts: [
@@ -903,12 +935,6 @@
         cmdline: '"D:\\rustfs\\rustfs.exe" --version',
         out: 'rustfs 1.0.0-alpha.42 (x86_64-pc-windows-msvc)\nbuilt 2026-08-30 · S3 compatible object storage',
       },
-      checks: [
-        { k: 'servy-cli.exe', v: 'D:\\rustfs\\servy-cli.exe', ok: true },
-        { k: 'rustfs.exe', v: '1.0.0-alpha.42', ok: true },
-        { k: 'config\\rustfs.conf', v: '已解析 6 项', ok: true },
-        { k: 'data / logs 目录', v: '已创建 · 可写', ok: true },
-      ],
       conf: {
         file: 'rustfs.conf', path: 'D:\\rustfs\\config\\rustfs.conf',
         fields: [
@@ -953,16 +979,11 @@
       res: {
         cpu: 0.8, mem: 742, memMax: 4096, threads: 42, handles: 690,
         diskR: 0.4, diskW: 1.1, netRx: 6.2, netTx: 4.8,
-        dirUsed: 8.2, dirFree: 240, dirLabel: '数据目录',
+        dirUsed: 8.2, dirLabel: '数据目录',
         netTotalRx: '3.1 GB', netTotalTx: '1.6 GB',
       },
       depsPorts: [{ port: 3306, label: '自身 MySQL', ok: true, pid: 3392 }],
       env: null,
-      checks: [
-        { k: '服务类型', v: 'Windows SCM（原生注册）', ok: true },
-        { k: '数据目录', v: 'D:\\mysql\\data', ok: true },
-        { k: '错误日志', v: 'mysql-error.log', ok: true },
-      ],
       logFiles: [
         { name: 'mysql-error.log', size: '92 KB', mtime: '今天 08:00', kind: 'err' },
         { name: 'mysql-slow.log', size: '1.2 MB', mtime: '09-27 22:14', kind: 'out' },
@@ -1306,13 +1327,7 @@
     if (activeTab === 'logs') requestAnimationFrame(scrollLogBottom);
   }
 
-  /* 实际启动命令 = 可执行文件（Java 取 JVM 路径，其余取纳管时的程序文件）+ 运行参数 */
-  const runCommand = s => {
-    const d = s.deploy; if (!d) return 'sc query ' + s.name;
-    return s.type === 'java'
-      ? `"${d.javaPath}" ${d.jvmArgs} ${d.appArgs}`.trim()
-      : `"${s.programFile}" ${d.params || ''}`.trim();
-  };
+
 
   /* ---------------- 概览：资源占用 + 趋势 ---------------- */
   function paneOverview(s) {
@@ -1320,14 +1335,23 @@
     const r = s.res;
     const memPct = pctOf(r.mem, r.memMax);
     const memHot = memPct >= 80;
-    const dirTotal = r.dirUsed + r.dirFree;
-    const dirPct = Math.max(1, pctOf(r.dirUsed, dirTotal));
 
     const ghost = (ic, label, note) => `
       <div class="res-card">
         <div class="rc-head"><svg class="ic"><use href="#${ic}"/></svg>${label}</div>
         <div class="rc-val mute">—</div>
         <div class="rc-note">${note}</div>
+      </div>`;
+
+    /* 第 8 格：最近事件（原「连续运行」卡的 时长/启动时刻/PID 与 Hero meta 全部重复，删除）；
+       服务级信息，点击跳转事件页签。 */
+    const latest = s.events[0];
+    const latestText = latest ? latest.html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() : '暂无事件记录';
+    const eventCard = `
+      <div class="res-card clickable" data-goto="events" title="点击查看全部事件">
+        <div class="rc-head"><svg class="ic"><use href="#i-clock"/></svg>最近事件</div>
+        <div class="rc-evt">${escHtml(latestText.length > 52 ? latestText.slice(0, 52) + '…' : latestText)}</div>
+        <div class="rc-note">${latest ? latest.t : '—'} · <b>查看全部</b></div>
       </div>`;
 
     const cards = run ? `
@@ -1376,11 +1400,7 @@
         <div class="rc-val"><span id="rDir">${r.dirUsed}</span><small>GB</small></div>
         <div class="rc-note">目录磁盘统计 · 每 5 分钟刷新（非实时）</div>
       </div>
-      <div class="res-card">
-        <div class="rc-head"><svg class="ic"><use href="#i-clock"/></svg>连续运行</div>
-        <div class="rc-val" style="font-size:19px">${s.uptime}</div>
-        <div class="rc-note">启动于 ${s.startedAt} · PID ${s.pid}</div>
-      </div>`
+      ${eventCard}`
       : ghost('i-cpu', 'CPU 使用率', '服务未运行')
         + ghost('i-mem', '内存占用', '服务未运行')
         + ghost('i-thread', '线程数', '服务未运行')
@@ -1392,7 +1412,7 @@
              <div class="rc-val">${r.dirUsed}<small>GB</small></div>
              <div class="rc-note">目录磁盘统计 · 每 5 分钟刷新（非实时）</div>
            </div>`
-        + ghost('i-clock', '连续运行', '服务未运行');
+        + eventCard;
 
     return `
       <div class="sec-title">
@@ -1508,7 +1528,7 @@
         <div class="kv-list">
           <div class="kv-row"><span class="k">服务名</span><span class="v" title="${escAttr(s.name)}">${escHtml(s.name)}</span></div>
           <div class="kv-row"><span class="k">显示名称</span><span class="v sans">${escHtml(s.display)}</span></div>
-          <div class="kv-row"><span class="k">程序文件</span><span class="v" title="${escAttr(s.programFile || '')}">${escHtml(s.programFile || '—')}</span></div>
+          <div class="kv-row"><span class="k">程序文件</span><span class="v" title="${escAttr(s.programFile || '')}">${escHtml(s.programFile || '—')}</span><button class="in-act" data-act="open-workdir" title="打开所在目录（即工作目录）"><svg class="ic"><use href="#i-folder"/></svg></button></div>
           <div class="kv-row"><span class="k">服务描述</span><span class="v sans" title="${escAttr(s.desc || '')}">${escHtml(s.desc || '—')}</span></div>
           <div class="kv-row"><span class="k">${s.registered ? '注册时间' : '纳管时间'}</span><span class="v sans">${s.addedAt}</span></div>
         </div>
@@ -1528,21 +1548,56 @@
       const rows = [];
       if (s.type === 'java') {
         rows.push(f('JVM 路径', 'javaPath', d.javaPath, 2, 'java.exe 完整路径', { a: 'pick-jdk', t: '选择本机 JDK', icon: 'i-java' }));
-        rows.push(f('JVM 参数', 'jvmArgs', d.jvmArgs, 1, '脚本默认 -Xms2g -Xmx2g'));
-        rows.push(f('应用参数', 'appArgs', d.appArgs, 1, '如 -jar app.jar'));
+        rows.push(f('JVM 参数', 'jvmArgs', d.jvmArgs, 2, '脚本默认 -Xms2g -Xmx2g'));
+        /* JVM 常用参数快捷设置：堆内存拖拽滑杆 + 数值输入框（写 -Xms/-Xmx）+ 开关多选（布尔类）。
+           未停止（运行中 / 转场中）一律禁用——参数只在进程启动时读取，且改动需重新注册。 */
+        const jvmArgsText = String(d.jvmArgs || '');
+        const heapCurGB = heapParse(jvmArgsText);
+        const heapExact = HEAP_STOPS.includes(heapCurGB);
+        const heapIdx = heapExact ? HEAP_STOPS.indexOf(heapCurGB)
+          : isNaN(heapCurGB) ? Math.max(0, HEAP_STOPS.indexOf(2))
+          : HEAP_STOPS.reduce((b, g, i) => (Math.abs(g - heapCurGB) < Math.abs(HEAP_STOPS[b] - heapCurGB) ? i : b), 0);
+        const heapFill = (heapIdx / (HEAP_STOPS.length - 1) * 100).toFixed(1);
+        const heapDisp = isNaN(heapCurGB) ? '2G' : (heapExact ? heapLabel(heapCurGB) : heapNum(heapCurGB));
+        rows.push(`
+        <div class="field span2 jvm-presets">
+          <label>常用参数 <span class="hint">堆内存拖动或键入自动写入 -Xms/-Xmx、开关点击追加 / 移除；带值参数直接在上方输入框编辑</span></label>
+          <div class="preset-row">
+            <span class="preset-label">堆内存</span>
+            <input type="range" class="heap-range" data-act="heap-range" min="0" max="${HEAP_STOPS.length - 1}" step="1" value="${heapIdx}" ${editable ? '' : 'disabled'} style="--fill:${heapFill}%" aria-label="堆内存档位" />
+            <div class="input heap-input">
+              <input class="mono" data-heap-input value="${escAttr(heapDisp)}" spellcheck="false" ${editable ? '' : 'readonly'} title="${editable ? '可直接键入，如 2G / 1536M，回车确认' : '服务运行中，参数已锁定'}" aria-label="堆内存" />
+            </div>
+            <span class="heap-cap" title="自动检测本机物理内存 ${HOST_MEM_GB}G，堆上限 = 75% = ${heapLabel(HEAP_MAX_GB)}">${heapLabel(HEAP_STOPS[0])} – ${heapLabel(HEAP_STOPS[HEAP_STOPS.length - 1])} · 本机上限</span>
+          </div>
+          <div class="preset-row">
+            <span class="preset-label">开关</span>
+            <div class="preset-chips">
+              ${[
+              { label: 'OOM 转储', flag: '-XX:+HeapDumpOnOutOfMemoryError', hint: '内存溢出时自动生成堆转储文件，排障必备' },
+              { label: 'G1 收集器', flag: '-XX:+UseG1GC', hint: '大堆服务的均衡型 GC 策略' },
+              { label: 'ZGC', flag: '-XX:+UseZGC', hint: '低停顿收集器，适合大内存低延迟场景' },
+              { label: 'UTF-8 编码', flag: '-Dfile.encoding=UTF-8', hint: '强制文件编码，避免中文乱码' },
+              { label: '上海时区', flag: '-Duser.timezone=Asia/Shanghai', hint: '固定时区，避免系统时区差异导致时间错乱' },
+              { label: '远程调试 :5005', flag: '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005', hint: '开放 JVM 远程调试端口，排障时使用' },
+            ].map(p => {
+              const on = jvmArgsText.includes(p.flag);
+              return `<button type="button" class="preset-chip${on ? ' on' : ''}" data-act="jvm-flag" data-jvm-flag="${escAttr(p.flag)}" ${editable ? '' : 'disabled'} title="${escAttr((on ? '点击移除：' : '点击追加：') + p.flag)} · ${escAttr(p.hint)}">${escHtml(p.label)}</button>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>`);
       } else {
         rows.push(f('启动参数', 'params', d.params || '', 2, '拼接在程序文件之后的参数'));
       }
-      rows.push(f('工作目录', 'workDir', d.workDir, 1, '', { a: 'open-workdir', t: '在资源管理器中打开工作目录' }));
-      rows.push(f('日志目录', 'logDir', d.logDir, 1, 'stdout.log / stderr.log', { a: 'open-logdir', t: '在资源管理器中打开日志目录' }));
       rows.push(`
         <div class="field">
           <label>启动类型</label>
-          <div class="input ${editable ? '' : 'locked'}"><select data-field="startType" ${editable ? '' : 'disabled'}>
-            ${START_TYPES.map(([v, t]) => `<option value="${v}" ${d.startType === v ? 'selected' : ''}>${t}</option>`).join('')}
-          </select></div>
+          <div class="seg-group" role="radiogroup" aria-label="启动类型">
+            ${START_TYPES.map(([v]) => `<button type="button" class="seg-btn${d.startType === v ? ' on' : ''}" data-act="start-type" data-value="${v}" ${editable ? '' : 'disabled'} title="${escAttr(startTypeText(v))}">${escHtml(START_SHORT[v] || v)}</button>`).join('')}
+          </div>
         </div>
-        <div class="field">
+        <div class="field span2">
           <label>守护与轮转</label>
           <div class="switch-row" style="height:31px">
             <button class="switch ${d.guard ? 'on' : ''}" data-act="flip" data-field="guard" title="崩溃自动重启" ${editable ? '' : 'disabled'}></button>
@@ -1580,11 +1635,28 @@
     return instCard + identityHtml + formHtml + (s.conf ? confPanel(s) : '');
   }
 
+  /* 工作目录 / 应用参数由「程序文件」派生，不再是独立字段：
+     工作目录 = 程序文件所在目录；Java 应用参数 = -jar 程序文件名（与脚本自动取最新 JAR 的行为一致） */
+  const dirOf = p => p.replace(/\\[^\\]+$/, '');
+  const baseOf = p => p.split('\\').pop();
+  /* ServDeck 数据根目录（存储设置页可改，含迁移）。托管日志不再 per-service 配置：
+     统一派生为 数据根目录\logs\<服务名>，随数据目录迁移一起走，与「驱动目录 = 数据目录\drivers」同一模式。 */
+  const DATA_ROOT = 'C:\\Users\\Administrator\\.servdeck';
+  const svcLogDir = s => DATA_ROOT + '\\logs\\' + s.name;
+  const svcProgram = s => (s.type === 'java' ? s.deploy.javaPath : s.programFile);
+  const svcParams = s => (s.type === 'java'
+    ? (s.deploy.jvmArgs + ' -jar ' + baseOf(s.programFile)).trim()
+    : (s.deploy.params || ''));
+  const runCommand = s => {
+    if (!s.deploy) return 'sc query ' + s.name;
+    return ('"' + svcProgram(s) + '" ' + svcParams(s)).trim();
+  };
+
   /* 安装命令实时预览 */
   function commandPreview(s) {
     const d = s.deploy;
-    const params = s.type === 'java' ? `${d.jvmArgs} ${d.appArgs}`.trim() : (d.params || '');
-    const program = s.type === 'java' ? d.javaPath : s.programFile;
+    const params = svcParams(s);
+    const program = svcProgram(s);
     const lines = [
       ['servy-cli install', ''],
       ['--path', `"${program}"`],
@@ -1592,10 +1664,10 @@
       ['--name', `"${s.name}"`],
       ['--displayName', `"${s.display}"`],
       s.desc ? ['--description', `"${s.desc}"`] : null,
-      ['--startupDir', `"${d.workDir}"`],
+      ['--startupDir', `"${dirOf(s.programFile)}"`],
       ['--startupType', d.startType],
-      ['--stdout', `"${d.logDir}\\stdout.log"`],
-      ['--stderr', `"${d.logDir}\\stderr.log"`],
+      ['--stdout', `"${svcLogDir(s)}\\stdout.log"`],
+      ['--stderr', `"${svcLogDir(s)}\\stderr.log"`],
       d.rotate ? ['--enableSizeRotation', ''] : null,
     ].filter(Boolean);
     return `
@@ -1618,16 +1690,37 @@
     pane.innerHTML = commandPreview(s);
     body.closest('.cmd-block').replaceWith(pane.firstElementChild);
   }
+  /* 堆内存提交（滑杆松手 / 输入框回车·失焦共用）：-Xms/-Xmx 同值并保持在参数最前
+     （与脚本默认顺序一致），同步回 JVM 参数输入框与安装命令预览 */
+  function heapApply(s, gb) {
+    const num = heapNum(gb);
+    const rest = String(s.deploy.jvmArgs || '').split(/\s+/).filter(a => a && !/^-Xms/i.test(a) && !/^-Xmx/i.test(a));
+    s.deploy.jvmArgs = ['-Xms' + num, '-Xmx' + num, ...rest].join(' ');
+    const inp = $('viewDetail').querySelector('input[data-field="jvmArgs"]');
+    if (inp) inp.value = s.deploy.jvmArgs;
+    refreshCmdPreview(s);
+    renderPane();
+  }
+  /* 堆内存手动输入提交：数字 + 可选单位（m / g）；非法回退，超限收敛到本机堆上限 */
+  function heapCommitInput(s, raw) {
+    const m = String(raw).trim().match(/^(\d+(?:\.\d+)?)\s*([mMgG]?)$/);
+    if (!m) { toast('堆内存格式：数字 + 单位，如 2G / 1536M'); renderPane(); return; }
+    let gb = parseFloat(m[1]) * (m[2].toLowerCase() === 'm' ? 1 / 1024 : 1);
+    const cap = HEAP_STOPS[HEAP_STOPS.length - 1], min = HEAP_STOPS[0];
+    if (gb > cap) { gb = cap; toast('已限制为本机堆上限 ' + heapLabel(cap)); }
+    else if (gb < min) { gb = min; toast('堆内存下限 ' + heapLabel(min)); }
+    heapApply(s, gb);
+  }
   const buildCommand = s => {
     const d = s.deploy;
-    const params = s.type === 'java' ? `${d.jvmArgs} ${d.appArgs}`.trim() : (d.params || '');
-    const program = s.type === 'java' ? d.javaPath : s.programFile;
+    const params = svcParams(s);
+    const program = svcProgram(s);
     return [
       'servy-cli install',
       `--path="${program}"`, `--params="${params}"`, `--name="${s.name}"`, `--displayName="${s.display}"`,
       s.desc ? `--description="${s.desc}"` : null,
-      `--startupDir="${d.workDir}"`, `--startupType=${d.startType}`,
-      `--stdout="${d.logDir}\\stdout.log"`, `--stderr="${d.logDir}\\stderr.log"`,
+      `--startupDir="${dirOf(s.programFile)}"`, `--startupType=${d.startType}`,
+      `--stdout="${svcLogDir(s)}\\stdout.log"`, `--stderr="${svcLogDir(s)}\\stderr.log"`,
       d.rotate ? '--enableSizeRotation' : null,
     ].filter(Boolean).join(' ');
   };
@@ -1770,6 +1863,10 @@
     const idx = list.indexOf(current);
     if (e.target.closest('#btnPrev')) { openDetail(list[(idx - 1 + list.length) % list.length]); return; }
     if (e.target.closest('#btnNext')) { openDetail(list[(idx + 1) % list.length]); return; }
+    /* 资源卡跳页签（概览的「最近事件」→ 事件页签） */
+    const goTab = e.target.closest('[data-goto]');
+    if (goTab) { activeTab = goTab.dataset.goto; refreshTabs(); renderPane(); return; }
+
     /* 页签 */
     const tab = e.target.closest('[data-tab]');
     if (tab) {
@@ -1807,9 +1904,9 @@
     } else if (act === 'register') {
       askRegister(s);
     } else if (act === 'open-logdir') {
-      toast('原型演示：将在资源管理器打开 ' + (s.deploy ? s.deploy.logDir : '日志目录'));
+      toast('原型演示：将在资源管理器打开 ' + svcLogDir(s));
     } else if (act === 'open-workdir') {
-      toast('原型演示：将在资源管理器打开 ' + (s.deploy ? s.deploy.workDir : '工作目录'));
+      toast('原型演示：将在资源管理器打开 ' + (s.programFile ? dirOf(s.programFile) : '工作目录'));
     } else if (act === 'copy-run') {
       copyText(runCommand(s), '启动命令已复制');
     } else if (act === 'uninstall') {
@@ -1824,6 +1921,19 @@
 
     } else if (act === 'pick-jdk') {
       openJdkPicker();
+    } else if (act === 'jvm-flag') {
+      const flag = el.dataset.jvmFlag;
+      const args = String(s.deploy.jvmArgs || '').split(/\s+/).filter(Boolean);
+      const has = args.includes(flag);
+      s.deploy.jvmArgs = (has ? args.filter(a => a !== flag) : [...args, flag]).join(' ');
+      const inp = $('viewDetail').querySelector('input[data-field="jvmArgs"]');
+      if (inp) inp.value = s.deploy.jvmArgs;
+      refreshCmdPreview(s);
+      renderPane();
+    } else if (act === 'start-type') {
+      const v = el.dataset.value;
+      s.deploy.startType = v; s.startType = v;
+      renderHero(); renderTree(); renderPhList(); renderPane();
     } else if (act === 'conf-save') {
       if (confMode === 'raw' && s.conf) parseRawToFields(s, $('confRaw').value);
       confDirty = true; refreshTabs(); renderPane(); toast('配置已保存（待重启生效）');
@@ -1846,6 +1956,14 @@
     const el = e.target;
     const s = SERVICES[current]; if (!s) return;
 
+    /* 堆内存滑杆拖动中：仅更新进度填充与数值输入框，不重渲染（提交走 change） */
+    if (el.matches('.heap-range')) {
+      el.style.setProperty('--fill', (+el.value / (HEAP_STOPS.length - 1) * 100) + '%');
+      const inp = el.closest('.preset-row') && el.closest('.preset-row').querySelector('[data-heap-input]');
+      if (inp) inp.value = heapLabel(HEAP_STOPS[+el.value]);
+      return;
+    }
+
     if (el.matches('[data-field]') && s.deploy) {
       const k = el.dataset.field, v = el.value;
       if (k === 'display') s.display = v;
@@ -1867,6 +1985,29 @@
       if (foot) foot.style.display = 'inline-flex';
       const bar = $('restartBar'); if (bar) bar.classList.add('show');
     }
+  });
+
+  /* 堆内存滑杆松手提交：写入 -Xms/-Xmx 并刷新预览 */
+  $('viewDetail').addEventListener('change', e => {
+    const el = e.target;
+    if (!el.matches || !el.matches('.heap-range')) return;
+    const s = SERVICES[current]; if (!s || !s.deploy) return;
+    heapApply(s, HEAP_STOPS[+el.value]);
+  });
+
+  /* 堆内存手动输入：回车或失焦提交（与滑杆同一写入路径 heapApply） */
+  $('viewDetail').addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || !e.target.matches || !e.target.matches('[data-heap-input]')) return;
+    const s = SERVICES[current]; if (!s || !s.deploy) return;
+    heapCommitInput(s, e.target.value);
+  });
+  $('viewDetail').addEventListener('focusout', e => {
+    if (!e.target.matches || !e.target.matches('[data-heap-input]')) return;
+    const s = SERVICES[current]; if (!s || !s.deploy) return;
+    const cur = heapParse(s.deploy.jvmArgs);
+    const curDisp = isNaN(cur) ? '2G' : (HEAP_STOPS.includes(cur) ? heapLabel(cur) : heapNum(cur));
+    if (e.target.value.trim() === curDisp) return;
+    heapCommitInput(s, e.target.value);
   });
 
   /* ================================================================ JDK 选择器（JVM 路径字段的就地选择） */

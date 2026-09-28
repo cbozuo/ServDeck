@@ -692,6 +692,8 @@ if (
                 },
                 GetAppInfo: async () => ({ success: true, data: { version: '0.0.0', author: 'GoNavi' } }),
                 GetDataRootDirectoryInfo: async () => ({ success: true, data: cloneBrowserMockValue(mockDataRootInfo) }),
+                GetServyEngineConfig: async () => ({ success: true, data: { configuredPath: '', appDir: 'C:////Program Files\ServDeck', available: true, path: 'C:////Program Files\ServDeck\servy-cli.exe' } }),
+                ApplyServyEnginePath: async (path: string) => ({ success: true, data: { configuredPath: path || '', appDir: 'C:////Program Files\ServDeck', available: true, path: path || 'C:////Program Files\ServDeck\servy-cli.exe' }, message: 'servy 引擎路径已更新' }),
                 CheckForUpdates: async () => ({
                     success: true,
                     data: buildMockUpdateInfo(),
@@ -971,7 +973,7 @@ const renderRoot = async () => {
         const { default: PerfDataGridHarness } = await import('./dev/PerfDataGridHarness');
         rootComponent = <PerfDataGridHarness />;
     }
-    if (devHarnessMode === 'home') {
+    if (devHarnessMode === 'home' || devHarnessMode === 'add') {
         const { default: HomeHarness } = await import('./dev/HomeHarness');
         rootComponent = <HomeHarness />;
     }

@@ -3,10 +3,13 @@ import '../v2-theme.css';
 import '../components/home/ServiceHome.css';
 import { ServiceHome } from '../components/home/ServiceHome';
 import { ServiceTreeSidebar } from '../components/serviceTree/ServiceTreeSidebar';
+import { AddServiceModal } from '../components/AddServiceModal';
+import { I18nProvider } from '../i18n/provider';
 import { useServiceRegistryStore, type ManagedServiceEntry } from '../serviceRegistryStore';
 
 /**
  * 首页视觉走查专用 harness：`?devHarness=home` 时渲染独立的 ServiceHome，
+ * `?devHarness=add` 时直接打开添加服务弹窗（对照高保真走查启动类型 / 堆内存交互），
  * 用固定数据覆盖 wails 绑定（仅 DEV 构建生效），便于在浏览器中对照设计稿核对。
  */
 
@@ -96,6 +99,11 @@ if (typeof window !== 'undefined') {
           },
           memory: { total: 16 * 1024 ** 3, avail: 6.1 * 1024 ** 3, memoryLoad: 62 },
           disks: [{ drive: 'C:', total: 1024 ** 4, free: 588 * 1024 ** 3, used: 412 * 1024 ** 3, usedPct: 41 }],
+          uptimeSeconds: 7 * 3600 + 14 * 60,
+          netUpBps: 30.4 * 1024,
+          netDownBps: 2.4 * 1024 * 1024,
+          diskReadBps: 721 * 1024,
+          diskWriteBps: 107 * 1024,
         },
       };
     },
@@ -104,7 +112,12 @@ if (typeof window !== 'undefined') {
       harnessPollCount += 1;
       return { success: true, data: harnessMetrics(names) };
     },
-    LocateServyEngine: async () => ({ success: true, data: { available: true, path: 'C:\\tools\\servy\\servy-10.1.exe' } }),
+    LocateServyEngine: async () => {
+      const missing = new URLSearchParams(window.location.search).get('engine') === 'missing';
+      return missing
+        ? { success: true, data: { available: false, reason: 'servy engine not found (set SERVDECK_SERVY_PATH)' } }
+        : { success: true, data: { available: true, path: 'C:\\tools\\servy\\servy-cli.exe', version: '10.1.0' } };
+    },
     ControlWindowsService: async (name: string, action: string) => {
       const target = action === 'stop' ? 'Stopped' : 'Running';
       if (HARNESS_STATES[name] !== undefined) {
@@ -112,15 +125,66 @@ if (typeof window !== 'undefined') {
       }
       return { success: true, data: { name, action } };
     },
+    ProbeWindowsService: async (name: string, file: string) => {
+      // 与真实后端同口径：空服务名跳过 SCM 只查文件；只认少数演示路径的文件存在性，
+      // 便于在浏览器里走查「程序文件为空 / 缺失 / 服务名为空」的按序报错分支。
+      const fileExists = /^(C:\\Program Files\\Java\\|C:\\tools\\servy)/i.test(file);
+      if (!name.trim()) {
+        return { success: true, data: { exists: false, fileExists } };
+      }
+      return {
+        success: true,
+        data: { exists: HARNESS_SERVICES.some((entry) => entry.name === name), fileExists },
+      };
+    },
+    DetectJavaRuntimes: async () => ({
+      success: true,
+      data: {
+        candidates: [
+          { version: 21, name: 'Oracle 21.0.1+12', path: 'C:\\Program Files\\Java\\jdk-21\\bin\\java.exe' },
+          { version: 17, name: 'Temurin 17.0.9+9', path: 'C:\\Program Files\\Java\\jdk-17\\bin\\java.exe' },
+          { version: 8, name: 'Zulu 8.0.392', path: 'C:\\Program Files\\Java\\zulu-8\\bin\\java.exe' },
+        ],
+      },
+    }),
+    SelectJdkExecutable: async () => ({ success: true, data: { path: '' } }),
+    AddManagedService: async (payload: { name: string }) => ({
+      success: true,
+      data: { managed: true, registered: true, name: payload.name },
+    }),
+    SelectServiceProgramFile: async () => ({ success: true, data: { path: '' } }),
+    SelectImageFile: async () => ({ success: true, data: { dataUrl: '' } }),
+    SelectDirectory: async (_title: string, current: string) => ({
+      success: true,
+      data: current,
+    }),
   };
+}
+
+/** 添加服务弹窗走查：I18nProvider 固定简中文案，弹窗常开。 */
+function AddServiceHarness() {
+  return (
+    <div data-ui-version="v2" data-theme="light">
+      <I18nProvider preference="zh-CN" onPreferenceChange={() => undefined}>
+        <AddServiceModal open onClose={() => undefined} />
+      </I18nProvider>
+    </div>
+  );
 }
 
 export default function HomeHarness() {
   const [showSidebar, setShowSidebar] = React.useState(false);
+  const [showAdd, setShowAdd] = React.useState(false);
   useEffect(() => {
-    useServiceRegistryStore.setState({ services: HARNESS_SERVICES });
-    setShowSidebar(new URLSearchParams(window.location.search).get('sidebar') === '1');
+    const params = new URLSearchParams(window.location.search);
+    useServiceRegistryStore.setState({ services: params.get('empty') === '1' ? [] : HARNESS_SERVICES });
+    setShowSidebar(params.get('sidebar') === '1');
+    setShowAdd(params.get('devHarness') === 'add');
   }, []);
+
+  if (showAdd) {
+    return <AddServiceHarness />;
+  }
 
   if (showSidebar) {
     return (

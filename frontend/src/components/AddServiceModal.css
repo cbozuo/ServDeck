@@ -152,13 +152,14 @@ body[data-ui-version="v2"] .asm-modal .ant-modal .ant-modal-body {
   color: var(--gn-fg-5);
   font-weight: 400;
 }
-.asm-sec-badge {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--gn-accent-2);
-  background: var(--gn-accent-soft);
-  padding: 1px 7px;
-  border-radius: 999px;
+
+/* 弹框内所有按钮：点击不闪浏览器默认黑框；键盘 Tab 聚焦保留主题色描边环 */
+.asm-root button:focus {
+  outline: none;
+}
+.asm-root button:focus-visible {
+  outline: 2px solid var(--gn-accent);
+  outline-offset: 2px;
 }
 
 /* Step1 类型卡片 */
@@ -216,23 +217,6 @@ body[data-ui-version="v2"] .asm-modal .ant-modal .ant-modal-body {
   margin-top: 2px;
   font-size: 11.5px;
   color: var(--gn-fg-4);
-}
-.asm-type-tags {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.asm-tag {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--gn-fg-4);
-  background: var(--gn-bg-hover);
-  border-radius: 999px;
-  padding: 2px 9px;
-}
-.asm-tag-hot {
-  color: var(--gn-accent-2);
-  background: var(--gn-accent-soft);
 }
 
 /* 字段 */
@@ -354,9 +338,12 @@ body[data-ui-version="v2"] .asm-modal .ant-modal .ant-modal-body {
   appearance: auto;
 }
 .asm-input:focus,
+.asm-input:focus-within,
 .asm-select:focus {
   border-color: var(--gn-accent);
   box-shadow: 0 0 0 3px var(--gn-accent-soft);
+  /* 主题色光晕即聚焦指示，压掉浏览器默认的黑色 outline，避免双层边框 */
+  outline: none;
 }
 input.asm-input.mono {
   font-family: var(--gn-font-mono);
@@ -378,6 +365,12 @@ input.asm-input.mono {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px 12px;
   align-items: center;
+}
+/* 分段控件按内容收紧：.asm-field 是纵向 flex（默认 stretch），
+   不收敛的话灰色底槽会被拉满整列，比四个选项宽出一截（对齐高保真）。 */
+.asm-start-grid .asm-seg,
+.asm-field > .asm-seg {
+  align-self: flex-start;
 }
 /* 分段控件：灰色底槽 + 一枚滑动的滑块承担选中态。
    选中按钮不再自带背景，背景交给 .asm-seg-thumb，切换时由它平移过去。
@@ -441,6 +434,160 @@ input.asm-input.mono {
   opacity: 0.5;
   cursor: default;
 }
+/* 主题色滑块变体（accent）：选中项滑块填 accent 底色 + 反白文字，
+   对齐服务详情页高保真的启动类型分段；工具型分段（字段/原文切换）保持白滑块。 */
+.asm-seg-accent .asm-seg-thumb {
+  background: var(--gn-accent-strong);
+  box-shadow: var(--gn-shadow-md);
+}
+.asm-seg-accent button.on {
+  color: var(--gn-on-accent);
+}
+.asm-seg-accent button.on:hover {
+  color: var(--gn-on-accent);
+}
+
+/* 最大堆内存：定宽滑杆 + 可键入数值框 + 本机上限提示（对齐服务详情页高保真）。
+   滑杆定宽，避免在表单栅格里被拉成通栏；上限 = 本机物理内存 × 75%（heapMemory.ts）。 */
+.asm-heap-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.asm-heap-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 210px;
+  height: 16px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.asm-heap-range::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--gn-accent) var(--fill, 0%),
+    var(--gn-bg-active) var(--fill, 0%)
+  );
+}
+.asm-heap-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--gn-bg-panel);
+  border: 2px solid var(--gn-accent);
+  box-shadow: var(--gn-shadow-card, 0 0 0 0.5px rgba(15, 23, 42, 0.1));
+  margin-top: -4px;
+  transition: transform 0.12s ease;
+}
+.asm-heap-range:active:not(:disabled)::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+.asm-heap-range::-moz-range-track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--gn-bg-active);
+}
+.asm-heap-range::-moz-range-progress {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--gn-accent);
+}
+.asm-heap-range::-moz-range-thumb {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--gn-bg-panel);
+  border: 2px solid var(--gn-accent);
+  box-shadow: var(--gn-shadow-card, 0 0 0 0.5px rgba(15, 23, 42, 0.1));
+}
+.asm-heap-range:focus-visible {
+  outline: 2px solid var(--gn-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.asm-heap-range:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.asm-heap-input {
+  width: 78px;
+  height: 26px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 11.5px;
+}
+.asm-heap-cap {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  color: var(--gn-fg-5);
+  font-family: var(--gn-font-mono);
+  white-space: nowrap;
+}
+
+/* label 内联提示（对齐高保真：主标题 + 浅色小字说明） */
+.asm-label-hint {
+  margin-left: 6px;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--gn-fg-5);
+}
+
+/* 常用参数组（Java，对齐服务详情页高保真）：堆内存滑杆行 + 开关 chips 行 */
+.asm-preset-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.asm-preset-row + .asm-preset-row {
+  margin-top: 9px;
+}
+.asm-preset-label {
+  width: 52px;
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gn-fg-4);
+  line-height: 26px;
+}
+.asm-preset-row .asm-heap-row {
+  flex: 1;
+  min-width: 0;
+}
+.asm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+  padding-top: 1px;
+}
+.asm-chip {
+  height: 24px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gn-fg-3);
+  border: 1px solid var(--gn-br-2);
+  background: var(--gn-bg-panel-2);
+  transition: all 0.12s ease;
+}
+.asm-chip:hover {
+  border-color: var(--gn-accent);
+  color: var(--gn-fg-1);
+}
+.asm-chip.on {
+  background: var(--gn-accent-soft);
+  border-color: color-mix(in srgb, var(--gn-accent) 42%, transparent);
+  color: var(--gn-accent-2);
+}
 .asm-switch-field {
   flex-direction: row !important;
   align-items: center;
@@ -449,6 +596,27 @@ input.asm-input.mono {
   color: var(--gn-fg-2);
   justify-content: flex-end;
   padding-bottom: 6px;
+}
+/* 守护与轮转：一行两组「开关 + 名称 + 浅色小字说明」（对齐高保真） */
+.asm-switch-line {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 0 2px;
+}
+.asm-switch-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--gn-fg-2);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+.asm-switch-name small {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--gn-fg-5);
 }
 .asm-switch {
   width: 34px;
@@ -514,15 +682,6 @@ input.asm-input.mono {
   height: 2.5px;
   border-radius: 2px 2px 0 0;
   background: var(--gn-accent);
-}
-.asm-tab-badge {
-  margin-left: 6px;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--gn-accent-2);
-  background: var(--gn-accent-soft);
-  padding: 1px 6px;
-  border-radius: 999px;
 }
 
 /* 配置文件卡 */
@@ -669,37 +828,19 @@ input.asm-input.mono {
 .asm-btn-disabled {
   opacity: 0.5;
 }
-.asm-probe-btn {
-  color: var(--gn-fg-3);
+/* 探测按钮：描边 ghost（.asm-modal 前缀提升优先级，压过 antd .ant-btn-text 的透明边框） */
+.asm-modal .asm-probe-btn {
+  color: var(--gn-fg-2);
   font-weight: 600;
-}
-.asm-probe-btn:hover {
-  background: var(--gn-bg-hover);
-  color: var(--gn-fg-1);
-}
-.asm-cmd-toggle {
-  color: var(--gn-fg-4);
-  font-size: 12px;
-}
-.asm-cmd-toggle:hover {
-  background: var(--gn-bg-hover);
-  color: var(--gn-fg-1);
-}
-.asm-cmd-box {
-  display: none;
-  background: var(--gn-bg-input);
+  background: var(--gn-bg-panel);
   border: 1px solid var(--gn-br-2);
   border-radius: 8px;
-  padding: 10px 12px;
-  font-family: var(--gn-font-mono);
-  font-size: 10.5px;
-  line-height: 1.8;
-  color: var(--gn-fg-2);
-  white-space: pre;
-  overflow-x: auto;
+  box-shadow: none;
 }
-.asm-cmd-box.show {
-  display: block;
+.asm-modal .asm-probe-btn:hover {
+  border-color: var(--gn-accent);
+  color: var(--gn-accent-2);
+  background: var(--gn-bg-panel);
 }
 
 /* 探测结果条 */
@@ -956,32 +1097,6 @@ input.asm-input.mono {
   background: var(--gn-bg-hover);
 }
 
-/* 识别条（对齐高保真：蓝底大条 + 图标 + 徽标右置） */
-.asm-detect {
-  /* 对齐高保真 .detect：8px 12px 内边距 / 8px 圆角 / 8px 间距 / 12px 字号 */
-  border-radius: 8px;
-  padding: 8px 12px;
-  background: color-mix(in srgb, var(--gn-info) 7%, var(--gn-bg-panel));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-info) 25%, transparent);
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 12px;
-  color: var(--gn-fg-3);
-}
-.asm-detect-glyph {
-  color: var(--gn-info);
-  font-size: 13px;
-  flex-shrink: 0;
-}
-.asm-detect-main {
-  min-width: 0;
-}
-.asm-detect .asm-tag {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
 /* 程序文件输入：内置图标 + 浏览按钮 */
 .asm-input-with-icon {
   gap: 8px;
@@ -1012,4 +1127,205 @@ input.asm-input.mono {
 .asm-browse-btn:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/* JVM 路径输入框内嵌的「选择 JDK」按钮：无边框融入输入框，悬浮时主题色圆角底 */
+.asm-input-with-icon .asm-in-act {
+  width: 24px;
+  height: 24px;
+  margin-right: -3px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gn-fg-5);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.asm-input-with-icon .asm-in-act:hover {
+  background: var(--gn-accent-soft);
+  color: var(--gn-accent-2);
+}
+.asm-input-with-icon .asm-in-act svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+
+/* 选择 JDK 弹窗（对齐高保真：候选列表 + 手动指定 + 浏览） */
+.asm-jdk {
+  display: flex;
+  flex-direction: column;
+}
+.asm-jdk-head {
+  padding: 14px 20px 12px;
+}
+.asm-jdk-head h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gn-fg-1);
+}
+.asm-jdk-head p {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--gn-fg-4);
+  line-height: 1.5;
+}
+.asm-jdk-body {
+  padding: 10px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 120px;
+}
+.asm-jdk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: 264px;
+  overflow: auto;
+  padding: 1px;
+}
+.asm-jdk-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--gn-br-1);
+  background: var(--gn-bg-panel);
+  text-align: left;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.asm-jdk-item:hover {
+  border-color: var(--gn-br-3);
+  background: var(--gn-bg-hover);
+}
+.asm-jdk-item.on {
+  border-color: color-mix(in srgb, var(--gn-accent) 45%, transparent);
+  background: var(--gn-accent-soft);
+}
+.asm-jdk-radio {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1.5px solid var(--gn-br-3);
+  flex-shrink: 0;
+  position: relative;
+  transition: border-color 0.12s ease;
+}
+.asm-jdk-item:hover .asm-jdk-radio {
+  border-color: var(--gn-fg-5);
+}
+.asm-jdk-item.on .asm-jdk-radio {
+  border-color: var(--gn-accent-strong);
+}
+.asm-jdk-item.on .asm-jdk-radio::after {
+  content: "";
+  position: absolute;
+  inset: 2.5px;
+  border-radius: 50%;
+  background: var(--gn-accent-strong);
+}
+.asm-jdk-ver {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--gn-accent-2);
+  background: var(--gn-accent-soft);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.asm-jdk-item.on .asm-jdk-ver {
+  background: var(--gn-accent-strong);
+  color: var(--gn-on-accent);
+}
+.asm-jdk-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.asm-jdk-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--gn-fg-1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.asm-jdk-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gn-accent-2);
+  background: var(--gn-accent-soft);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.asm-jdk-item.on .asm-jdk-tag {
+  background: color-mix(in srgb, var(--gn-accent) 14%, var(--gn-bg-panel));
+}
+.asm-jdk-path {
+  font-size: 10.5px;
+  color: var(--gn-fg-5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asm-jdk-empty {
+  padding: 18px 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--gn-fg-5);
+}
+.asm-jdk-manual {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.asm-jdk-manual label {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gn-fg-2);
+}
+.asm-jdk-manual input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--gn-br-2);
+  background: var(--gn-bg-input);
+  padding: 0 9px;
+  font-size: 12px;
+  color: var(--gn-fg-1);
+  outline: 0;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.asm-jdk-manual input:focus {
+  border-color: var(--gn-accent);
+  box-shadow: 0 0 0 3px var(--gn-accent-soft);
+}
+.asm-jdk-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 20px 16px;
+}
+.asm-jdk-foot .ant-btn {
+  height: 32px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+  border-top: 1px solid var(--gn-br-1);
 }

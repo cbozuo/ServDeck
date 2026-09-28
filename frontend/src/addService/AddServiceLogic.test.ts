@@ -8,7 +8,7 @@ import {
   SERVICE_TEMPLATE_LIST,
   SERVICE_TEMPLATES,
 } from './serviceTemplates';
-import { buildServyPreviewCommand, collectProbeProgramFiles } from './useAddServiceForm';
+import { collectProbeProgramFiles } from './useAddServiceForm';
 
 
 
@@ -107,65 +107,6 @@ describe('add service templates', () => {
   });
 });
 
-describe('servy preview command', () => {
-  const template = SERVICE_TEMPLATES.rustfs;
-  const values = {
-    dataDir: 'D:\\rustfs\\data',
-    apiPort: '9000',
-    consolePort: '9001',
-    accessKey: 'k',
-    secretKey: 's',
-    logLevel: 'info',
-  };
-  const basic = {
-    programFile: 'D:\\rustfs\\rustfs.exe',
-    serviceName: 'rustfs-service',
-    displayName: 'RustFS',
-    startType: 'Automatic',
-    restart: true,
-  };
-
-  it('builds install + start pair with the log directory placeholder', () => {
-    const command = buildServyPreviewCommand(template, values, basic);
-    expect(command).toContain('servy-10.1.exe install');
-    expect(command).toContain('--name "rustfs-service"');
-    expect(command).toContain('-p "D:\\rustfs\\rustfs.exe"');
-    expect(command).toContain('--enableSizeRotation');
-    expect(command.split('\n')[1]).toBe('servy-10.1.exe start --name "rustfs-service"');
-  });
-
-  it('drops the restart flag when the guard switch is off', () => {
-    const command = buildServyPreviewCommand(
-      template,
-      values,
-      { ...basic, restart: false },
-    );
-    expect(command).not.toContain('--enableSizeRotation');
-  });
-
-  it('routes java programs through the configured JVM executable', () => {
-    const command = buildServyPreviewCommand(
-      SERVICE_TEMPLATES.java,
-      {
-        jvmPath: 'C:\\jdk\\java.exe',
-        xmx: '512m',
-        jvmArgs: '',
-        appArgs: '--server.port=8080',
-      },
-      {
-        programFile: 'D:\\apps\\order\\order.jar',
-        serviceName: 'order-service',
-        displayName: 'Order',
-        startType: 'Automatic',
-        restart: false,
-      },
-    );
-    expect(command).toContain('-p "C:\\jdk\\java.exe"');
-    expect(command).toContain('-Xmx512m -jar "D:\\apps\\order\\order.jar"');
-  });
-});
-
-
 describe('duplicate managed-service guard', () => {
   const modalSource = readFileSync(
     new URL('../components/AddServiceModal.tsx', import.meta.url),
@@ -173,10 +114,10 @@ describe('duplicate managed-service guard', () => {
   );
 
   it('blocks the add action when the service name is already managed', () => {
-    // 服务名唯一：本地纳管列表命中同名时禁用主按钮并兜底拦截提交。
+    // 服务名唯一：本地纳管列表命中同名时按「重名报错」拦截（红色提示条 + 禁用主按钮）。
     expect(modalSource).toContain('managedServices.some(');
     expect(modalSource).toContain('|| alreadyManaged');
-    expect(modalSource).toContain('service.modal.managed.exists');
+    expect(modalSource).toContain('service.modal.managed.duplicate');
   });
 });
 
@@ -185,8 +126,10 @@ describe('probe file collection', () => {
     programFile,
     serviceName: 'order-service',
     displayName: 'order-service',
+    description: '',
     startType: '自动',
     restart: true,
+    rotate: true,
   });
 
   it('java 校验 JVM 路径与程序文件两个文件（回归：jar 缺失也必须报出来）', () => {

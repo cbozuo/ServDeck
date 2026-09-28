@@ -1,8 +1,9 @@
 /**
  * 添加服务表单的字段类型（渲染层按类型分派控件）。
  * `directory` 会渲染成「可输入路径 + 浏览…按钮」的组合，按钮打开系统目录选择框。
+ * `heap` 渲染成「定宽滑杆 + 可键入数值框 + 本机上限提示」（对齐服务详情页高保真）。
  */
-export type ServiceFieldType = 'text' | 'password' | 'path' | 'directory' | 'port' | 'select' | 'switch';
+export type ServiceFieldType = 'text' | 'password' | 'path' | 'directory' | 'port' | 'select' | 'switch' | 'heap';
 
 export type ServiceFieldValues = Record<string, string | boolean>;
 

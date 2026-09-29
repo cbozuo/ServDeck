@@ -84,6 +84,9 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
   const alreadyManaged = managedServices.some(
     (item) => item.name.toLowerCase() === form.basic.serviceName.trim().toLowerCase(),
   );
+  // 本次弹框刚注册成功：写入纳管列表后 alreadyManaged 必然命中自己，
+  // 那是成功态而非重名冲突，所有「重复」提示都要为它让路。
+  const addedThisSession = form.addPhase === 'done';
 
   const closeModal = useCallback(() => {
     onClose();
@@ -474,8 +477,9 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                   <pre className="asm-add-log mono" title={t('service.modal.add.logTail')}>{addLog}</pre>
                 ) : null}
               </>
-            ) : alreadyManaged ? (
-              /* 与已纳管服务重名 = 报错：不能重复添加，需更换服务名后重新探测。 */
+            ) : alreadyManaged && !addedThisSession ? (
+              /* 与已纳管服务重名 = 报错：不能重复添加，需更换服务名后重新探测。
+                 本次刚添加成功的不算（alreadyManaged 命中的是自己）。 */
               <div className="asm-probe-bar error show">
                 <span className="asm-probe-ico">
                   <CloseOutlined />
@@ -540,6 +544,8 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
               <span className="asm-foot-status">
                 {residueName ? (
                   t('service.modal.footer.statusResidue')
+                ) : addedThisSession ? (
+                  t('service.modal.footer.added')
                 ) : alreadyManaged
                   ? t('service.modal.managed.status')
                   : probePhase === 'exists'

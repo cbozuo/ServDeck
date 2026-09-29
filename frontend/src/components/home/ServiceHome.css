@@ -15,7 +15,8 @@
 /* ===== 头部 ===== */
 .svc-home-head {
   display: flex;
-  align-items: flex-start;
+  /* 左侧标题块（两行）高于右侧单行工具组，居中让两侧视觉平衡 */
+  align-items: center;
   flex-wrap: wrap;
   gap: 12px 16px;
   margin-bottom: 20px;

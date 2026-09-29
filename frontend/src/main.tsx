@@ -14,8 +14,10 @@ import { signalMainWindowFrontendReady, waitForMainWindowContentPaint, waitForSt
 import { configureAntdStaticOverlayLayer } from './utils/overlayZIndex'
 import { normalizeConnectionEnvironmentType } from './utils/connectionEnvironment'
 import { resolveBrandIconRemoteSrc } from './brand/brandIcons'
+import { installDynamicDragCursors } from './utils/dragCursors'
 
 configureAntdStaticOverlayLayer();
+installDynamicDragCursors();
 
 const resolveDevHarnessMode = (): string => {
     if (typeof window === 'undefined') {

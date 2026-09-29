@@ -14,75 +14,6 @@
   gap: 14px;
 }
 
-/* ── 返回导航 ── */
-.dtl-nav {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.dtl-back {
-  height: 30px;
-  padding: 0 12px;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--gn-fg-2);
-  background: var(--gn-bg-panel);
-  border: 1px solid var(--gn-br-2);
-  box-shadow: var(--gn-shadow-card);
-  cursor: pointer;
-  transition: background 0.12s ease;
-}
-.dtl-back:hover {
-  background: var(--gn-bg-hover);
-}
-.dtl-crumbs {
-  font-size: 12px;
-  color: var(--gn-fg-4);
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.dtl-crumbs b {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--gn-fg-2);
-}
-.dtl-nav-hint {
-  font-size: 11px;
-  color: var(--gn-fg-5);
-}
-.dtl-nav-spring {
-  flex: 1;
-}
-.dtl-nav-sq {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  color: var(--gn-fg-3);
-  background: var(--gn-bg-panel);
-  border: 1px solid var(--gn-br-2);
-  cursor: pointer;
-  transition: background 0.12s ease;
-}
-.dtl-nav-sq:hover:not(:disabled) {
-  background: var(--gn-bg-hover);
-}
-.dtl-nav-sq:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
 /* ── Hero ── */
 .dtl-hero {
   position: relative;
@@ -1008,6 +939,20 @@
 }
 .dtl-events-sub + .dtl-events {
   margin-bottom: 14px;
+}
+/* 事件面板在 fill 模式下要跟着撑满：日志框的弹性链（body-fill → pane → log-view）
+   在事件页多一层 dtl-panel 包装，不补传递事件框就会停在内容高度。 */
+.dtl-body.dtl-body-fill .dtl-panel:has(> .dtl-events-view) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dtl-body.dtl-body-fill .dtl-events-view.dtl-log-view {
+  flex: 1;
+  height: auto;
+  min-height: 240px;
+  max-height: none;
 }
 .dtl-event {
   display: flex;

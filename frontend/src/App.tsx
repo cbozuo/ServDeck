@@ -82,7 +82,6 @@ import {
   useStore,
 } from './store';
 import { useCustomThemeStore } from './customThemeStore';
-import { useServiceDetailStore } from './serviceDetailStore';
 import { GlobalProxyConfig, SavedConnection, SecurityUpdateIssue, SecurityUpdateStatus } from './types';
 import { blurToFilter, normalizeBlurForPlatform, normalizeOpacityForPlatform, isMacLikePlatform, isWindowsPlatform, resolveAppearanceValues } from './utils/appearance';
 import { buildFontFamilyOptions, DEFAULT_MONO_FONT_FAMILY, DEFAULT_UI_FONT_FAMILY, getLinuxCJKFontInstallHint, matchFontFamilyOption, resolveMonoFontFamily, resolveUIFontFamily, sanitizeFontFamilyInput, type FontFamilyOption, type InstalledFontFamily } from './utils/fontFamilies';
@@ -1159,11 +1158,9 @@ function App() {
   const [securityUpdateProgressStage, setSecurityUpdateProgressStage] = useState(() => t('app.security_update.stage.checking_saved_config'));
   const [securityUpdateRepairSource, setSecurityUpdateRepairSource] = useState<SecurityUpdateRepairSource | null>(null);
   /** 设置中心 = workbench tab 形态（2026-09-29 曾短暂改为弹框后按用户要求回退）。
-      详情页是主区替换形态、优先级高于 tabs——打开设置 tab 时退出详情页，
-      否则 tab 被详情页盖住、看起来像「点了没反应」。 */
+      服务详情 2026-09-30 起同为 tab 形态，两者可并存，无需再强制退出详情页。 */
   const isSettingsModalOpen = useStore((state) => state.tabs.some((tab) => tab.id === SETTINGS_CENTER_WORKBENCH_TAB_ID));
   const openSettingsCenterWorkbenchTab = useCallback(() => {
-      useServiceDetailStore.getState().close();
       useStore.getState().addTab(buildSettingsCenterWorkbenchTab());
   }, []);
   const closeSettingsCenterWorkbenchTab = useCallback(() => {

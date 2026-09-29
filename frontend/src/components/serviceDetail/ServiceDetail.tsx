@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { message } from 'antd';
 import { useI18n } from '../../i18n/provider';
 import { useServiceRegistryStore } from '../../serviceRegistryStore';
 import { useServiceDetailStore } from '../../serviceDetailStore';
+import { useHomeEventsStore } from '../home/homeEvents';
 import {
   AddManagedService,
   CheckServicePorts,
@@ -32,7 +32,7 @@ const resolveIconSrc = (serviceType: string, iconDataUrl?: string): string =>
   iconDataUrl || `/db-icons/${serviceType}.svg`;
 
 /**
- * 服务详情页（v2 主区替换形态）：
+ * 服务详情页（workbench tab 形态，每服务一个 tab，可拖出为浮层窗口）：
  * 返回导航 + Hero（五命令/可用性矩阵/确认弹窗/pending 流）+ 概览/部署/日志/事件四页签。
  * 数据经 useServiceDetail 轮询；启停接 ControlWindowsService，注册接快照+AddManagedService，卸载接 servy-cli。
  */
@@ -80,17 +80,6 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
     }
   }, [entry, close]);
 
-  const neighbors = useMemo(() => {
-    const index = services.findIndex((item) => item.name === name);
-    if (index < 0) {
-      return { prev: null as string | null, next: null as string | null };
-    }
-    return {
-      prev: services[(index - 1 + services.length) % services.length]?.name ?? null,
-      next: services[(index + 1) % services.length]?.name ?? null,
-    };
-  }, [name, services]);
-
   const runPending = useCallback(async (pending: Exclude<DetailPending, null>, action: () => Promise<void>) => {
     detail.setPending(pending);
     try {
@@ -111,11 +100,24 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
           const result = await ControlWindowsService(name, action);
           if (!result.success) {
             message.error(result.message || t('home.backend.error.control_failed', { detail: '' }));
+            return;
           }
+          // 详情页打开时首页轮询不挂载，状态 diff 不会产生事件——操作事件在此直接记录
+          useHomeEventsStore.getState().pushEvent({
+            at: Date.now(),
+            level: 'run',
+            name,
+            service: entry?.displayName || name,
+            key: action === 'stop'
+              ? 'home.events.stopped'
+              : action === 'start'
+                ? 'home.events.started'
+                : 'home.events.restart',
+          });
         },
       );
     },
-    [name, runPending, t],
+    [entry, name, runPending, t],
   );
 
   const handleRegister = useCallback(() => {
@@ -162,6 +164,13 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
         message.error(result.message || t('detail.register.failed'));
         return;
       }
+      useHomeEventsStore.getState().pushEvent({
+        at: Date.now(),
+        level: 'run',
+        name,
+        service: d.displayName || name,
+        key: 'home.events.registered',
+      });
       addService({ ...entry, deploy: d });
       detail.setDeployDirty(false);
       message.success(t('detail.register.done'));
@@ -178,10 +187,17 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
         message.error(result.message || t('detail.uninstall.failed'));
         return;
       }
+      useHomeEventsStore.getState().pushEvent({
+        at: Date.now(),
+        level: 'warn',
+        name,
+        service: entry?.displayName || name,
+        key: 'home.events.uninstalled',
+      });
       // 保留纳管记录与部署参数：详情页随即转入「未注册」形态，可直接改参数重新注册
       message.success(t('detail.uninstall.done'));
     });
-  }, [name, runPending, t]);
+  }, [entry, name, runPending, t]);
 
   const handleSaveConf = useCallback(
     async (file: string, content: string) => {
@@ -227,43 +243,8 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
   };
   void detailData;
 
-  const group = entry?.groupId
-    ? (useServiceRegistryStore.getState().groups.find((g) => g.id === entry.groupId)?.name ?? '')
-    : '';
-
   return (
     <div className="dtl-root">
-      <nav className="dtl-nav">
-        <button type="button" className="dtl-back" onClick={close}>
-          <LeftOutlined />
-          {t('home.title')}
-        </button>
-        <span className="dtl-crumbs">
-          {group ? <span>{group} /</span> : null}
-          <b className="mono">{name}</b>
-        </span>
-        <span className="dtl-nav-hint">{t('detail.nav.hint')}</span>
-        <span className="dtl-nav-spring" />
-        <button
-          type="button"
-          className="dtl-nav-sq"
-          disabled={!neighbors.prev}
-          title={t('detail.nav.prev')}
-          onClick={() => neighbors.prev && useServiceDetailStore.getState().open(neighbors.prev)}
-        >
-          <LeftOutlined />
-        </button>
-        <button
-          type="button"
-          className="dtl-nav-sq"
-          disabled={!neighbors.next}
-          title={t('detail.nav.next')}
-          onClick={() => neighbors.next && useServiceDetailStore.getState().open(neighbors.next)}
-        >
-          <RightOutlined />
-        </button>
-      </nav>
-
       <DetailHero
         info={detail.info}
         sample={detail.sample}
@@ -315,7 +296,6 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
             locked={locked}
             running={running}
             installed={detail.info ? detail.info.installed !== false : true}
-            accentColor={accentColor}
             onDeployChange={(next) => {
               detail.setDeployDraft(next);
               detail.setDeployDirty(true);

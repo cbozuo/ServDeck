@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { closeConfirmedWorkbenchTabs, isRunningDataImportWorkbenchTab } from './TabManager';
+import {
+  closeConfirmedWorkbenchTabs,
+  isMainWindowBoundWorkbenchTab,
+  isRunningDataImportWorkbenchTab,
+} from './TabManager';
 
 describe('TabManager background task window guard', () => {
 
@@ -13,6 +17,23 @@ describe('TabManager background task window guard', () => {
       type: 'data-import',
       dataImportRunning: false,
     })).toBe(false);
+  });
+});
+
+describe('TabManager main-window-bound tab detach', () => {
+
+  it('routes settings center, service detail and background task workbenches to the overlay window', () => {
+    expect(isMainWindowBoundWorkbenchTab({ type: 'settings-center' })).toBe(true);
+    expect(isMainWindowBoundWorkbenchTab({ type: 'service-detail' })).toBe(true);
+    expect(isMainWindowBoundWorkbenchTab({ type: 'table-export' })).toBe(true);
+    expect(isMainWindowBoundWorkbenchTab({ type: 'data-import' })).toBe(true);
+    expect(isMainWindowBoundWorkbenchTab({ type: 'data-sync' })).toBe(true);
+  });
+
+  it('keeps other workbench tabs on the native detached window path', () => {
+    expect(isMainWindowBoundWorkbenchTab({ type: 'query' })).toBe(false);
+    expect(isMainWindowBoundWorkbenchTab({ type: 'driver-manager' })).toBe(false);
+    expect(isMainWindowBoundWorkbenchTab({ type: 'jvm-overview' })).toBe(false);
   });
 });
 

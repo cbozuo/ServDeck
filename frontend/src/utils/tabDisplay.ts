@@ -494,6 +494,9 @@ const buildCompactObjectTabTitle = (tab: TabData, translate: TabDisplayTranslate
   if (tab.type === 'settings-center') {
     return translate('app.settings.title');
   }
+  if (tab.type === 'service-detail') {
+    return tab.serviceName || tab.title;
+  }
   if (tab.type === 'request-diagnostics') {
     return translate('app.tools.entry.request_diagnostics.title');
   }
@@ -555,6 +558,7 @@ export const getTabDisplayKindLabel = (tab: TabData): string => {
   if (tab.type === 'dml-snapshot') return 'SNAPSHOT';
   if (tab.type === 'driver-manager') return 'DRIVER';
   if (tab.type === 'settings-center') return 'SETTINGS';
+  if (tab.type === 'service-detail') return 'SVC';
   if (tab.type === 'request-diagnostics') return 'TRACE';
   if (tab.type.startsWith('redis')) return 'REDIS';
   if (tab.type.startsWith('jvm')) return 'JVM';
@@ -673,12 +677,16 @@ export const buildTabDisplayModel = (
   const primaryParts = buildTabDisplayParts(sanitized.primaryElements, tab, connection, translate, groupName);
   const secondaryParts = buildTabDisplayParts(sanitized.secondaryElements, tab, connection, translate, groupName);
   const primaryText = primaryParts.map((part) => part.text).join(' ').trim() || buildCompactObjectTabTitle(tab, translate);
-  const secondaryText = secondaryParts.map((part) => part.text).join('·').trim();
+  // 服务详情是单实体 tab：没有连接/库维度，双行徽标只会剩一个孤立的 kind 短标，固定单行。
+  const singleEntityTab = tab.type === 'service-detail';
+  const layout: TabDisplayLayout = singleEntityTab ? 'single' : sanitized.layout;
+  const effectiveSecondaryParts = singleEntityTab ? [] : secondaryParts;
+  const secondaryText = effectiveSecondaryParts.map((part) => part.text).join('·').trim();
   const fullTitle = [primaryText, secondaryText].filter(Boolean).join(' · ');
   return {
-    layout: sanitized.layout,
+    layout,
     primaryParts,
-    secondaryParts,
+    secondaryParts: effectiveSecondaryParts,
     primaryText,
     secondaryText,
     fullTitle,

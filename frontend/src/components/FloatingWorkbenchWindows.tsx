@@ -17,6 +17,7 @@ import {
 } from '../utils/detachedWindow';
 import WorkbenchTabContent from './WorkbenchTabContent';
 import { hasNativeDetachedWindowManager } from '../utils/nativeDetachedWindowHost';
+import { isMainWindowBoundWorkbenchTab } from '../utils/workbenchTabKinds';
 import { useWorkbenchTabs } from '../hooks/useWorkbenchTabs';
 import { useManagedPointerInteraction } from '../hooks/useManagedPointerInteraction';
 import {
@@ -39,6 +40,7 @@ const getTabKindLabel = (type: string): string => {
   if (type === 'dml-snapshot') return t('tab_manager.kind_badge.dml_snapshot');
   if (type === 'driver-manager') return t('tab_manager.kind_badge.driver_manager');
   if (type === 'settings-center') return t('tab_manager.kind_badge.settings_center');
+  if (type === 'service-detail') return t('tab_manager.kind_badge.service_detail');
   if (type.startsWith('redis')) return t('tab_manager.kind_badge.redis');
   if (type.startsWith('jvm')) return t('tab_manager.kind_badge.jvm');
   if (type === 'trigger') return t('tab_manager.kind_badge.trigger');
@@ -117,8 +119,13 @@ const FloatingWorkbenchWindows: React.FC = () => {
     }>;
   }, [activeTabId, appearance.tabDisplay, connections, detachedWorkbenchWindows, tabs]);
   const nativeWindowManagerAvailable = hasNativeDetachedWindowManager();
+  // 桌面版原生 OS 窗口路径也会写 detachedWorkbenchWindows（仅作状态记录），
+  // 浮层只承载主窗口绑定型 tab（设置中心/后台任务工作台），避免与 OS 窗口重复渲染。
+  const overlayWindowModels = nativeWindowManagerAvailable
+    ? windowModels.filter((model) => isMainWindowBoundWorkbenchTab(model.tab))
+    : windowModels;
   const { startInteraction: startManagedInteraction } = useManagedPointerInteraction(
-    windowModels.length > 0 && !nativeWindowManagerAvailable,
+    overlayWindowModels.length > 0,
   );
 
   const startInteraction = useCallback((
@@ -187,7 +194,7 @@ const FloatingWorkbenchWindows: React.FC = () => {
     };
   }, [focusDetachedWorkbenchTab, startManagedInteraction, updateDetachedWorkbenchBounds]);
 
-  if (nativeWindowManagerAvailable || windowModels.length === 0) {
+  if (overlayWindowModels.length === 0) {
     return null;
   }
 
@@ -245,8 +252,13 @@ const FloatingWorkbenchWindows: React.FC = () => {
           padding: 6px 8px 6px 12px;
           border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
           background: ${isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'};
-          cursor: move;
+          cursor: var(--gn-drag-cursor-grab, grab);
           user-select: none;
+        }
+        /* Windows 的 move/grab 系统指针是白色系，浅色主题下不可见；
+           自绘手掌光标（utils/dragCursors）随视口/主题自适应，与主标签栏一致。 */
+        .gn-detached-window-header:active {
+          cursor: var(--gn-drag-cursor-grabbing, grabbing);
         }
         .gn-detached-window-title {
           min-width: 0;
@@ -313,7 +325,7 @@ const FloatingWorkbenchWindows: React.FC = () => {
           cursor: nwse-resize;
         }
       `}</style>
-      {windowModels.map(({ windowState, tab, title, hostSummary, connectionName, isFocused }) => (
+      {overlayWindowModels.map(({ windowState, tab, title, hostSummary, connectionName, isFocused }) => (
         <div
           key={windowState.tabId}
           className={`gn-detached-window${isFocused ? ' is-focused' : ''}`}

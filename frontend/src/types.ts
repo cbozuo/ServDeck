@@ -523,6 +523,7 @@ export interface TabData {
     | "dml-snapshot"
     | "driver-manager"
     | "settings-center"
+    | "service-detail"
     | "request-diagnostics"
     | "message-queue"
     | "redis-keys"
@@ -548,6 +549,8 @@ export interface TabData {
   connectionId: string;
   dbName?: string;
   tableName?: string;
+  /** ServDeck 纳管服务名（service-detail tab 的目标服务）。 */
+  serviceName?: string;
   query?: string;
   resultPanelVisible?: boolean;
   queryMode?: "standard" | "object-edit";

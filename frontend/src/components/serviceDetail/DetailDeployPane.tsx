@@ -21,7 +21,6 @@ export interface DetailDeployPaneProps {
   running: boolean;
   /** SCM 中是否存在此服务；false = 已卸载/未注册，状态卡与主行动切换为「注册」形态 */
   installed: boolean;
-  accentColor?: string;
   onDeployChange: (next: ServiceDeploySnapshot) => void;
   onStopForEdit: () => void;
   onReRegister: () => void;
@@ -85,7 +84,6 @@ export const DetailDeployPane: React.FC<DetailDeployPaneProps> = ({
   locked,
   running,
   installed,
-  accentColor,
   addedAt,
   onDeployChange,
   onStopForEdit,
@@ -104,7 +102,6 @@ export const DetailDeployPane: React.FC<DetailDeployPaneProps> = ({
     const end = el.value.length;
     el.setSelectionRange(end, end);
   };
-  const hc = accentColor || 'var(--gn-accent)';
   const template = templateOf(serviceType);
   const isJava = template?.id === 'java';
   /** 轮转显示值：旧快照缺省跟随守护开关（与添加弹框注册时的取值一致） */
@@ -188,10 +185,13 @@ export const DetailDeployPane: React.FC<DetailDeployPaneProps> = ({
           <div className="dtl-kv"><span>{t('detail.kv.displayName')}</span><b>{info?.displayName || deploy.displayName}</b></div>
           <div className="dtl-kv">
             <span>{t('detail.kv.programFile')}</span>
-            <b className="mono ellipsis">{deploy.programFile || info?.programFile || '—'}</b>
+            <b className="ellipsis">{deploy.programFile || info?.programFile || '—'}</b>
           </div>
           <div className="dtl-kv"><span>{t('detail.kv.description')}</span><b>{info?.description || '—'}</b></div>
-          <div className="dtl-kv"><span>{t('detail.kv.registeredAt')}</span><b className="mono">{registeredAtText}</b></div>
+          {/* 注册时间属 SCM 注册动作；未注册（已卸载/注册失败）时不显示，避免误导 */}
+          {installed && (
+            <div className="dtl-kv"><span>{t('detail.kv.registeredAt')}</span><b>{registeredAtText}</b></div>
+          )}
         </div>
       </div>
 
@@ -392,8 +392,10 @@ export const DetailDeployPane: React.FC<DetailDeployPaneProps> = ({
         </div>
       </div>
 
-      {/* 注册主行动：已注册=重新注册写回 SCM；未注册=装入系统服务 */}
-      <button type="button" className="dtl-btn primary dtl-deploy-cta" style={{ borderColor: hc }} onClick={onReRegister}>
+      {/* 注册主行动：已注册=重新注册写回 SCM；未注册=装入系统服务。
+          不描 accent 边框（.dtl-btn.primary 已是 transparent 边框）——
+          内联 accent 边在自定义外观色与主题底色不同系时会打架（如绿底红框）。 */}
+      <button type="button" className="dtl-btn primary dtl-deploy-cta" onClick={onReRegister}>
         <CheckCircleFilled />
         {t(installed ? 'detail.action.reRegister' : 'detail.action.register')}
       </button>

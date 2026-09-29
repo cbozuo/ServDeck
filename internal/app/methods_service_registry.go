@@ -103,15 +103,21 @@ func (a *App) AddManagedService(request AddServiceRequest) connection.QueryResul
 		if logTail != "" {
 			data["logTail"] = logTail
 		}
-		// install 成功、仅 start 失败：文案按「启动失败」反馈（SCM 已装入，注册并没有失败）
+		// install 成功、仅 start 失败：文案按「启动失败」反馈（SCM 已装入，注册并没有失败）；
+		// 启动目录无效：给出可操作的指引（servy 要求工作目录真实存在）。
 		messageKey := "service.registry.backend.error.register_failed"
+		messageParams := map[string]any{"detail": err.Error()}
 		var startErr *startFailedError
+		var workdirErr *workdirInvalidError
 		if errors.As(err, &startErr) {
 			messageKey = "service.registry.backend.error.start_failed"
+		} else if errors.As(err, &workdirErr) {
+			messageKey = "service.registry.backend.error.workdir_invalid"
+			messageParams = map[string]any{"dir": strings.TrimSpace(workdirErr.dir)}
 		}
 		return connection.QueryResult{
 			Success: false,
-			Message: a.appText(messageKey, map[string]any{"detail": err.Error()}),
+			Message: a.appText(messageKey, messageParams),
 			Data:    data,
 		}
 	}

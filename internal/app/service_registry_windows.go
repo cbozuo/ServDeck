@@ -129,6 +129,48 @@ func serviceFileExists(path string) bool {
 	return err == nil && !info.IsDir()
 }
 
+func serviceDirExists(path string) bool {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+// normalizeServiceWorkDir 把卷相对形式（`D:`，前端从盘根程序文件推导出）规整为根目录 `D:\`。
+// 注意不能用 filepath.Clean 比较：Clean("D:") 会得到 "D:."，无法与卷名匹配。
+func normalizeServiceWorkDir(dir string) string {
+	dir = strings.TrimSpace(dir)
+	if volume := filepath.VolumeName(dir); volume != "" && volume == dir {
+		return volume + `\`
+	}
+	return dir
+}
+
+// resolveServiceWorkDir 规整注册用启动目录。servy 对不存在的 startupDir 直接拒装
+// （"The specified startup directory is invalid"），而前端从程序文件推导目录时，
+// 「程序位于盘符根目录」会推出 `D:` 这类卷相对形式、相对路径输入会推出相对目录——两者都会被拒。
+// 统一规整：卷相对补根、空或不存在时回退程序文件所在目录，仍不存在才报错。
+func resolveServiceWorkDir(request AddServiceRequest) (string, error) {
+	workDir := normalizeServiceWorkDir(request.WorkDir)
+	if workDir != "" && serviceDirExists(workDir) {
+		return filepath.Clean(workDir), nil
+	}
+	fallback := normalizeServiceWorkDir(filepath.Dir(strings.TrimSpace(request.ProgramFile)))
+	if serviceDirExists(fallback) {
+		return filepath.Clean(fallback), nil
+	}
+	return "", &workdirInvalidError{dir: request.WorkDir}
+}
+
+// workdirInvalidError 标记启动目录无效，供上层选用专用 i18n 文案。
+type workdirInvalidError struct{ dir string }
+
+func (e *workdirInvalidError) Error() string {
+	return fmt.Sprintf("startup directory does not exist: %q", e.dir)
+}
+
 // locateServyEngine 按固定顺序查找 servy 引擎：
 // 环境变量 SERVDECK_SERVY_PATH → 设置中配置的引擎路径（bootstrap 配置）→ 可执行文件同目录 → 常见工具目录 → PATH。
 // 不依赖固定文件名（新版本可能改名）：目录内按 servy*.exe 通配发现候选，
@@ -227,6 +269,11 @@ func registerServiceWithServy(request AddServiceRequest) (serviceAddResult, erro
 	if err != nil {
 		return serviceAddResult{}, err
 	}
+	workDir, err := resolveServiceWorkDir(request)
+	if err != nil {
+		return serviceAddResult{}, err
+	}
+	request.WorkDir = workDir
 	logDir, err := servicesLogDir(request.Name)
 	if err != nil {
 		return serviceAddResult{}, err

@@ -69,11 +69,9 @@ import {
   shouldDetachTabByDrag,
 } from '../utils/detachedWindow';
 import { openNativeWorkbenchTabWindow } from '../utils/nativeDetachedWindowHost';
+import { isBackgroundTaskWorkbenchTab, isMainWindowBoundWorkbenchTab } from '../utils/workbenchTabKinds';
 import { ServiceHome } from './home/ServiceHome';
 import { useServiceDetailStore } from '../serviceDetailStore';
-
-// 服务详情页懒加载（主区替换形态；避免拖累首屏 chunk）
-const ServiceDetailLazy = React.lazy(() => import('./serviceDetail/ServiceDetail') as Promise<{ default: React.ComponentType<{ name: string }> }>);
 import { useWorkbenchTabs } from '../hooks/useWorkbenchTabs';
 import { resolveConnectionEnvironmentPresentation } from '../utils/connectionEnvironment';
 import { createSidebarResizeAwareFrameScheduler } from '../utils/sidebarResizeLifecycle';
@@ -108,6 +106,7 @@ const getTabKindLabel = (tab: TabData): string => {
   if (tab.type === 'dml-snapshot') return t('tab_manager.kind_badge.dml_snapshot');
   if (tab.type === 'driver-manager') return t('tab_manager.kind_badge.driver_manager');
   if (tab.type === 'settings-center') return t('tab_manager.kind_badge.settings_center');
+  if (tab.type === 'service-detail') return t('tab_manager.kind_badge.service_detail');
   if (tab.type === 'message-queue') return t('message_queue_workbench.tab_kind');
   if (tab.type.startsWith('redis')) return t('tab_manager.kind_badge.redis');
   if (tab.type.startsWith('jvm')) return t('tab_manager.kind_badge.jvm');
@@ -125,14 +124,7 @@ const getTabKindLabel = (tab: TabData): string => {
   return t('tab_manager.kind_badge.fallback');
 };
 
-export const isBackgroundTaskWorkbenchTab = (tab: Pick<TabData, 'type'>): boolean => (
-  tab.type === 'table-export' || tab.type === 'data-import' || tab.type === 'data-sync'
-);
-
-/** Settings center keeps its UI/state in the main App bridge; do not detach it. */
-export const isMainWindowBoundWorkbenchTab = (tab: Pick<TabData, 'type'>): boolean => (
-  tab.type === 'settings-center' || isBackgroundTaskWorkbenchTab(tab)
-);
+export { isBackgroundTaskWorkbenchTab, isMainWindowBoundWorkbenchTab };
 
 export const resolveQueryTabRenameMenuState = (
   tab: Pick<TabData, 'type' | 'filePath'>,
@@ -365,6 +357,7 @@ const getTabKindTooltipLabel = (tab: TabData): string => {
   if (tab.type === 'dml-snapshot') return t('tab_manager.hover.kind.dml_snapshot');
   if (tab.type === 'driver-manager') return t('tab_manager.hover.kind.driver_manager');
   if (tab.type === 'settings-center') return t('tab_manager.hover.kind.settings_center');
+  if (tab.type === 'service-detail') return t('tab_manager.hover.kind.service_detail');
   if (tab.type === 'message-queue') return t('message_queue_workbench.tab_kind');
   if (tab.type === 'redis-keys') return t('tab_manager.hover.kind.redis_keys');
   if (tab.type === 'redis-command') return t('tab_manager.hover.kind.redis_command');
@@ -403,6 +396,7 @@ const getTabObjectLabel = (tab: TabData): string => {
   if (tab.filePath) return tab.filePath;
   if (tab.type === 'driver-manager') return t('app.tools.entry.drivers.title');
   if (tab.type === 'settings-center') return t('app.settings.title');
+  if (tab.type === 'service-detail') return tab.serviceName || tab.title;
   if (tab.type === 'sql-analysis' || tab.type === 'sql-audit' || tab.type === 'dml-snapshot') return tab.title;
   if (tab.type === 'message-queue') return tab.messageQueueTarget || tab.dbName || '';
   if (tab.type.startsWith('redis')) return `db${tab.redisDB ?? 0}`;
@@ -502,7 +496,9 @@ export const TabHoverInfo: React.FC<TabHoverInfoProps> = ({
   const schemaPart = displayModel
     ? [...displayModel.primaryParts, ...displayModel.secondaryParts].find((part) => part.key === 'schema')
     : undefined;
-  const rows = [
+  // 服务详情 tab 没有连接/库/对象语义，硬凑只会产生「未绑定连接/未指定」噪音；
+  // 头部（徽标+服务名）已承载全部有效信息，行区留空。
+  const hoverRows = tab.type === 'service-detail' ? [] : [
     [t('tab_manager.hover.label.type'), getTabKindTooltipLabel(tab)],
     [t('tab_manager.hover.label.connection'), connectionLabel || t('tab_manager.hover.fallback.unbound_connection')],
     ['Host', hostSummary || t('tab_manager.hover.fallback.host_not_configured')],
@@ -534,7 +530,7 @@ export const TabHoverInfo: React.FC<TabHoverInfoProps> = ({
         <strong>{hoverTitle}</strong>
       </div>
       <div className="gn-v2-tab-hover-rows">
-        {rows.map(([label, value]) => (
+        {hoverRows.map(([label, value]) => (
           <div className="gn-v2-tab-hover-row" key={label}>
             <span>{label}</span>
             <strong>{value}</strong>
@@ -656,7 +652,6 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
           {showSecondaryLine ? (
             <span
               className="gn-v2-tab-label-secondary"
-              title={displayModel.secondaryText}
               aria-label={displayModel.secondaryText}
             >
               {renderV2TabSecondaryParts(displayModel.secondaryParts)}
@@ -855,7 +850,9 @@ const DraggableTabNode: React.FC<DraggableTabNodeProps> = ({ node }) => {
     transform: CSS.Transform.toString(transform),
     transition: transition || 'transform 180ms cubic-bezier(0.22, 1, 0.36, 1)',
     opacity: isDragging ? 0.88 : 1,
-    cursor: isDragging ? 'grabbing' : 'grab',
+    cursor: isDragging
+      ? 'var(--gn-drag-cursor-grabbing, grabbing)'
+      : 'var(--gn-drag-cursor-grab, grab)',
     touchAction: 'none',
     zIndex: isDragging ? 2 : node.props.style?.zIndex,
   };
@@ -895,6 +892,7 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onF
   const addTab = useStore(state => state.addTab);
   const closeTab = useStore(state => state.closeTab);
   const moveTab = useStore(state => state.moveTab);
+  const detachWorkbenchTab = useStore(state => state.detachWorkbenchTab);
   const detachedTabIdSet = useMemo(
     () => new Set(detachedWorkbenchWindows.map((windowState) => windowState.tabId)),
     [detachedWorkbenchWindows],
@@ -971,13 +969,15 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onF
   const detachTabToWindow = useCallback((tabId: string, preferred?: { x?: number; y?: number; width?: number; height?: number }) => {
     const tab = tabs.find((item) => item.id === tabId);
     if (tab && isMainWindowBoundWorkbenchTab(tab)) {
-      void message.warning(t('tab_manager.message.background_task_window_unavailable'));
+      // 设置中心/后台任务工作台的 UI 与状态挂在主 App 桥上，独立 OS 窗口
+      // （独立 webview）读不到，改弹主窗口内浮层承载。
+      detachWorkbenchTab(tabId, preferred);
       return;
     }
     void openNativeWorkbenchTabWindow(tabId, preferred).catch((error) => {
       message.error(error instanceof Error ? error.message : String(error));
     });
-  }, [tabs]);
+  }, [detachWorkbenchTab, tabs]);
   const dockedActiveTabId = useMemo(() => {
     return resolveDockedActiveTabId(tabs, activeTabId, detachedWorkbenchWindows);
   }, [activeTabId, detachedWorkbenchWindows, tabs]);
@@ -1552,7 +1552,6 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onF
         key: 'open-in-window',
         icon: <ExportOutlined />,
         label: t('tab_manager.menu.open_in_window'),
-        disabled: isMainWindowBoundWorkbenchTab(tab),
         onClick: () => detachTabToWindow(tab.id),
       },
       { type: 'divider' },
@@ -1781,11 +1780,7 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onF
     }
   }, [addTab, connectionById, externalSQLDirectories]);
 
-  const detailOpenName = useServiceDetailStore((state) => state.openName);
   const detailOpen = useServiceDetailStore((state) => state.open);
-  const DetailElement = detailOpenName
-    ? <React.Suspense fallback={<div style={{ flex: 1 }} />}><ServiceDetailLazy name={detailOpenName} /></React.Suspense>
-    : null;
 
   const ServiceHomeElement = (
     <ServiceHome onAddService={onAddService} onMore={detailOpen} />
@@ -1890,7 +1885,7 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onF
             }
             .main-tabs .tab-dnd-node.is-dragging,
             .main-tabs .tab-dnd-node.is-dragging .tab-dnd-label {
-              cursor: grabbing !important;
+              cursor: var(--gn-drag-cursor-grabbing, grabbing) !important;
             }
             body[data-theme='dark'] .main-tabs .ant-tabs-tab-btn:focus-visible {
               outline: none !important;
@@ -1993,9 +1988,7 @@ body[data-theme='dark'] .main-tabs .ant-tabs-tab.ant-tabs-tab-active {
               -webkit-user-select: none !important;
             }
         `}</style>
-        {DetailElement ? (
-          DetailElement
-        ) : !hasTabs ? (
+        {!hasTabs ? (
           ServiceHomeElement
         ) : !hasDockedTabs ? (
           // All tabs are floating: keep empty docked area; floating host still shows content.

@@ -29,6 +29,9 @@ const SqlAnalysisWorkbench = React.lazy(() => import('./explain/SqlAnalysisWorkb
 const SqlAuditWorkbench = React.lazy(() => import('./audit/SqlAuditWorkbench'));
 const DriverManagerWorkbench = React.lazy(() => import('./DriverManagerWorkbench'));
 const SettingsCenterWorkbench = React.lazy(() => import('./settings/SettingsCenterWorkbench'));
+const ServiceDetailWorkbench = React.lazy(
+  () => import('./serviceDetail/ServiceDetail') as Promise<{ default: React.ComponentType<{ name: string }> }>,
+);
 const RequestDiagnosticsWorkbench = React.lazy(() => import('./requestDiagnostics/RequestDiagnosticsWorkbench'));
 const DMLSnapshotWorkbench = React.lazy(() => import('./dmlSnapshot/DMLSnapshotWorkbench'));
 const MessageQueueWorkbench = React.lazy(() => import('./MessageQueueWorkbench'));
@@ -172,6 +175,8 @@ export const WorkbenchTabContent: React.FC<WorkbenchTabContentProps> = React.mem
     );
   } else if (tab.type === 'settings-center') {
     content = <SettingsCenterWorkbench tab={tab} isActive={isActive} />;
+  } else if (tab.type === 'service-detail') {
+    content = <ServiceDetailWorkbench name={tab.serviceName ?? ''} />;
   } else if (tab.type === 'request-diagnostics') {
     content = <RequestDiagnosticsWorkbench tab={tab} isActive={isActive} />;
   } else if (tab.type === 'message-queue') {

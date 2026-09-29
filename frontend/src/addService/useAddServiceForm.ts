@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useI18n } from '../i18n/provider';
 import { ProbeWindowsService, AddManagedService } from '../../wailsjs/go/app/App';
+import { useHomeEventsStore } from '../components/home/homeEvents';
 import type { ServiceProbeResult } from './serviceFieldTypes';
 import {
   deriveFieldValue,
@@ -254,6 +255,14 @@ export function useAddServiceForm(template: ServiceTemplate) {
           const logTail = String((result.data as { logTail?: string } | null | undefined)?.logTail ?? '');
           return { ok: false, message: result.message, mode, installed, logTail };
         }
+        // 添加弹框的注册不经过任何页面操作按钮，直接记会话事件，事件页签才有迹可循
+        useHomeEventsStore.getState().pushEvent({
+          at: Date.now(),
+          level: 'run',
+          name: trim(basic.serviceName),
+          service: trim(basic.displayName) || trim(basic.serviceName),
+          key: 'home.events.registered',
+        });
       }
       setAddPhase('done');
       return { ok: true, message: '', mode };

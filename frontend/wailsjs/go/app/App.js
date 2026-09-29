@@ -546,6 +546,10 @@ export function DeleteSavedQueryGroup(arg1) {
   return window['go']['app']['App']['DeleteSavedQueryGroup'](arg1);
 }
 
+export function DescribeJavaRuntime(arg1) {
+  return window['go']['app']['App']['DescribeJavaRuntime'](arg1);
+}
+
 export function DetectJavaRuntimes() {
   return window['go']['app']['App']['DetectJavaRuntimes']();
 }

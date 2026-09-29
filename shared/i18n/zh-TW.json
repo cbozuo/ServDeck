@@ -8003,9 +8003,8 @@
   "service.modal.basic.genName": "根據程式檔名產生服務名",
   "service.modal.basic.genNameShort": "產生",
   "service.modal.jdk.title": "選擇 JDK",
-  "service.modal.jdk.desc": "已自動偵測本機 Java 執行環境。選擇其一，或指定 JDK 目錄 / java.exe 完整路徑。",
+  "service.modal.jdk.desc": "已自動檢測本機 Java 執行階段。選擇其一，或指定 «JDK 目錄» / «java.exe 完整路徑»。",
   "service.modal.jdk.detecting": "正在偵測本機 Java 執行環境…",
-  "service.modal.jdk.empty": "未在本機偵測到 Java 執行環境，請手動指定 java.exe 路徑",
   "service.modal.jdk.current": "目前使用",
   "service.modal.jdk.manual": "手動指定",
   "service.modal.jdk.manualPlaceholder": "JDK 目錄或 java.exe 完整路徑",
@@ -8243,5 +8242,14 @@
   "home.res.diskRead": "讀取",
   "home.res.diskWrite": "寫入",
   "home.summary.none": "尚未納管任何服務",
-  "service.modal.jdk.detected": "本機偵測到 {{n}} 個 Java 執行環境"
+  "service.modal.jdk.detected": "本機偵測到 {{n}} 個 Java 執行環境",
+  "service.modal.jdk.lastCheck": "上次檢測 {{time}}",
+  "service.modal.jdk.scanning": "正在掃描 JAVA_HOME 與常見安裝目錄…",
+  "service.modal.jdk.emptyTitle": "未檢測到 Java 執行階段",
+  "service.modal.jdk.emptySub": "已掃描 JAVA_HOME、Path 及常見安裝目錄；可手動指定 JDK 目錄或 java.exe 路徑。",
+  "service.modal.jdk.manualHelp": "填入後將校驗路徑有效性；目錄與 java.exe 均可，結果會寫入 «JVM 執行階段» 參數。",
+  "service.modal.jdk.shortcuts": "Enter 確認 · Esc 取消",
+  "service.modal.jdk.copyPath": "複製路徑",
+  "service.modal.jdk.manualOpt": "（可選，優先於上方選擇）",
+  "service.modal.select.footerHint": "單擊任意服務類型即可開始配置 · Esc 關閉"
 }

@@ -8025,9 +8025,8 @@
   "service.modal.basic.genName": "根据程序文件名生成服务名",
   "service.modal.basic.genNameShort": "生成",
   "service.modal.jdk.title": "选择 JDK",
-  "service.modal.jdk.desc": "已自动检测本机 Java 运行时。选择其一，或指定 JDK 目录 / java.exe 完整路径。",
+  "service.modal.jdk.desc": "已自动检测本机 Java 运行时。选择其一，或指定 «JDK 目录» / «java.exe 完整路径»。",
   "service.modal.jdk.detecting": "正在检测本机 Java 运行时…",
-  "service.modal.jdk.empty": "未在本机检测到 Java 运行时，请手动指定 java.exe 路径",
   "service.modal.jdk.current": "当前使用",
   "service.modal.jdk.manual": "手动指定",
   "service.modal.jdk.manualPlaceholder": "JDK 目录或 java.exe 完整路径",
@@ -8243,5 +8242,14 @@
   "home.res.diskRead": "读取",
   "home.res.diskWrite": "写入",
   "home.summary.none": "尚未纳管任何服务",
-  "service.modal.jdk.detected": "本机检测到 {{n}} 个 Java 运行时"
+  "service.modal.jdk.detected": "本机检测到 {{n}} 个 Java 运行时",
+  "service.modal.jdk.lastCheck": "上次检测 {{time}}",
+  "service.modal.jdk.scanning": "正在扫描 JAVA_HOME 与常见安装目录…",
+  "service.modal.jdk.emptyTitle": "未检测到 Java 运行时",
+  "service.modal.jdk.emptySub": "已扫描 JAVA_HOME、Path 及常见安装目录；可手动指定 JDK 目录或 java.exe 路径。",
+  "service.modal.jdk.manualHelp": "填入后将校验路径有效性；目录与 java.exe 均可，结果会写入 «JVM 运行时» 参数。",
+  "service.modal.jdk.shortcuts": "Enter 确认 · Esc 取消",
+  "service.modal.jdk.copyPath": "复制路径",
+  "service.modal.jdk.manualOpt": "（可选，优先于上方选择）",
+  "service.modal.select.footerHint": "单击任意服务类型即可开始配置 · Esc 关闭"
 }

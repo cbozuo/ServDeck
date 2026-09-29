@@ -8003,9 +8003,8 @@
   "service.modal.basic.genName": "Generate the service name from the program file",
   "service.modal.basic.genNameShort": "Generate",
   "service.modal.jdk.title": "Choose a JDK",
-  "service.modal.jdk.desc": "Local Java runtimes were detected automatically. Pick one, or point to a JDK directory / the full java.exe path.",
+  "service.modal.jdk.desc": "本機の Java ランタイムを自動検出しました。いずれかを選ぶか、«JDK ディレクトリ» / «java.exe 完全パス» を指定してください。",
   "service.modal.jdk.detecting": "Detecting local Java runtimes…",
-  "service.modal.jdk.empty": "No local Java runtime detected; enter the java.exe path manually",
   "service.modal.jdk.current": "In use",
   "service.modal.jdk.manual": "Manual path",
   "service.modal.jdk.manualPlaceholder": "JDK directory or full path to java.exe",
@@ -8243,5 +8242,14 @@
   "home.res.diskRead": "読み取り",
   "home.res.diskWrite": "書き込み",
   "home.summary.none": "管理対象のサービスはまだありません",
-  "service.modal.jdk.detected": "ローカルで {{n}} 個の Java ランタイムを検出"
+  "service.modal.jdk.detected": "ローカルで {{n}} 個の Java ランタイムを検出",
+  "service.modal.jdk.lastCheck": "前回の検出 {{time}}",
+  "service.modal.jdk.scanning": "JAVA_HOME と一般的なインストール先を走査中…",
+  "service.modal.jdk.emptyTitle": "Java ランタイムが見つかりません",
+  "service.modal.jdk.emptySub": "JAVA_HOME、Path、一般的なインストール先を走査しました。JDK ディレクトリまたは java.exe のパスを手動で指定できます。",
+  "service.modal.jdk.manualHelp": "入力するとパスの有効性を検証します。ディレクトリと java.exe のどちらも可能で、結果は «JVM ランタイム» パラメーターに書き込まれます。",
+  "service.modal.jdk.shortcuts": "Enter で確定 · Esc でキャンセル",
+  "service.modal.jdk.copyPath": "パスをコピー",
+  "service.modal.jdk.manualOpt": "（任意。上の選択より優先されます）",
+  "service.modal.select.footerHint": "サービス種類をクリックして設定を開始 · Esc で閉じる"
 }

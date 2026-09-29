@@ -210,3 +210,20 @@ func describeJavaByVersion(javaExe string) (dist string, fullVersion string) {
 	}
 	return "OpenJDK", full
 }
+
+// DescribeJavaRuntime 返回单个 java.exe 的发行版与完整版本号，
+// 供 JDK 选择弹窗的手动路径校验反馈（「路径有效 Java 21.0.1 · …」）。
+func (a *App) DescribeJavaRuntime(path string) connection.QueryResult {
+	trimmed := strings.TrimSpace(path)
+	if !serviceFileExists(trimmed) {
+		return connection.QueryResult{Success: false}
+	}
+	dist, full := describeJavaByVersion(trimmed)
+	if dist == "" && full == "" {
+		return connection.QueryResult{Success: false}
+	}
+	return connection.QueryResult{Success: true, Data: map[string]any{
+		"name":    strings.TrimSpace(dist + " " + full),
+		"version": javaMajorFromVersion(full),
+	}}
+}

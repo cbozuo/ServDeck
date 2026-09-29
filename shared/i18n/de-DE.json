@@ -8003,9 +8003,8 @@
   "service.modal.basic.genName": "Generate the service name from the program file",
   "service.modal.basic.genNameShort": "Generate",
   "service.modal.jdk.title": "Choose a JDK",
-  "service.modal.jdk.desc": "Local Java runtimes were detected automatically. Pick one, or point to a JDK directory / the full java.exe path.",
+  "service.modal.jdk.desc": "Lokale Java-Laufzeiten wurden automatisch erkannt. Wähle eine aus, oder gib ein «JDK-Verzeichnis» oder den vollständigen «java.exe-Pfad» an.",
   "service.modal.jdk.detecting": "Detecting local Java runtimes…",
-  "service.modal.jdk.empty": "No local Java runtime detected; enter the java.exe path manually",
   "service.modal.jdk.current": "In use",
   "service.modal.jdk.manual": "Manual path",
   "service.modal.jdk.manualPlaceholder": "JDK directory or full path to java.exe",
@@ -8243,5 +8242,14 @@
   "home.res.diskRead": "Lesen",
   "home.res.diskWrite": "Schreiben",
   "home.summary.none": "Noch keine Dienste verwaltet",
-  "service.modal.jdk.detected": "{{n}} lokale Java-Laufzeit(en) erkannt"
+  "service.modal.jdk.detected": "{{n}} lokale Java-Laufzeit(en) erkannt",
+  "service.modal.jdk.lastCheck": "Letzter Check {{time}}",
+  "service.modal.jdk.scanning": "JAVA_HOME und übliche Installationsorte werden durchsucht…",
+  "service.modal.jdk.emptyTitle": "Keine Java-Laufzeit gefunden",
+  "service.modal.jdk.emptySub": "JAVA_HOME, Path und übliche Installationsorte wurden durchsucht; Sie können ein JDK-Verzeichnis oder einen java.exe-Pfad manuell angeben.",
+  "service.modal.jdk.manualHelp": "Der Pfad wird beim Eingeben geprüft; Verzeichnis oder java.exe, das Ergebnis wird in den «JVM-Laufzeit»-Parameter geschrieben.",
+  "service.modal.jdk.shortcuts": "Enter übernehmen · Esc abbrechen",
+  "service.modal.jdk.copyPath": "Pfad kopieren",
+  "service.modal.jdk.manualOpt": "(optional, hat Vorrang vor der Liste oben)",
+  "service.modal.select.footerHint": "Klicke einen Diensttyp an, um zu starten · Esc zum Schließen"
 }

@@ -8003,9 +8003,8 @@
   "service.modal.basic.genName": "Generate the service name from the program file",
   "service.modal.basic.genNameShort": "Generate",
   "service.modal.jdk.title": "Choose a JDK",
-  "service.modal.jdk.desc": "Local Java runtimes were detected automatically. Pick one, or point to a JDK directory / the full java.exe path.",
+  "service.modal.jdk.desc": "Local Java runtimes were auto-detected. Pick one, or specify a «JDK directory» or the full «java.exe path».",
   "service.modal.jdk.detecting": "Detecting local Java runtimes…",
-  "service.modal.jdk.empty": "No local Java runtime detected; enter the java.exe path manually",
   "service.modal.jdk.current": "In use",
   "service.modal.jdk.manual": "Manual path",
   "service.modal.jdk.manualPlaceholder": "JDK directory or full path to java.exe",
@@ -8243,5 +8242,14 @@
   "home.res.diskRead": "Read",
   "home.res.diskWrite": "Write",
   "home.summary.none": "No services managed yet",
-  "service.modal.jdk.detected": "Detected {{n}} local Java runtime(s)"
+  "service.modal.jdk.detected": "Detected {{n}} local Java runtime(s)",
+  "service.modal.jdk.lastCheck": "Last check {{time}}",
+  "service.modal.jdk.scanning": "Scanning JAVA_HOME and common install locations…",
+  "service.modal.jdk.emptyTitle": "No Java runtime detected",
+  "service.modal.jdk.emptySub": "JAVA_HOME, Path and common install locations were scanned; you can point to a JDK directory or a java.exe path manually.",
+  "service.modal.jdk.manualHelp": "The path is validated as you type; a directory or java.exe both work — the result is written to the «JVM runtime» parameter.",
+  "service.modal.jdk.shortcuts": "Enter to apply · Esc to cancel",
+  "service.modal.jdk.copyPath": "Copy path",
+  "service.modal.jdk.manualOpt": "(optional, takes priority over the list above)",
+  "service.modal.select.footerHint": "Click any service type to start · Esc to close"
 }

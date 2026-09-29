@@ -39,7 +39,7 @@ type ProbeButtonHtmlProps = Omit<
 /** 成功闪现时长：与高保真一致的 400ms，之后回落到常态。 */
 const FLASH_MS = 400;
 /** 探测中状态的最小展示时长：保证动画可见（本地探测可能瞬间返回）。 */
-const MIN_BUSY_MS = 1000;
+const MIN_BUSY_MS = 400;
 
 /** 探测成功相位（可继续「加入纳管」）：用于决定闪现。 */
 const SUCCESS_PHASES = new Set(['ok', 'exists']);
@@ -52,14 +52,23 @@ export const ProbeActionButton = React.forwardRef<
   const [flashOk, setFlashOk] = useState(false);
   const [minBusy, setMinBusy] = useState(false);
   const wasBusy = useRef(false);
+  const busyStartRef = useRef(0);
 
   // 探测中最小展示时长：真实探测更快时，视觉上仍保持 busy 到 MIN_BUSY_MS。
+  // probing 结束时不能清掉定时器（否则 minBusy 永远停在 true、按钮卡死在探测中），
+  // 而是按「已展示时长」补足剩余部分。
   useEffect(() => {
-    if (!probing) {
+    if (probing) {
+      busyStartRef.current = Date.now();
+      setMinBusy(true);
       return undefined;
     }
-    setMinBusy(true);
-    const timer = window.setTimeout(() => setMinBusy(false), MIN_BUSY_MS);
+    const remaining = Math.max(0, MIN_BUSY_MS - (Date.now() - busyStartRef.current));
+    if (remaining === 0) {
+      setMinBusy(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setMinBusy(false), remaining);
     return () => window.clearTimeout(timer);
   }, [probing]);
 

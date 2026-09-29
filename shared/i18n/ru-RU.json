@@ -8003,9 +8003,8 @@
   "service.modal.basic.genName": "Generate the service name from the program file",
   "service.modal.basic.genNameShort": "Generate",
   "service.modal.jdk.title": "Choose a JDK",
-  "service.modal.jdk.desc": "Local Java runtimes were detected automatically. Pick one, or point to a JDK directory / the full java.exe path.",
+  "service.modal.jdk.desc": "Локальные среды Java обнаружены автоматически. Выберите одну или укажите «каталог JDK» / «полный путь к java.exe».",
   "service.modal.jdk.detecting": "Detecting local Java runtimes…",
-  "service.modal.jdk.empty": "No local Java runtime detected; enter the java.exe path manually",
   "service.modal.jdk.current": "In use",
   "service.modal.jdk.manual": "Manual path",
   "service.modal.jdk.manualPlaceholder": "JDK directory or full path to java.exe",
@@ -8243,5 +8242,14 @@
   "home.res.diskRead": "Чтение",
   "home.res.diskWrite": "Запись",
   "home.summary.none": "Пока нет управляемых служб",
-  "service.modal.jdk.detected": "Обнаружено локальных сред Java: {{n}}"
+  "service.modal.jdk.detected": "Обнаружено локальных сред Java: {{n}}",
+  "service.modal.jdk.lastCheck": "Последняя проверка {{time}}",
+  "service.modal.jdk.scanning": "Сканирование JAVA_HOME и стандартных каталогов…",
+  "service.modal.jdk.emptyTitle": "Среда выполнения Java не обнаружена",
+  "service.modal.jdk.emptySub": "Проверены JAVA_HOME, Path и стандартные каталоги; можно вручную указать каталог JDK или путь к java.exe.",
+  "service.modal.jdk.manualHelp": "Путь проверяется на лету; подходит каталог или java.exe, результат записывается в параметр «JVM runtime».",
+  "service.modal.jdk.shortcuts": "Enter — применить · Esc — отмена",
+  "service.modal.jdk.copyPath": "Копировать путь",
+  "service.modal.jdk.manualOpt": "(необязательно, имеет приоритет над списком выше)",
+  "service.modal.select.footerHint": "Щёлкните тип службы, чтобы начать · Esc — закрыть"
 }

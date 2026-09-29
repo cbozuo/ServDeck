@@ -179,7 +179,6 @@ body[data-ui-version="v2"] .asm-modal .ant-modal .ant-modal-body {
   gap: 9px;
   cursor: pointer;
   transition: border-color 0.13s ease, box-shadow 0.13s ease, transform 0.13s ease;
-  min-height: 108px;
 }
 .asm-type-card:hover {
   border-color: var(--gn-accent);
@@ -198,8 +197,9 @@ body[data-ui-version="v2"] .asm-modal .ant-modal .ant-modal-body {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  background: var(--gn-bg-panel-2);
-  border: 1px solid var(--gn-br-1);
+  /* 图标底色跟随主题色（与头部图标块同一公式），深色/自定义主题自动适配 */
+  background: color-mix(in srgb, var(--gn-accent) 14%, var(--gn-bg-panel));
+  border: 1px solid color-mix(in srgb, var(--gn-accent) 30%, transparent);
 }
 .asm-type-ico img {
   width: 25px;
@@ -1160,3 +1160,9 @@ input.asm-input.mono {
 
 /* 选择 JDK 弹窗的样式已迁出到 ../addService/jdkPickerModal.css
    （检测元信息/重新检测、候选卡片、手动指定互斥单选、三态反馈），此处不再定义 .asm-jdk*。 */
+
+/* 选类型步骤的底部：不放按钮，仅一条轻量提示收边（与 config 底栏同一色带语言） */
+.asm-foot-select .asm-foot-hint {
+  font-size: 11px;
+  color: var(--gn-fg-5);
+}

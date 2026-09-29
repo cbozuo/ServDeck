@@ -126,33 +126,38 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
   }, [form.basic]);
 
   const runProbe = useCallback(async () => {
-    /* ① 基本信息必填按序前置校验（程序文件 → 服务名 → 显示名称）；
+    /* 整个点击（含前置校验与页签浏览守卫）都属于探测动作：按钮统一走
+       「探测中…」最短动画，被拦截时动画结束后再显示红色提示。
+       ① 基本信息必填按序前置校验（程序文件 → 服务名 → 显示名称）；
        ② 页签浏览守卫；③ 通过后才发起探测（探测内部再做文件存在性等校验）。 */
-    const basicMessage =
-      form.basic.programFile.trim() === ''
-        ? t('service.modal.probe.programRequired')
-        : form.basic.serviceName.trim() === ''
-          ? t('service.modal.probe.nameRequired')
-          : form.basic.displayName.trim() === ''
-            ? t('service.modal.probe.displayNameRequired')
-            : '';
-    if (basicMessage) {
-      setProbeNotice({ kind: 'basic', text: basicMessage });
-      return;
-    }
-    const missing = VISIT_REQUIRED_TABS.filter((key) => !visitedTabs.has(key));
-    if (missing.length > 0) {
-      setProbeNotice({
-        kind: 'tabs',
-        text: t('service.modal.probe.visitTabs', {
-          tabs: missing.map((key) => t(CONFIG_TABS.find(([tabKey]) => tabKey === key)?.[1] ?? '')).join('、'),
-        }),
-      });
-      return;
-    }
-    setProbeNotice(null);
     setProbing(true);
     try {
+      // 先让「探测中」渲染一帧（宏任务边界），被校验/守卫拦截的路径也播放最短动画，
+      // 否则 setProbing(true/false) 会被批处理成一次渲染，busy 态根本不出现。
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const basicMessage =
+        form.basic.programFile.trim() === ''
+          ? t('service.modal.probe.programRequired')
+          : form.basic.serviceName.trim() === ''
+            ? t('service.modal.probe.nameRequired')
+            : form.basic.displayName.trim() === ''
+              ? t('service.modal.probe.displayNameRequired')
+              : '';
+      if (basicMessage) {
+        setProbeNotice({ kind: 'basic', text: basicMessage });
+        return;
+      }
+      const missing = VISIT_REQUIRED_TABS.filter((key) => !visitedTabs.has(key));
+      if (missing.length > 0) {
+        setProbeNotice({
+          kind: 'tabs',
+          text: t('service.modal.probe.visitTabs', {
+            tabs: missing.map((key) => t(CONFIG_TABS.find(([tabKey]) => tabKey === key)?.[1] ?? '')).join('、'),
+          }),
+        });
+        return;
+      }
+      setProbeNotice(null);
       await form.probeNow();
     } finally {
       setProbing(false);
@@ -249,9 +254,24 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
     >
       <div className="asm-root">
         <header className="asm-head">
-          <span className={`asm-head-ico${step === 'select' ? ' asm-head-ico-plus' : ''}`}>
+          <span
+            className={`asm-head-ico${step === 'select' ? ' asm-head-ico-plus' : ''}`}
+            style={
+              step !== 'select' && template
+                ? {
+                    // 标题图标跟随外观 tab 的主色与自定义图标（与预览卡同一公式）；
+                    // 默认空色 = 跟随主题 accent（深色/自定义主题自动适配）
+                    background: `color-mix(in srgb, ${look.color || 'var(--gn-accent)'} 16%, var(--gn-bg-panel))`,
+                    borderColor: `color-mix(in srgb, ${look.color || 'var(--gn-accent)'} 32%, transparent)`,
+                  }
+                : undefined
+            }
+          >
             {step !== 'select' && template ? (
-              <img src={template.iconSrc} alt="" />
+              <img
+                src={look.mode === 'custom' && look.customIcon ? look.customIcon : template.iconSrc}
+                alt=""
+              />
             ) : (
               <PlusOutlined />
             )}
@@ -457,7 +477,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                   <ProbeActionButton
                     probing={probing}
                     phase={probePhase}
-                    failed={probePhase === 'error' || probeFileMissing}
+                    failed={probePhase === 'error' || probeFileMissing || probeNotice?.kind === 'basic'}
                     onProbe={() => void runProbe()}
                   />
                 </Tooltip>
@@ -494,23 +514,8 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
             </div>
           </footer>
         ) : (
-          <footer className="asm-foot">
-            <div className="asm-foot-main">
-              <span className="asm-foot-spring" />
-              <div className="asm-foot-actions">
-                <Button className="asm-btn-ghost" onClick={closeModal}>
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<RightOutlined />}
-                  disabled={!template}
-                  onClick={() => setStep('config')}
-                >
-                  {t('service.modal.footer.next')}
-                </Button>
-              </div>
-            </div>
+          <footer className="asm-foot asm-foot-select">
+            <span className="asm-foot-hint">{t('service.modal.select.footerHint')}</span>
           </footer>
         )}
       </div>

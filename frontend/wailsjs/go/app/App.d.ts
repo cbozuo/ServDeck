@@ -284,6 +284,8 @@ export function DeleteSQLFile(arg1:string):Promise<connection.QueryResult>;
 
 export function DeleteSavedQueryGroup(arg1:string):Promise<void>;
 
+export function DescribeJavaRuntime(arg1:string):Promise<connection.QueryResult>;
+
 export function DetectJavaRuntimes():Promise<connection.QueryResult>;
 
 export function DiagnoseQuery(arg1:connection.ConnectionConfig,arg2:string,arg3:string):Promise<connection.QueryResult>;

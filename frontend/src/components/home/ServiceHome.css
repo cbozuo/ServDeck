@@ -1,13 +1,12 @@
 /* 服务总览首页（ServiceHome）组件旁样式；颜色一律走 --gn-* token。 */
 
 .svc-home {
-  /* 宿主是 flex column 容器（TabManager workbench）：必须显式 width:100%，
-     否则 margin:auto 会让 flex 子项按 fit-content 收缩，整页缩窄/溢出。
-     全局是 content-box，border-box 防止 padding 把总宽撑出容器。 */
+  /* 宿主是 flex column 容器（TabManager workbench）：必须显式 width:100%。
+     全局是 content-box，border-box 防止 padding 把总宽撑出容器。
+     自适应铺满内容区（不设 max-width）：最大化时四卡随之拉宽，
+     左右间距恒为 padding 26px，对称且随窗口自适应。 */
   box-sizing: border-box;
   width: 100%;
-  max-width: 1440px;
-  margin: 0 auto;
   padding: 22px 26px 32px;
   min-height: 100%;
   overflow-y: auto;

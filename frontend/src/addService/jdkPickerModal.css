@@ -25,7 +25,6 @@
   place-items: center;
   background: var(--gn-accent-soft);
   color: var(--gn-accent-2);
-  border: 1px solid color-mix(in srgb, var(--gn-accent) 22%, transparent);
 }
 .asm-jdk-ico img {
   width: 18px;
@@ -46,6 +45,11 @@
   font-size: 12px;
   line-height: 1.5;
   color: var(--gn-fg-4);
+  letter-spacing: normal;
+}
+.asm-jdk-head p b {
+  color: var(--gn-fg-2);
+  font-weight: 600;
 }
 .asm-jdk-x {
   width: 28px;
@@ -57,6 +61,10 @@
   font-size: 13px;
   color: var(--gn-fg-4);
   cursor: pointer;
+  /* 裸按钮必须重置 UA 默认的 outset 边框与 ButtonFace 底色 */
+  border: 0;
+  background: transparent;
+  padding: 0;
   transition: background 120ms ease, color 120ms ease;
 }
 .asm-jdk-x:hover {
@@ -78,6 +86,11 @@
 .asm-jdk-detect-hint {
   font-size: 11.5px;
   color: var(--gn-fg-5);
+  letter-spacing: normal;
+}
+.asm-jdk-detect-hint b {
+  color: var(--gn-fg-3);
+  font-weight: 600;
 }
 .asm-jdk-redetect {
   margin-left: auto;
@@ -126,6 +139,9 @@
   padding: 10px 12px;
   border-radius: 10px;
   text-align: left;
+  color: var(--gn-fg-1);
+  font-family: inherit;
+  font-size: 12px;
   background: var(--gn-bg-panel);
   border: 1px solid var(--gn-br-1);
   box-shadow: var(--gn-shadow-card);
@@ -180,15 +196,73 @@
   border-radius: 999px;
   padding: 3px 9px;
 }
-.asm-jdk-path {
-  display: block;
-  margin-top: 3px;
-  font-family: var(--gn-font-mono);
-  font-size: 10.5px;
-  color: var(--gn-fg-5);
+.asm-jdk-name .vendor {
+  font-weight: 500;
+  color: var(--gn-fg-3);
+  font-size: 12px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.asm-jdk-path {
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--gn-font-mono);
+  font-size: 10.5px;
+  color: var(--gn-fg-5);
+}
+.asm-jdk-path .p {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asm-jdk-copy {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  color: var(--gn-fg-5);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+}
+.asm-jdk-item:hover .asm-jdk-copy {
+  opacity: 1;
+}
+.asm-jdk-copy:hover {
+  background: var(--gn-bg-active);
+  color: var(--gn-fg-2);
+}
+.asm-jdk-scan {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 9px;
+  font-size: 11px;
+  color: var(--gn-fg-4);
+}
+.asm-jdk-spin {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--gn-br-2);
+  border-top-color: var(--gn-accent);
+  animation: jdk-rot 0.9s linear infinite;
+}
+@keyframes jdk-rot {
+  to {
+    transform: rotate(360deg);
+  }
 }
 /* 单选点：选中填充 accent，圆点用 on-accent（深色主题自动换深色前景） */
 .asm-jdk-radio {
@@ -247,15 +321,48 @@
   }
 }
 
-/* ── 空态 ── */
+/* ── 空态（对齐高保真：图标块 + 标题 + 副文 + 两个动作） ── */
 .asm-jdk-empty {
-  padding: 16px 14px;
+  padding: 20px 14px 18px;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--gn-warn) 8%, var(--gn-bg-panel));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-warn) 26%, transparent);
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--gn-fg-2);
+  background: var(--gn-bg-app);
+  border: 1px dashed var(--gn-br-2);
+  text-align: center;
+}
+.asm-jdk-empty-ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  margin: 0 auto 9px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  background: var(--gn-warn-soft);
+  color: var(--gn-warn);
+}
+.asm-jdk-empty-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--gn-fg-1);
+}
+.asm-jdk-empty-sub {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--gn-fg-4);
+  line-height: 1.55;
+}
+.asm-jdk-empty-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.asm-jdk-empty-actions .ant-btn {
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 /* ── 「或」分隔 ── */
@@ -288,6 +395,10 @@
   font-weight: 600;
   color: var(--gn-fg-3);
   margin-bottom: 7px;
+}
+.asm-jdk-manual-label .opt {
+  font-weight: 500;
+  color: var(--gn-fg-5);
 }
 .asm-jdk-manual {
   display: flex;
@@ -351,6 +462,9 @@
   font-size: 11px;
   color: var(--gn-fg-5);
   cursor: pointer;
+  border: 0;
+  background: transparent;
+  padding: 0;
   transition: background 120ms ease, color 120ms ease;
 }
 .asm-jdk-manual-clear:hover {
@@ -358,7 +472,8 @@
   color: var(--gn-fg-2);
 }
 .asm-jdk-manual-ok,
-.asm-jdk-manual-bad {
+.asm-jdk-manual-bad,
+.asm-jdk-manual-help {
   margin-top: 7px;
   display: flex;
   align-items: center;
@@ -369,8 +484,37 @@
 .asm-jdk-manual-ok {
   color: var(--gn-accent-2);
 }
+.asm-jdk-manual-ok b {
+  font-weight: 600;
+}
+.asm-jdk-manual-ok .ok-pill {
+  font-family: var(--gn-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--gn-accent-soft);
+  color: var(--gn-accent-2);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
 .asm-jdk-manual-bad {
   color: var(--gn-danger);
+}
+/* 手动路径校验失败：输入框 danger 描边 + 弱光晕（不打断输入） */
+.asm-jdk-manual-field.bad {
+  border-color: color-mix(in srgb, var(--gn-danger) 45%, transparent);
+  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--gn-danger) 10%, transparent);
+}
+.asm-jdk-manual-help {
+  color: var(--gn-fg-5);
+}
+/* 加重词（如 JVM 运行时）：对齐高保真 manual-help b —— fg-3 + 中等字重 */
+.asm-jdk-manual-help b {
+  color: var(--gn-fg-3);
+  font-weight: 500;
+}
+.asm-jdk-line-ic {
+  flex-shrink: 0;
+  font-size: 12px;
 }
 
 /* ── 底栏 ── */
@@ -405,7 +549,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .asm-jdk-skeleton-row::after {
+  .asm-jdk-skeleton-row::after,
+  .asm-jdk-spin {
     animation: none;
   }
 
@@ -414,4 +559,51 @@
   .asm-jdk-radio {
     transition-duration: 1ms;
   }
+}
+
+/* ── 环境加固：真实应用的主题/antd 默认样式会给 content/body 加内边距、
+   覆盖标题字重，导致内容内缩（页脚不贴边、左右不对称）、标题不够粗。
+   这里按 design/jdk-picker-v1.html 强制对齐。
+   特异性注意：v2-theme.css:886 的 body[data-ui-version] .ant-modal .ant-modal-body
+   是 (0,3,1)+!important，必须写成 (0,4,1) 才能压过（同 AddServiceModal.css 的先例）。 ── */
+body[data-ui-version="v2"] .asm-jdk-modal-wrap .ant-modal .ant-modal-content {
+  padding: 0 !important;
+  border: 0.5px solid var(--gn-br-2) !important;
+  border-radius: 14px !important;
+  background: var(--gn-bg-panel) !important;
+  box-shadow: var(--gn-shadow-lg), var(--gn-shadow-card) !important;
+  overflow: hidden;
+}
+body[data-ui-version="v2"] .asm-jdk-modal-wrap .ant-modal .ant-modal-body {
+  padding: 0 !important;
+}
+.asm-jdk-modal-wrap .ant-modal-header {
+  display: none !important;
+}
+.asm-jdk-modal-wrap .asm-jdk-head h3 {
+  font-weight: 700 !important;
+  color: var(--gn-fg-1) !important;
+  letter-spacing: -0.01em;
+  /* 全局样式给 h3 加了 1em 垂直 margin（flex 内不折叠，标题行被撑开 19px），
+     设计稿标题与说明只有 4px 间距，这里显式清零并收紧行高。 */
+  margin: 0 !important;
+  line-height: 1.35;
+}
+.asm-jdk-modal-wrap .asm-jdk-head p {
+  color: var(--gn-fg-4) !important;
+  margin: 4px 0 0 !important;
+  line-height: 1.5;
+}
+.asm-jdk-modal-wrap .asm-jdk-head p b {
+  color: var(--gn-fg-2) !important;
+  font-weight: 600;
+}
+
+/* 布局基线：本仓库没有全局 box-sizing 重置，width:100% 的行必须显式声明
+   border-box，否则 padding+border 会向右溢出、行宽与检测行/页脚不对齐。 */
+.asm-jdk,
+.asm-jdk *,
+.asm-jdk-modal-wrap .ant-modal-content,
+.asm-jdk-modal-wrap .ant-modal-body {
+  box-sizing: border-box;
 }

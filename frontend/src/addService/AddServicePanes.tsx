@@ -386,9 +386,6 @@ export const AddServiceParamsPane: React.FC<{
   const { t } = useI18n();
   const [confMode, setConfMode] = useState<'preview' | 'raw'>('preview');
   const [jdkOpen, setJdkOpen] = useState(false);
-  /** JVM 路径超长提示：仅当路径文本超出输入框宽度时出现，内容是完整路径。
-      用原生 mouseenter/mouseleave（非 React 合成事件），悬停即时计算溢出。 */
-  const [jdkTipOpen, setJdkTipOpen] = useState(false);
   const jdkPathInputRef = useRef<HTMLInputElement>(null);
   /** JVM 参数输入框：调堆内存 / 点开关后保持聚焦，让改动落在看得见的地方。 */
   const jvmArgsInputRef = useRef<HTMLInputElement>(null);
@@ -431,20 +428,6 @@ export const AddServiceParamsPane: React.FC<{
     // 仅在进入参数配置时执行一次（values.jvmPath 故意不进依赖）。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.id]);
-  useEffect(() => {
-    const el = jdkPathInputRef.current;
-    if (!el) {
-      return;
-    }
-    const show = () => setJdkTipOpen(el.scrollWidth > el.clientWidth + 1);
-    const hide = () => setJdkTipOpen(false);
-    el.addEventListener('mouseenter', show);
-    el.addEventListener('mouseleave', hide);
-    return () => {
-      el.removeEventListener('mouseenter', show);
-      el.removeEventListener('mouseleave', hide);
-    };
-  }, []);
 
   const confContent = useMemo(() => {
     if (!template.conf) {
@@ -565,13 +548,8 @@ export const AddServiceParamsPane: React.FC<{
               {t(jvmPathField.labelKey)}
               <span className="asm-label-hint">{t('service.field.jvmPathHint')}</span>
             </label>
-            {/* 悬浮提示只在路径超出输入框宽度时出现，内容是完整路径 */}
-            <Tooltip
-              title={String(values.jvmPath ?? '')}
-              open={jdkTipOpen}
-              placement="top"
-              overlayStyle={{ maxWidth: 560 }}
-            >
+            {/* 悬浮提示与基本信息一致：悬停显示输入框当前填写的内容 */}
+            <Tooltip {...fieldTooltip(String(values.jvmPath ?? ''))}>
               <div className="asm-input asm-input-with-icon" style={{ width: '100%' }}>
                 <input
                   ref={jdkPathInputRef}
@@ -591,16 +569,18 @@ export const AddServiceParamsPane: React.FC<{
           </div>
           <div className="asm-field" style={{ gridColumn: '1 / -1' }}>
             <label>{t(jvmArgsField.labelKey)}</label>
-            <input
-              ref={jvmArgsInputRef}
-              className="asm-input mono"
-              style={{ width: '100%' }}
-              type="text"
-              value={jvmArgs}
-              placeholder={jvmArgsField.placeholder ?? ''}
-              spellCheck={false}
-              onChange={(event) => onChange('jvmArgs', event.target.value)}
-            />
+            <Tooltip {...fieldTooltip(jvmArgs)}>
+              <input
+                ref={jvmArgsInputRef}
+                className="asm-input mono"
+                style={{ width: '100%' }}
+                type="text"
+                value={jvmArgs}
+                placeholder={jvmArgsField.placeholder ?? ''}
+                spellCheck={false}
+                onChange={(event) => onChange('jvmArgs', event.target.value)}
+              />
+            </Tooltip>
           </div>
           <div className="asm-field" style={{ gridColumn: '1 / -1' }}>
             <label>
@@ -653,6 +633,7 @@ export const AddServiceParamsPane: React.FC<{
               onChange('jvmPath', path);
               setJdkOpen(false);
             }}
+            onClosed={() => jdkPathInputRef.current?.focus()}
           />
         </React.Fragment>
       );
@@ -720,7 +701,7 @@ export const AddServiceParamsPane: React.FC<{
   );
 };
 
-const DEFAULT_LOOK_COLOR = '#c2410c';
+const DEFAULT_LOOK_COLOR = '';
 const LOOK_COLORS = [
   '#0d7cad', '#155e75', '#dc2626', '#15803d', '#2f8f4e', '#c2410c', '#d97706',
   '#0ea5e9', '#2563eb', '#7c3aed', '#db2777', '#64748b', '#0f766e', '#e11d48', '#65a30d',
@@ -880,8 +861,8 @@ export const AddServiceLookPane: React.FC<{
         <span
           className="asm-look-preview-ico"
           style={{
-            background: `color-mix(in srgb, ${value.color} 16%, var(--gn-bg-panel))`,
-            borderColor: `color-mix(in srgb, ${value.color} 32%, transparent)`,
+            background: `color-mix(in srgb, ${value.color || 'var(--gn-accent)'} 16%, var(--gn-bg-panel))`,
+            borderColor: `color-mix(in srgb, ${value.color || 'var(--gn-accent)'} 32%, transparent)`,
           }}
         >
           <img src={activeIcon} alt="" />

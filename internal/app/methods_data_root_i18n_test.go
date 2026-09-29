@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"GoNavi-Wails/internal/appdata"
+	"GoNavi-Wails/internal/logger"
 	"GoNavi-Wails/shared/i18n"
 )
 
@@ -38,8 +39,6 @@ func methodsLogDirectoryFunctionSource(t *testing.T, source string, signature st
 	}
 	return source[start : start+len(signature)+end]
 }
-
-
 
 func TestMethodsDataRootCatalogKeysExist(t *testing.T) {
 	catalogs, err := i18n.LoadCatalogs()
@@ -118,6 +117,8 @@ func TestMethodsLogDirectoryCatalogKeysExistInAllLanguages(t *testing.T) {
 
 func TestApplyDataRootDirectoryUsesEnglishLocalizedMessageWhenUnchanged(t *testing.T) {
 	homeDir := t.TempDir()
+	// 首次 logger.Init 会把日志文件落进临时 HOME；先关句柄，TempDir 才能删干净
+	t.Cleanup(logger.Close)
 	t.Setenv("HOME", homeDir)
 	t.Setenv("USERPROFILE", homeDir)
 
@@ -127,7 +128,7 @@ func TestApplyDataRootDirectoryUsesEnglishLocalizedMessageWhenUnchanged(t *testi
 		app.SetLanguage(string(i18n.LanguageEnUS))
 	})
 
-	defaultRoot := filepath.Join(homeDir, ".gonavi")
+	defaultRoot := appdata.DefaultRoot()
 	result := app.ApplyDataRootDirectory(defaultRoot, false)
 	if !result.Success {
 		t.Fatalf("expected success for unchanged root, got %+v", result)

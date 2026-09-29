@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,14 @@ import (
 	"GoNavi-Wails/internal/logger"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+// startFailedError 标记 install 已成功、仅 start 失败——SCM 里已装入服务，
+// 错误文案要走「启动失败」而不是「注册失败」（注册本身是成功的）。
+type startFailedError struct{ err error }
+
+func (e *startFailedError) Error() string { return e.err.Error() }
+
+func (e *startFailedError) Unwrap() error { return e.err }
 
 // AddServiceRequest 是前端「添加服务」弹框提交的请求体。
 // Mode 决定加入方式：register = 注册新服务（servy install + start）；
@@ -28,6 +37,7 @@ type AddServiceRequest struct {
 	// 字段保留在请求里供纳管记录与后续版本使用。
 	Restart     bool   `json:"restart"`
 	Rotate      bool   `json:"rotate"`
+	SkipStart   bool   `json:"skipStart"`
 	ConfName    string `json:"confName"`
 	ConfContent string `json:"confContent"`
 }
@@ -77,7 +87,33 @@ func (a *App) AddManagedService(request AddServiceRequest) connection.QueryResul
 	result, err := registerServiceWithServy(request)
 	if err != nil {
 		logger.Error(err, "注册 Windows 服务失败")
-		return connection.QueryResult{Success: false, Message: a.appText("service.registry.backend.error.register_failed", map[string]any{"detail": err.Error()})}
+		// 注册失败大多是进程启动后秒退（如 JVM 版本不匹配），servy 已把异常写入
+		// service-err.log —— 带回尾部供前端在弹窗里直接展示，省去用户翻日志目录。
+		logTail := ""
+		if tail, tailErr := readServiceLogFileTail(request.Name, "service-err.log", 60); tailErr == nil {
+			logTail = strings.TrimSpace(tail)
+		}
+		// 关键：install 已成功、仅启动失败时，SCM 里会留下一个孤儿服务。
+		// 必须告诉前端"已安装"，让服务进入纳管列表 —— 否则用户无法从 UI 卸载它。
+		installed := false
+		if snapshot, snapErr := buildServiceDetailSnapshot(request.Name); snapErr == nil && snapshot.State != "" {
+			installed = true
+		}
+		data := map[string]any{"installed": installed}
+		if logTail != "" {
+			data["logTail"] = logTail
+		}
+		// install 成功、仅 start 失败：文案按「启动失败」反馈（SCM 已装入，注册并没有失败）
+		messageKey := "service.registry.backend.error.register_failed"
+		var startErr *startFailedError
+		if errors.As(err, &startErr) {
+			messageKey = "service.registry.backend.error.start_failed"
+		}
+		return connection.QueryResult{
+			Success: false,
+			Message: a.appText(messageKey, map[string]any{"detail": err.Error()}),
+			Data:    data,
+		}
 	}
 	return connection.QueryResult{Success: true, Data: result}
 }

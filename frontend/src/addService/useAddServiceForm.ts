@@ -34,6 +34,8 @@ export interface BasicInfo {
   restart: boolean;
   /** 日志按大小轮转（servy --enableSizeRotation）。 */
   rotate: boolean;
+  /** 注册成功后立即启动；关闭 = 只注册不启动（慢启动/待修参数的服务不受 45s 超时限制）。 */
+  autoStart: boolean;
 }
 
 const trim = (value: string | boolean | undefined): string => String(value ?? '').trim();
@@ -52,6 +54,7 @@ export function useAddServiceForm(template: ServiceTemplate) {
     startType: SERVICE_START_TYPES[0],
     restart: true,
     rotate: true,
+    autoStart: true,
   }));
   const [probeOutcome, setProbeOutcome] = useState<ProbeOutcome>({
     phase: 'none',
@@ -77,6 +80,7 @@ export function useAddServiceForm(template: ServiceTemplate) {
       startType: SERVICE_START_TYPES[0],
       restart: true,
       rotate: true,
+      autoStart: true,
     });
     setProbeOutcome({ phase: 'none', exists: false, fileExists: false });
     setAddPhase('idle');
@@ -195,6 +199,10 @@ export function useAddServiceForm(template: ServiceTemplate) {
     ok: boolean;
     message: string;
     mode: 'register' | 'manage';
+    /** 注册失败时 servy 写入的 stderr 日志尾部（供弹窗直接展示排障） */
+    logTail?: string;
+    /** 注册失败但 SCM 服务已装入（install 成功、启动失败）——调用方应仍加入纳管列表 */
+    installed?: boolean;
   }> => {
     /* 兜底校验：按钮禁用态被绕过（回车提交等）时同样拦住，口径与 probeNow 一致。 */
     if (trim(basic.programFile) === '') {
@@ -235,13 +243,16 @@ export function useAddServiceForm(template: ServiceTemplate) {
           startType: basic.startType,
           restart: basic.restart,
           rotate: basic.rotate,
+          skipStart: !basic.autoStart,
           confName: template.conf?.name ?? '',
           confContent: template.conf ? template.conf.render(values, trim(basic.programFile)) : '',
         });
         if (!result.success) {
           setAddPhase('idle');
           setAddError(result.message);
-          return { ok: false, message: result.message, mode };
+          const installed = Boolean((result.data as { installed?: boolean } | null | undefined)?.installed);
+          const logTail = String((result.data as { logTail?: string } | null | undefined)?.logTail ?? '');
+          return { ok: false, message: result.message, mode, installed, logTail };
         }
       }
       setAddPhase('done');
@@ -264,6 +275,7 @@ export function useAddServiceForm(template: ServiceTemplate) {
     probe: probeOutcome,
     addPhase,
     addError,
+    setAddError,
     setFieldValue,
     setBasicField,
     applyTemplate,

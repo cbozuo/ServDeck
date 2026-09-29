@@ -241,8 +241,13 @@ func registerServiceWithServy(request AddServiceRequest) (serviceAddResult, erro
 	if _, err := runServyCommand(engine, buildServyInstallArgs(request, logDir), request.Params); err != nil {
 		return serviceAddResult{}, err
 	}
-	if _, err := runServyCommand(engine, []string{"start", "--name", request.Name}, ""); err != nil {
-		return serviceAddResult{}, err
+	// SkipStart：只注册不启动 —— 慢启动/待修参数的服务不必卡 45s 启动超时，
+	// 注册成功即返回，启动交给用户在首页/详情页手动执行。
+	if !request.SkipStart {
+		if _, err := runServyCommand(engine, []string{"start", "--name", request.Name}, ""); err != nil {
+			// install 已成功，失败仅在启动：标记阶段，让上层文案走「启动失败」
+			return serviceAddResult{}, &startFailedError{err: err}
+		}
 	}
 	return serviceAddResult{Managed: true, Registered: true, Name: request.Name, LogDir: logDir}, nil
 }
@@ -261,9 +266,9 @@ func buildServyInstallArgs(request AddServiceRequest, logDir string) []string {
 	if strings.TrimSpace(request.Description) != "" {
 		args = append(args, "--description", request.Description)
 	}
-	if strings.TrimSpace(request.Params) != "" {
-		args = append(args, "--params", request.Params)
-	}
+	// 进程参数（request.Params，如 JVM -X 参数）不能放命令行 —— 参数串含空格与内嵌
+	// 引号，拼上 --params 后会被 servy 解析成未知选项（Option 'X' unknown）。
+	// runServyCommand 已通过 SERVY_PROCESS_PARAMETERS 环境变量传递（servy 官方推荐通道）。
 	if request.Rotate {
 		args = append(args, "--enableSizeRotation")
 	}
@@ -306,7 +311,37 @@ func runServyCommand(engine string, args []string, processParams string) (string
 	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(output), fmt.Errorf("%w; output: %s", err, strings.TrimSpace(string(output)))
+		// 失败时 servy 会连带打印整页选项帮助（上百行），UI 只需要错误结论。
+		return string(output), fmt.Errorf("%w; %s", err, servyErrorSummary(string(output)))
 	}
 	return string(output), nil
+}
+
+// servyErrorSummary 从 servy 输出里提取错误结论（ERROR 行），最多 200 字符。
+// 解析失败（如未知选项）时 servy 会先打版本横幅再整页帮助，全量回传只会淹没弹窗。
+func servyErrorSummary(output string) string {
+	const maxLen = 200
+	var errors []string
+	for _, line := range strings.Split(output, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "ERROR") || strings.HasPrefix(trimmed, "error") {
+			errors = append(errors, trimmed)
+			if len(strings.Join(errors, " ")) >= maxLen {
+				break
+			}
+		}
+	}
+	if len(errors) == 0 {
+		// 无 ERROR 行（超时/被杀等）：退化为截断的原始输出首行
+		first := strings.SplitN(strings.TrimSpace(output), "\n", 2)[0]
+		if len(first) > maxLen {
+			first = first[:maxLen] + "…"
+		}
+		return first
+	}
+	summary := strings.Join(errors, " ")
+	if len(summary) > maxLen {
+		summary = summary[:maxLen] + "…"
+	}
+	return summary
 }

@@ -28,7 +28,7 @@ import {
 import { useAddServiceForm } from '../addService/useAddServiceForm';
 import { ProbeActionButton } from '../addService/ProbeActionButton';
 import { useServiceRegistryStore } from '../serviceRegistryStore';
-import { SelectDirectory } from '../../wailsjs/go/app/App';
+import { SelectDirectory, UninstallServyService } from '../../wailsjs/go/app/App';
 import './AddServiceModal.css';
 
 export interface AddServiceModalProps {
@@ -67,7 +67,12 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
   /** footer 提示条（页签浏览守卫 / 基本信息必填前置校验）。null 表示不展示；
        kind 决定它何时撤下：tabs 类在必看页签集齐后撤，basic 类在必填补齐后撤。 */
   const [probeNotice, setProbeNotice] = useState<{ kind: 'tabs' | 'basic'; text: string } | null>(null);
+  /** 注册失败时 servy 写入的 stderr 日志尾部（弹窗内直接展示排障） */
+  const [addLog, setAddLog] = useState('');
+  /** 注册失败但 SCM 服务已装入：记录残留服务名，提供一键卸载 */
+  const [residueName, setResidueName] = useState('');
   const addManagedService = useServiceRegistryStore((state) => state.addService);
+  const removeManagedService = useServiceRegistryStore((state) => state.removeService);
   const managedServices = useServiceRegistryStore((state) => state.services);
 
   const template = useMemo(
@@ -95,6 +100,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
     setLook(DEFAULT_SERVICE_LOOK);
     setVisitedTabs(new Set<TabKey>(['basic']));
     setProbeNotice(null);
+    setAddLog('');
     setTab('basic');
     setStep('config');
   };
@@ -187,24 +193,78 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
       return;
     }
     const result = await form.addToManaged();
-    if (!result.ok || !template) {
+    setAddLog(result.logTail ?? '');
+    // 注册失败但 SCM 服务已装入（install 成功、启动失败）：仍加入纳管列表，
+    // 否则孤儿服务无法从 UI 卸载（详情页/首页的卸载都依赖纳管记录）。
+    const residue = !result.ok && result.installed === true && template;
+    if (residue) {
+      setResidueName(form.basic.serviceName.trim());
+    } else {
+      setResidueName('');
+    }
+    if (!result.ok && !residue) {
       return;
     }
-    addManagedService({
-      name: form.basic.serviceName.trim(),
-      serviceType: template.id,
-      displayName: form.basic.displayName.trim() || form.basic.serviceName.trim(),
-      mode: result.mode,
-      programFile: form.basic.programFile.trim(),
-      addedAt: new Date().toISOString(),
-      groupId: null,
-      // 仅在用户真的挑过自定义图标时才写，避免给每条记录都塞一份默认值；
-      // 主色不限外观模式——「类型图标 + 自选主色」是合法组合，之前限定 custom 导致颜色被静默丢弃。
-      iconDataUrl: look.mode === 'custom' && look.customIcon ? look.customIcon : undefined,
-      accentColor: look.color,
-    });
-    closeModal();
-  }, [addManagedService, closeModal, form, look, managedServices, template]);
+    if (template) {
+      const serviceName = form.basic.serviceName.trim();
+      // 同名重填（manage/残留）：保留原记录的 mode 与注册参数快照，
+      // 避免「已注册服务被 manage 覆盖成纳管态、丢失 deploy」的回归。
+      const existing = managedServices.find((item) => item.name === serviceName);
+      const mode = residue ? 'register' : (existing?.mode ?? result.mode);
+      addManagedService({
+        name: serviceName,
+        serviceType: template.id,
+        displayName: form.basic.displayName.trim() || form.basic.serviceName.trim(),
+        mode,
+        programFile: form.basic.programFile.trim(),
+        addedAt: existing?.addedAt ?? new Date().toISOString(),
+        groupId: existing?.groupId ?? null,
+        // 仅在用户真的挑过自定义图标时才写，避免给每条记录都塞一份默认值；
+        // 主色不限外观模式——「类型图标 + 自选主色」是合法组合，之前限定 custom 导致颜色被静默丢弃。
+        iconDataUrl: look.mode === 'custom' && look.customIcon ? look.customIcon : (existing?.iconDataUrl ?? undefined),
+        accentColor: look.color || existing?.accentColor,
+        // 注册参数快照：详情页部署参数与「重新注册」的数据源（纳管模式无注册参数，不写）
+        deploy: mode === 'register'
+          ? {
+              displayName: form.basic.displayName.trim() || form.basic.serviceName.trim(),
+              description: form.basic.description?.trim() || undefined,
+              programFile: form.basic.programFile.trim(),
+              workDir: form.basic.programFile.trim().replace(/[\\/][^\\/]*$/, '') || undefined,
+              javaPath: template.id === 'java' ? (String(form.values.jvmPath ?? '') || undefined) : undefined,
+              jvmArgs: template.id === 'java' ? (String(form.values.jvmArgs ?? '') || undefined) : undefined,
+              params: template.id === 'java' ? undefined : (template.params(form.values, form.basic.programFile.trim()) || undefined),
+              startType: form.basic.startType,
+              restart: form.basic.restart,
+              rotate: form.basic.rotate,
+              confName: template.conf?.name ?? undefined,
+              confContent: template.conf ? template.conf.render(form.values, form.basic.programFile.trim()) || undefined : undefined,
+            }
+          : existing?.deploy,
+      });
+    }
+    // 成功后不自动关闭：按钮停在「已加入纳管 ✓」，由用户自行关闭弹窗
+  }, [addManagedService, form, look, managedServices, template]);
+
+  /** 卸载注册失败留下的残留服务（servy uninstall，停止并移除 SCM 注册），并同步移出纳管列表。 */
+  const handleUninstallResidue = useCallback(async () => {
+    if (!residueName) {
+      return;
+    }
+    try {
+      const result = await UninstallServyService(residueName);
+      if (!result.success) {
+        message.error(result.message || t('detail.uninstall.failed'));
+        return;
+      }
+      removeManagedService(residueName);
+      setResidueName('');
+      setAddLog('');
+      form.setAddError('');
+      message.success(t('service.modal.add.residueRemoved'));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : String(error));
+    }
+  }, [removeManagedService, residueName, t]);
 
   const probePhase = form.probe.phase;
   const probeFileMissing = probePhase === 'ok' && !form.probe.fileExists;
@@ -248,6 +308,8 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
       destroyOnHidden
       maskClosable={false}
       closable={false}
+      /* 纳管中（servy 注册需数十秒）冻结 ESC/遮罩关闭，防止注册进行时弹窗被意外关掉 */
+      keyboard={form.addPhase !== 'adding'}
       zIndex={zIndex ?? APP_NESTED_MODAL_Z_INDEX}
       wrapClassName="asm-modal"
       styles={{ header: { display: 'none' }, body: { padding: 0 } }}
@@ -293,6 +355,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
             type="text"
             className="asm-close"
             icon={<CloseOutlined />}
+            disabled={form.addPhase === 'adding'}
             onClick={closeModal}
             aria-label={t('common.close')}
           />
@@ -378,9 +441,11 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                   startType={form.basic.startType}
                   restart={form.basic.restart}
                   rotate={form.basic.rotate}
+                  autoStart={form.basic.autoStart}
                   onStartTypeChange={(value) => form.setBasicField('startType', value)}
                   onRestartChange={(value) => form.setBasicField('restart', value)}
                   onRotateChange={(value) => form.setBasicField('rotate', value)}
+                  onAutoStartChange={(value) => form.setBasicField('autoStart', value)}
                 />
               )
             ) : null}
@@ -390,7 +455,26 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
 
         {step === 'config' ? (
           <footer className="asm-foot">
-            {alreadyManaged ? (
+            {form.addError ? (
+              /* 注册失败的完整反馈（错误结论 + stderr 日志 + 残留卸载）：
+                 优先且唯一 —— 已装入 SCM 的失败同时会触发重名提示，这里不重复展示。 */
+              <>
+                <div className="asm-probe-bar error show">
+                  <span className="asm-probe-ico">
+                    <CloseOutlined />
+                  </span>
+                  <span className="asm-probe-text">{form.addError}</span>
+                  {residueName ? (
+                    <button type="button" className="dtl-btn-sm danger-o" onClick={() => void handleUninstallResidue()}>
+                      {t('service.modal.add.residueUninstall')}
+                    </button>
+                  ) : null}
+                </div>
+                {addLog ? (
+                  <pre className="asm-add-log mono" title={t('service.modal.add.logTail')}>{addLog}</pre>
+                ) : null}
+              </>
+            ) : alreadyManaged ? (
               /* 与已纳管服务重名 = 报错：不能重复添加，需更换服务名后重新探测。 */
               <div className="asm-probe-bar error show">
                 <span className="asm-probe-ico">
@@ -443,25 +527,20 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                 </span>
               </div>
             ) : null}
-            {form.addError ? (
-              <div className="asm-probe-bar error show">
-                <span className="asm-probe-ico">
-                  <CloseOutlined />
-                </span>
-                <span className="asm-probe-text">{form.addError}</span>
-              </div>
-            ) : null}
             <div className="asm-foot-main">
               <Button
                 type="text"
                 className="asm-back"
                 icon={<LeftOutlined />}
+                disabled={form.addPhase === 'adding'}
                 onClick={() => setStep('select')}
               >
                 {t('service.modal.footer.back')}
               </Button>
               <span className="asm-foot-status">
-                {alreadyManaged
+                {residueName ? (
+                  t('service.modal.footer.statusResidue')
+                ) : alreadyManaged
                   ? t('service.modal.managed.status')
                   : probePhase === 'exists'
                     ? t('service.modal.footer.statusManaged', { name: template ? t(template.labelKey) : '' })
@@ -478,26 +557,24 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                     probing={probing}
                     phase={probePhase}
                     failed={probePhase === 'error' || probeFileMissing || probeNotice?.kind === 'basic'}
+                    disabled={form.addPhase === 'adding' || alreadyManaged}
                     onProbe={() => void runProbe()}
                   />
                 </Tooltip>
-                <Button className="asm-btn-ghost" onClick={closeModal}>
+                <Button className="asm-btn-ghost" disabled={form.addPhase === 'adding'} onClick={closeModal}>
                   {t('common.cancel')}
                 </Button>
-                <Tooltip title={primaryDisabled
-                  ? (alreadyManaged
-                    ? t('service.modal.managed.duplicate', { name: form.basic.serviceName.trim() })
-                    : t('service.modal.probe.required'))
-                  : ''}
+                <Tooltip title={primaryDisabled && !form.addPhase ? (alreadyManaged
+                  ? t('service.modal.managed.duplicate', { name: form.basic.serviceName.trim() })
+                  : t('service.modal.probe.required')) : ''}
                 >
                   <Button
                     type="primary"
-                    className={primaryDisabled ? 'asm-btn-disabled' : ''}
-                    disabled={primaryDisabled}
+                    className={primaryDisabled && !form.addPhase ? 'asm-btn-disabled' : ''}
+                    disabled={primaryDisabled && form.addPhase !== 'adding'}
+                    loading={form.addPhase === 'adding'}
                     icon={
-                      form.addPhase === 'adding' ? (
-                        <LoadingOutlined />
-                      ) : form.addPhase === 'done' ? (
+                      form.addPhase === 'done' ? (
                         <CheckCircleFilled />
                       ) : (
                         <RightOutlined />
@@ -505,9 +582,11 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({ open, onClose,
                     }
                     onClick={() => void addToManaged()}
                   >
-                    {form.addPhase === 'done'
-                      ? t('service.modal.footer.added')
-                      : t('service.modal.footer.addToManaged')}
+                    {form.addPhase === 'adding'
+                      ? t('service.modal.footer.adding')
+                      : form.addPhase === 'done'
+                        ? t('service.modal.footer.added')
+                        : t('service.modal.footer.addToManaged')}
                   </Button>
                 </Tooltip>
               </div>

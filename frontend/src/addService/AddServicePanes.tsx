@@ -87,8 +87,8 @@ const fieldTooltip = (text: string) => ({
   overlayInnerStyle: { whiteSpace: 'normal' as const },
 });
 
-/** 高保真同款 Java 杯图标（「选择 JDK」入口按钮）。 */
-const JavaCupIcon: React.FC = () => (
+/** 高保真同款 Java 杯图标（「选择 JDK」入口按钮；添加弹窗与服务详情页共用）。 */
+export const JavaCupIcon: React.FC = () => (
   <svg viewBox="0 0 16 16" width={13} height={13} fill="none" aria-hidden="true">
     <path
       d="M4 6.9h7v3.4a3 3 0 0 1-3 3h-1a3 3 0 0 1-3-3z"
@@ -190,15 +190,17 @@ export const AddServiceBasicSection: React.FC<{
   );
 };
 
-/** 启动与守护（高级 tab）：启动类型 + 崩溃重启 / 轮转双开关，对齐高保真「守护与轮转」。 */
+/** 启动与守护（高级 tab）：启动类型 + 崩溃重启 / 轮转双开关 + 注册后立即启动，对齐高保真「守护与轮转」。 */
 export const AddServiceStartSection: React.FC<{
   startType: string;
   restart: boolean;
   rotate: boolean;
+  autoStart: boolean;
   onStartTypeChange: (value: string) => void;
   onRestartChange: (value: boolean) => void;
   onRotateChange: (value: boolean) => void;
-}> = ({ startType, restart, rotate, onStartTypeChange, onRestartChange, onRotateChange }) => {
+  onAutoStartChange: (value: boolean) => void;
+}> = ({ startType, restart, rotate, autoStart, onStartTypeChange, onRestartChange, onRotateChange, onAutoStartChange }) => {
   const { t } = useI18n();
   const startTypeLabel = (value: string): string => {
     if (value === 'Automatic (Delayed)') {
@@ -247,6 +249,18 @@ export const AddServiceStartSection: React.FC<{
           <span className="asm-switch-name">
             {t('service.modal.basic.rotate')}
             <small className="mono">{t('service.modal.basic.rotateHint')}</small>
+          </span>
+          <span
+            className={autoStart ? 'asm-switch on' : 'asm-switch'}
+            role="switch"
+            aria-checked={autoStart}
+            aria-label={t('service.modal.basic.autoStart')}
+            style={{ marginLeft: 22 }}
+            onClick={() => onAutoStartChange(!autoStart)}
+          />
+          <span className="asm-switch-name">
+            {t('service.modal.basic.autoStart')}
+            <small>{t('service.modal.basic.autoStartHint')}</small>
           </span>
         </div>
       </div>
@@ -548,9 +562,11 @@ export const AddServiceParamsPane: React.FC<{
               {t(jvmPathField.labelKey)}
               <span className="asm-label-hint">{t('service.field.jvmPathHint')}</span>
             </label>
-            {/* 悬浮提示与基本信息一致：悬停显示输入框当前填写的内容 */}
+            {/* 悬浮提示与基本信息一致：悬停显示输入框当前填写的内容。
+                JDK 弹框打开期间容器加 jdk-hold（保持选中环）、图标加 on（保持高亮）；
+                关闭后 on 消失，焦点经 onClosed 还原输入框，选中环保持到点击其它位置。 */}
             <Tooltip {...fieldTooltip(String(values.jvmPath ?? ''))}>
-              <div className="asm-input asm-input-with-icon" style={{ width: '100%' }}>
+              <div className={`asm-input asm-input-with-icon${jdkOpen ? ' jdk-hold' : ''}`} style={{ width: '100%' }}>
                 <input
                   ref={jdkPathInputRef}
                   className="mono"
@@ -560,7 +576,11 @@ export const AddServiceParamsPane: React.FC<{
                   onChange={(event) => onChange('jvmPath', event.target.value)}
                 />
                 <Tooltip title={t('service.modal.jdk.pick')} placement="top">
-                  <button type="button" className="asm-in-act" onClick={() => setJdkOpen(true)}>
+                  <button
+                    type="button"
+                    className={jdkOpen ? 'asm-in-act on' : 'asm-in-act'}
+                    onClick={() => setJdkOpen(true)}
+                  >
                     <JavaCupIcon />
                   </button>
                 </Tooltip>

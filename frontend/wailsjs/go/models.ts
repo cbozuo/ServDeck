@@ -12,6 +12,7 @@ export namespace app {
 	    startType: string;
 	    restart: boolean;
 	    rotate: boolean;
+	    skipStart: boolean;
 	    confName: string;
 	    confContent: string;
 	
@@ -32,6 +33,7 @@ export namespace app {
 	        this.startType = source["startType"];
 	        this.restart = source["restart"];
 	        this.rotate = source["rotate"];
+	        this.skipStart = source["skipStart"];
 	        this.confName = source["confName"];
 	        this.confContent = source["confContent"];
 	    }

@@ -13,6 +13,7 @@ import {
   SIDEBAR_CONTEXT_MENU_FALLBACK_WIDTH,
 } from '../sidebarCoreUtils';
 import { useServiceRegistryStore } from '../../serviceRegistryStore';
+import { useServiceDetailStore } from '../../serviceDetailStore';
 import {
   buildServiceTree,
   collectGroupKeys,
@@ -119,6 +120,18 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
     };
   }, []);
 
+  // 单击服务叶子：打开服务详情（主区替换；分组行仍只做选中）。
+  // antd Tree 点「已选中节点」会反选（keys 变空）——这里以被点行为准保持选中，
+  // 避免再次单击 / 双击文件夹时选中背景闪烁丢失（用户反馈）。
+  const handleSelect = useCallback((keys: React.Key[], info: { node?: { key?: React.Key } }) => {
+    const clicked = String(info.node?.key ?? '');
+    const key = keys.length > 0 ? String(keys[0]) : clicked;
+    setSelectedKey(key);
+    if (key.startsWith('service:')) {
+      useServiceDetailStore.getState().open(key.slice('service:'.length));
+    }
+  }, []);
+
   // 右键菜单：点击外部 / Escape 关闭，并按视口边界修正位置。
   useEffect(() => {
     if (!contextMenu) return;
@@ -173,6 +186,7 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
       okText: t('service.tree.remove.ok'),
       okButtonProps: { danger: true },
       cancelText: t('common.cancel'),
+      centered: true,
       onOk: () => removeService(name),
     });
   }, [removeService, services, t]);
@@ -184,6 +198,7 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
       okText: t('common.delete'),
       okButtonProps: { danger: true },
       cancelText: t('common.cancel'),
+      centered: true,
       onOk: () => removeGroup(group.id),
     });
   }, [removeGroup, t]);
@@ -390,7 +405,7 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
                 motion={false}
                 treeData={treeData}
                 selectedKeys={selectedKey ? [selectedKey] : []}
-                onSelect={(keys) => setSelectedKey(keys.length > 0 ? String(keys[0]) : '')}
+                onSelect={handleSelect}
                 expandedKeys={expandedKeys}
                 onExpand={(keys) => setExpandedKeys(keys)}
                 onDoubleClick={handleNodeDoubleClick}

@@ -13,6 +13,7 @@ import { useI18n } from '../../i18n/provider';
 import type { I18nParams } from '../../i18n/types';
 import { SampleHostResources } from '../../../wailsjs/go/app/App';
 import { useServiceRegistryStore } from '../../serviceRegistryStore';
+import { useServiceDetailStore } from '../../serviceDetailStore';
 import { getDbIconAssetSrc } from '../DatabaseIcons';
 import { useServiceRuntime, type ServiceControlAction, type ServiceRuntimeRow } from './useServiceRuntime';
 import { HomeEventsCard } from './HomeEventsCard';
@@ -21,6 +22,8 @@ import './ServiceHome.css';
 
 export interface ServiceHomeProps {
   onAddService?: () => void;
+  /** 行内「更多」：打开服务详情（主区替换）。缺省时由组件内部经 serviceDetailStore 打开。 */
+  onMore?: (name: string) => void;
 }
 
 type FilterKey = 'all' | 'running' | 'stopped' | 'error' | 'auto';
@@ -89,10 +92,11 @@ function greetingKey(hour: number): string {
 }
 
 /** 服务总览首页：本机资源四卡 + 纳管服务列表（实时状态/指标/启停）+ 右栏（事件/引擎）。 */
-export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
+export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService, onMore }) => {
   const { t } = useI18n();
   const services = useServiceRegistryStore((state) => state.services);
   const runtime = useServiceRuntime(services);
+  const openDetail = onMore ?? ((name: string) => useServiceDetailStore.getState().open(name));
 
   const [filter, setFilter] = useState<FilterKey>('all');
   const [search, setSearch] = useState('');
@@ -320,6 +324,7 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService }) => {
                   row={row}
                   pendingAction={runtime.pendingOps[row.name]}
                   onControl={(name, action) => void runtime.controlService(name, action)}
+                  onMore={openDetail}
                 />
               ))}
             </div>
@@ -339,7 +344,8 @@ const ServiceRowItem: React.FC<{
   row: ServiceRuntimeRow;
   pendingAction: ServiceControlAction | undefined;
   onControl: (name: string, action: ServiceControlAction) => void;
-}> = ({ row, pendingAction, onControl }) => {
+  onMore: (name: string) => void;
+}> = ({ row, pendingAction, onControl, onMore }) => {
   const { t } = useI18n();
   const isTerminal = row.state === 'Running' || row.state === 'Stopped';
   const badgeClass = row.state === 'Running' ? 'run' : row.state === 'Stopped' ? 'stop' : 'err';
@@ -412,7 +418,7 @@ const ServiceRowItem: React.FC<{
             {pendingAction === 'start' ? <LoadingOutlined style={{ fontSize: 13 }} /> : <CaretRightFilled style={{ fontSize: 13 }} />}
           </button>
         )}
-        <button className="op-btn" title={t('home.ops.more')}>
+        <button className="op-btn" title={t('home.ops.more')} onClick={() => onMore(row.name)}>
           <MoreOutlined style={{ fontSize: 13 }} />
         </button>
       </span>

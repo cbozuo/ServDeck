@@ -28,6 +28,8 @@ export interface ProbeActionButtonProps {
    * 只传 phase 会漏掉「文件不存在」这类最常见的失败——它由 ok + fileExists=false 表达。
    */
   failed?: boolean;
+  /** 外部禁用（如「纳管中」时冻结所有操作）。 */
+  disabled?: boolean;
   onProbe: () => void;
 }
 
@@ -47,7 +49,7 @@ const SUCCESS_PHASES = new Set(['ok', 'exists']);
 export const ProbeActionButton = React.forwardRef<
   HTMLButtonElement,
   ProbeActionButtonProps & ProbeButtonHtmlProps
->(({ probing, phase, failed = false, onProbe, ...rest }, ref) => {
+>(({ probing, phase, failed = false, disabled = false, onProbe, ...rest }, ref) => {
   const { t } = useI18n();
   const [flashOk, setFlashOk] = useState(false);
   const [minBusy, setMinBusy] = useState(false);
@@ -72,7 +74,10 @@ export const ProbeActionButton = React.forwardRef<
     return () => window.clearTimeout(timer);
   }, [probing]);
 
+  // busy 仅表示「真的有探测在跑」（转圈 + 探测中… 文案）；
+  // disabled 是外部禁用（如已纳管）——只灰化，不得伪装成探测中。
   const busy = probing || minBusy;
+  const locked = disabled || busy;
 
   // busy 下降沿 + 成功相位 → 成功闪现。
   // 只切图标与底色，文案沿用现有三态，不引入新的 i18n 键。
@@ -104,7 +109,7 @@ export const ProbeActionButton = React.forwardRef<
       ref={ref}
       type="button"
       className={className.join(' ')}
-      disabled={busy}
+      disabled={locked}
       onClick={onProbe}
     >
       <span className="asm-probe-slot">

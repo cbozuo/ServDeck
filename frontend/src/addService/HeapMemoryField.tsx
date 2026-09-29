@@ -40,9 +40,23 @@ export const HeapMemoryField: React.FC<{
       重渲染时用旧 value 把滑块拉回原地（拖动手感变成弹回），所以拖动期间
       受控值直接跟随拖动位置，提交后清掉。 */
   const [draftIdx, setDraftIdx] = useState<number | null>(null);
+  /** 悬浮气泡：跟随鼠标在滑杆上的位置，动态显示该处对应的内存档位。 */
+  const [hoverTip, setHoverTip] = useState<{ px: number; gb: number } | null>(null);
   const rangeRef = useRef<HTMLInputElement>(null);
 
   const stops = useMemo(() => heapStopsForCap(capGB), [capGB]);
+
+  /** 悬浮位置 → 档位：按 thumb 中心几何修正（原生 range 的有效行程是宽度减 thumb 宽）。 */
+  const updateHoverTip = (event: React.MouseEvent<HTMLInputElement>) => {
+    if (disabled) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const thumb = 13;
+    const usable = Math.max(0, rect.width - thumb);
+    const px = Math.min(usable, Math.max(0, event.clientX - rect.left - thumb / 2));
+    const ratio = usable > 0 ? px / usable : 0;
+    const index = Math.round(ratio * (stops.length - 1));
+    setHoverTip({ px: thumb / 2 + ratio * usable, gb: stops[index] });
+  };
 
   useEffect(() => {
     let alive = true;
@@ -138,27 +152,36 @@ export const HeapMemoryField: React.FC<{
 
   return (
     <div className="asm-heap-row">
-      <input
-        ref={rangeRef}
-        type="range"
-        className="asm-heap-range"
-        min={0}
-        max={stops.length - 1}
-        step={1}
-        value={draftIdx ?? idx}
-        disabled={disabled}
-        style={{ '--fill': fillPct } as React.CSSProperties}
-        aria-label={t('service.field.heapShort')}
-        onInput={(event) => {
-          const el = event.currentTarget;
-          el.style.setProperty(
-            '--fill',
-            `${((Number(el.value) / (stops.length - 1)) * 100).toFixed(1)}%`,
-          );
-          setDraftIdx(Number(el.value));
-          setDraft(heapLabel(stops[Number(el.value)]));
-        }}
-      />
+      <span className="asm-heap-slider">
+        {hoverTip && (
+          <span className="asm-heap-tip" style={{ left: `${hoverTip.px}px` }}>
+            {heapLabel(hoverTip.gb)}
+          </span>
+        )}
+        <input
+          ref={rangeRef}
+          type="range"
+          className="asm-heap-range"
+          min={0}
+          max={stops.length - 1}
+          step={1}
+          value={draftIdx ?? idx}
+          disabled={disabled}
+          style={{ '--fill': fillPct } as React.CSSProperties}
+          aria-label={t('service.field.heapShort')}
+          onMouseMove={updateHoverTip}
+          onMouseLeave={() => setHoverTip(null)}
+          onInput={(event) => {
+            const el = event.currentTarget;
+            el.style.setProperty(
+              '--fill',
+              `${((Number(el.value) / (stops.length - 1)) * 100).toFixed(1)}%`,
+            );
+            setDraftIdx(Number(el.value));
+            setDraft(heapLabel(stops[Number(el.value)]));
+          }}
+        />
+      </span>
       <Tooltip
         title={t('service.field.heap.inputTip')}
         placement="top"

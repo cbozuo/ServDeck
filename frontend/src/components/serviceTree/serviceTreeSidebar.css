@@ -18,12 +18,13 @@
   margin: 6px 12px 8px;
   padding: 7px 10px;
   border-radius: 8px;
-  background: var(--gn-accent-soft);
+  /* 视图标题行而非可选中节点：不再常驻 accent 选中底色（用户反馈） */
+  background: transparent;
 }
 
 .gst-all-services-icon {
   font-size: 13px;
-  color: var(--gn-accent-2);
+  color: var(--gn-fg-4);
   flex-shrink: 0;
 }
 

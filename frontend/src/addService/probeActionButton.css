@@ -170,3 +170,9 @@
     opacity: 0.6;
   }
 }
+
+/* 外部禁用（如已纳管）：灰化但保留常态图标/文案，不伪装成探测中 */
+.asm-probe-btn:disabled:not(.is-busy) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

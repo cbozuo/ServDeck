@@ -20,6 +20,31 @@ export interface ManagedServiceEntry {
   iconDataUrl?: string;
   /** 用户挑的主色。留空表示用类型默认色。 */
   accentColor?: string;
+  /**
+   * 注册参数快照（servy 托管注册时录入）：详情页部署参数与「重新注册」的数据源。
+   * manage 纳管记录与旧版本记录没有该字段 → 部署页显示「参数未知，需重新注册」空态。
+   */
+  deploy?: ServiceDeploySnapshot;
+}
+
+/** 注册参数快照（对应 servy-cli install 的可编辑参数；派生字段不存，渲染时推导）。 */
+export interface ServiceDeploySnapshot {
+  displayName: string;
+  description?: string;
+  programFile: string;
+  workDir?: string;
+  /** Java：JVM 可执行路径；其他类型为空 */
+  javaPath?: string;
+  /** Java：JVM 参数（含 -Xms/-Xmx 等） */
+  jvmArgs?: string;
+  /** 非 Java：应用参数 */
+  params?: string;
+  startType: string;
+  restart: boolean;
+  /** 日志按大小轮转（--enableSizeRotation）；旧快照缺省跟随 restart */
+  rotate?: boolean;
+  confName?: string;
+  confContent?: string;
 }
 
 /** 纳管服务的分组（一层，树上的文件夹节点）。 */

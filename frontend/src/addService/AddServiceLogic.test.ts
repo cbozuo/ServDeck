@@ -130,6 +130,7 @@ describe('probe file collection', () => {
     startType: '自动',
     restart: true,
     rotate: true,
+    autoStart: true,
   });
 
   it('java 校验 JVM 路径与程序文件两个文件（回归：jar 缺失也必须报出来）', () => {

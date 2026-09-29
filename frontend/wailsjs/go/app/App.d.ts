@@ -58,6 +58,8 @@ export function CheckForUpdates():Promise<connection.QueryResult>;
 
 export function CheckForUpdatesSilently():Promise<connection.QueryResult>;
 
+export function CheckServicePorts(arg1:Array<number>):Promise<connection.QueryResult>;
+
 export function ClearSQLAuditEvents(arg1:number):Promise<connection.QueryResult>;
 
 export function ClearSlowQueries(arg1:connection.ConnectionConfig,arg2:string):Promise<connection.QueryResult>;
@@ -408,6 +410,8 @@ export function GetSavedQueryGroups():Promise<Array<connection.SavedQueryGroup>>
 
 export function GetSecurityUpdateStatus():Promise<app.SecurityUpdateStatus>;
 
+export function GetServiceDirUsage(arg1:string,arg2:string):Promise<connection.QueryResult>;
+
 export function GetServyEngineConfig():Promise<connection.QueryResult>;
 
 export function GetSlowQueries(arg1:connection.ConnectionConfig,arg2:string,arg3:string,arg4:number):Promise<connection.QueryResult>;
@@ -417,6 +421,8 @@ export function GetUnboundSavedQueries():Promise<Array<connection.SavedQuery>>;
 export function GetUpdateChannel():Promise<connection.QueryResult>;
 
 export function GetUpdateDownloadTask():Promise<connection.QueryResult>;
+
+export function GetWindowsServiceDetail(arg1:string):Promise<connection.QueryResult>;
 
 export function ImportConfigFile():Promise<connection.QueryResult>;
 
@@ -495,6 +501,10 @@ export function ListInstalledFontFamilies():Promise<connection.QueryResult>;
 export function ListReproductionBundleSources():Promise<connection.QueryResult>;
 
 export function ListSQLDirectory(arg1:string):Promise<connection.QueryResult>;
+
+export function ListServiceEngineEvents(arg1:string):Promise<connection.QueryResult>;
+
+export function ListServiceLogFiles(arg1:string):Promise<connection.QueryResult>;
 
 export function ListWindowsServices():Promise<connection.QueryResult>;
 
@@ -598,6 +608,8 @@ export function OpenSQLFile():Promise<connection.QueryResult>;
 
 export function OpenSavedQueryDirectory():Promise<connection.QueryResult>;
 
+export function OpenServiceLogDirectory(arg1:string):Promise<connection.QueryResult>;
+
 export function PreflightDatabaseSQLImport(arg1:connection.ConnectionConfig,arg2:string,arg3:string):Promise<connection.QueryResult>;
 
 export function PreviewChanges(arg1:connection.ConnectionConfig,arg2:string,arg3:string,arg4:connection.ChangeSet):Promise<connection.QueryResult>;
@@ -613,6 +625,8 @@ export function ProbeWindowsService(arg1:string,arg2:string):Promise<connection.
 export function ReadAppLogTail(arg1:number,arg2:string):Promise<connection.QueryResult>;
 
 export function ReadSQLFile(arg1:string):Promise<connection.QueryResult>;
+
+export function ReadServiceLogTail(arg1:string,arg2:string,arg3:number):Promise<connection.QueryResult>;
 
 export function RebindSavedQuery(arg1:string,arg2:string):Promise<connection.SavedQuery>;
 
@@ -728,6 +742,8 @@ export function RevealSavedQueryInFolder(arg1:string):Promise<connection.QueryRe
 
 export function SampleHostResources():Promise<connection.QueryResult>;
 
+export function SampleServiceDetailMetrics(arg1:string):Promise<connection.QueryResult>;
+
 export function SampleServiceMetrics(arg1:Array<string>):Promise<connection.QueryResult>;
 
 export function SaveCloudBackupConfig(arg1:app.CloudBackupConfigInput):Promise<app.CloudBackupConfig>;
@@ -743,6 +759,8 @@ export function SaveGlobalProxy(arg1:connection.SaveGlobalProxyInput):Promise<co
 export function SaveQuery(arg1:connection.SavedQuery):Promise<connection.SavedQuery>;
 
 export function SaveSavedQueryGroup(arg1:connection.SavedQueryGroup):Promise<connection.SavedQueryGroup>;
+
+export function SaveServiceConf(arg1:string,arg2:string,arg3:string):Promise<connection.QueryResult>;
 
 export function SelectBackupDirectory(arg1:string):Promise<connection.QueryResult>;
 
@@ -811,6 +829,8 @@ export function TruncateTables(arg1:connection.ConnectionConfig,arg2:string,arg3
 export function TrustSSHHostKey(arg1:string,arg2:number,arg3:string):Promise<connection.QueryResult>;
 
 export function TrustSSHHostKeyForConnection(arg1:connection.ConnectionConfig,arg2:string):Promise<connection.QueryResult>;
+
+export function UninstallServyService(arg1:string):Promise<connection.QueryResult>;
 
 export function UpdateConnectionVisibility(arg1:connection.ConnectionVisibilityInput):Promise<connection.SavedConnectionView>;
 

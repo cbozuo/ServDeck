@@ -70,6 +70,10 @@ import {
 } from '../utils/detachedWindow';
 import { openNativeWorkbenchTabWindow } from '../utils/nativeDetachedWindowHost';
 import { ServiceHome } from './home/ServiceHome';
+import { useServiceDetailStore } from '../serviceDetailStore';
+
+// 服务详情页懒加载（主区替换形态；避免拖累首屏 chunk）
+const ServiceDetailLazy = React.lazy(() => import('./serviceDetail/ServiceDetail') as Promise<{ default: React.ComponentType<{ name: string }> }>);
 import { useWorkbenchTabs } from '../hooks/useWorkbenchTabs';
 import { resolveConnectionEnvironmentPresentation } from '../utils/connectionEnvironment';
 import { createSidebarResizeAwareFrameScheduler } from '../utils/sidebarResizeLifecycle';
@@ -1777,8 +1781,14 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onF
     }
   }, [addTab, connectionById, externalSQLDirectories]);
 
+  const detailOpenName = useServiceDetailStore((state) => state.openName);
+  const detailOpen = useServiceDetailStore((state) => state.open);
+  const DetailElement = detailOpenName
+    ? <React.Suspense fallback={<div style={{ flex: 1 }} />}><ServiceDetailLazy name={detailOpenName} /></React.Suspense>
+    : null;
+
   const ServiceHomeElement = (
-    <ServiceHome onAddService={onAddService} />
+    <ServiceHome onAddService={onAddService} onMore={detailOpen} />
   );
 
   return (
@@ -1983,7 +1993,9 @@ body[data-theme='dark'] .main-tabs .ant-tabs-tab.ant-tabs-tab-active {
               -webkit-user-select: none !important;
             }
         `}</style>
-        {!hasTabs ? (
+        {DetailElement ? (
+          DetailElement
+        ) : !hasTabs ? (
           ServiceHomeElement
         ) : !hasDockedTabs ? (
           // All tabs are floating: keep empty docked area; floating host still shows content.

@@ -4,6 +4,8 @@ import '../components/home/ServiceHome.css';
 import { ServiceHome } from '../components/home/ServiceHome';
 import { ServiceTreeSidebar } from '../components/serviceTree/ServiceTreeSidebar';
 import { AddServiceModal } from '../components/AddServiceModal';
+import { ServiceDetail } from '../components/serviceDetail/ServiceDetail';
+import { useServiceDetailStore } from '../serviceDetailStore';
 import { I18nProvider } from '../i18n/provider';
 import { useServiceRegistryStore, type ManagedServiceEntry } from '../serviceRegistryStore';
 
@@ -47,6 +49,8 @@ const HARNESS_START_TYPES: Record<string, string> = {
 };
 
 let harnessPollCount = 0;
+let harnessDetailPoll = 0;
+let harnessLogTick = 0;
 let harnessCpuClock = 1000; // 进程累计 CPU（秒），每轮 +0.12s
 let harnessHostCpuClock = 10_000; // 主机 CPU 累计时间（任意单位）
 
@@ -77,8 +81,9 @@ const harnessMetrics = (names: string[]) => ({
 
 if (typeof window !== 'undefined') {
   // v2 主题 token 挂在 body[data-ui-version][data-theme] 上，harness 需要自行设置。
+  // 主题跟随 ?theme= 参数（light/dark），供浅/深两套走查。
   document.body.dataset.uiVersion = 'v2';
-  document.body.dataset.theme = 'light';
+  document.body.dataset.theme = new URLSearchParams(window.location.search).get('theme') || 'light';
   const go = ((window as any).go ??= {});
   go.app ??= {};
   go.app.App = {
@@ -158,6 +163,104 @@ if (typeof window !== 'undefined') {
       success: true,
       data: current,
     }),
+    OpenServiceLogDirectory: async () => ({ success: true, data: { name: 'harness' } }),
+    GetWindowsServiceDetail: async (name: string) => ({
+      success: true,
+      data: (() => {
+        const params = new URLSearchParams(window.location.search);
+        // ?unreg=1 走查「未注册」形态（SCM 无此服务）；?state=stopped 走查停止态表单
+        const unreg = params.get('unreg') === '1';
+        const state = unreg ? '' : params.get('state') === 'stopped' ? 'Stopped' : 'Running';
+        return {
+          name,
+          installed: !unreg,
+          displayName: 'Java AI 服务项目',
+          description: 'AI 平台的核心 Java 后端服务，负责推理请求编排与模型分发。',
+          state,
+          pid: state === 'Running' ? 4700 : 0,
+          startType: 'Automatic',
+          delayedAutoStart: false,
+          binaryPathName: 'C:\\tools\\servy\\servy-cli.exe -p C:\\apps\\order\\order.jar',
+          account: 'LocalSystem',
+          dependencies: [],
+          startedAt: Math.floor(Date.now() / 1000) - 3 * 3600 - 25 * 60,
+          uptimeSeconds: 3 * 3600 + 25 * 60,
+          programFile: 'C:\\apps\\order\\order.jar',
+          logDir: 'C:\\Users\\Administrator\\.servdeck\\services\\' + name + '\\logs',
+        };
+      })(),
+    }),
+    SampleServiceDetailMetrics: async () => {
+      harnessDetailPoll += 1;
+      const wave = (seed: number) => 0.5 + 0.5 * Math.abs(Math.sin(harnessDetailPoll * 0.7 + seed));
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('unreg') === '1' || params.get('state') === 'stopped') {
+        return { success: true, data: { sample: { state: '', pid: 0, cpuTotal: 0, memBytes: 0, threads: 0, handles: 0, diskReadBps: 0, diskWriteBps: 0, netConns: 0 } } };
+      }
+      return {
+        success: true,
+        data: {
+          sample: {
+            state: 'Running',
+            pid: 4700,
+            cpuTotal: 100 + harnessDetailPoll * 0.8,
+            memBytes: (600 + wave(2) * 90) * 1024 * 1024,
+            threads: Math.round(40 + wave(3) * 8),
+            handles: Math.round(320 + wave(4) * 60),
+            diskReadBps: wave(5) * 90 * 1024,
+            diskWriteBps: wave(6) * 40 * 1024,
+            netConns: Math.round(3 + wave(7) * 4),
+          },
+        },
+      };
+    },
+    CheckServicePorts: async (ports: number[]) => ({
+      success: true,
+      data: {
+        ports: ports.map((p, i) => ({ port: p, listening: i !== 1 })),
+        okCount: Math.max(0, ports.length - 1),
+        total: ports.length,
+      },
+    }),
+    ListServiceLogFiles: async () => ({
+      success: true,
+      data: {
+        files: [
+          { name: 'service-out.log', sizeBytes: 2 * 1024 * 1024, modifiedAt: Math.floor(Date.now() / 1000), kind: 'out' },
+          { name: 'service-err.log', sizeBytes: 38 * 1024, modifiedAt: Math.floor(Date.now() / 1000) - 600, kind: 'err' },
+          { name: 'service-out.log.1', sizeBytes: 5 * 1024 * 1024, modifiedAt: Math.floor(Date.now() / 1000) - 86400, kind: 'rot' },
+        ],
+      },
+    }),
+    ReadServiceLogTail: async () => {
+      // 心跳行动态追加：走查「轮询新行带真实检测时刻、历史行不带时间」的时间标注逻辑
+      harnessLogTick += 1;
+      const base = [
+        '2026-09-29 10:00:01 INFO  [main] Starting ServiceDeck demo service v2.4.1',
+        '2026-09-29 10:00:03 INFO  [main] Spring context initialized in 2.1s',
+        '2026-09-29 10:00:05 WARN  [pool-2] connection pool nearing capacity (18/20)',
+        '2026-09-29 10:00:11 INFO  [http-nio-8080-exec-1] GET /api/health 200 12ms',
+        '2026-09-29 10:00:22 ERROR [http-nio-8080-exec-3] upstream model service timeout (5000ms)',
+      ];
+      for (let i = 1; i <= Math.min(harnessLogTick - 1, 6); i++) {
+        base.push(`INFO  [live] heartbeat #${i}`);
+      }
+      return { success: true, data: { content: base.join('\n') } };
+    },
+    ListServiceEngineEvents: async () => ({
+      success: true,
+      data: {
+        events: [
+          { at: Math.floor(Date.now() / 1000) - 3600, level: 'INFO', text: '[wec-ai-platform] Attempting to start service with a timeout of 45 seconds.' },
+          { at: Math.floor(Date.now() / 1000) - 3540, level: 'WARN', text: "[wec-ai-platform] Service did not reach 'Running' status within the 45s timeout. It may still be initializing." },
+          { at: Math.floor(Date.now() / 1000) - 3000, level: 'ERROR', text: "[wec-ai-platform] start: failed to start service: timeout" },
+          { at: Math.floor(Date.now() / 1000) - 600, level: 'INFO', text: '[wec-ai-platform] Child process had already exited before the stop sequence ran.' },
+        ],
+      },
+    }),
+    GetServiceDirUsage: async () => ({ success: true, data: { bytes: 1.2 * 1024 ** 3 } }),
+    SaveServiceConf: async () => ({ success: true, data: { saved: true } }),
+    UninstallServyService: async () => ({ success: true, data: { name: '' } }),
   };
 }
 
@@ -175,12 +278,50 @@ function AddServiceHarness() {
 export default function HomeHarness() {
   const [showSidebar, setShowSidebar] = React.useState(false);
   const [showAdd, setShowAdd] = React.useState(false);
+  const [showDetail, setShowDetail] = React.useState(false);
+  const params = new URLSearchParams(window.location.search);
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
     useServiceRegistryStore.setState({ services: params.get('empty') === '1' ? [] : HARNESS_SERVICES });
     setShowSidebar(params.get('sidebar') === '1');
     setShowAdd(params.get('devHarness') === 'add');
+    setShowDetail(params.get('devHarness') === 'detail');
+    if (params.get('devHarness') === 'detail') {
+      useServiceRegistryStore.setState({
+        services: [{
+          name: 'wec-ai-platform',
+          serviceType: 'java',
+          displayName: 'Java AI 服务项目',
+          mode: 'register',
+          programFile: 'C:\apps\order\order.jar',
+          logDir: 'C:\Users\Administrator\.servdeck\services\wec-ai-platform\logs',
+          addedAt: new Date(Date.now() - 86400 * 1000 * 3).toISOString(),
+          groupId: null,
+          deploy: {
+            displayName: 'Java AI 服务项目',
+            description: 'AI 平台的核心 Java 后端服务。',
+            programFile: 'C:\apps\order\order.jar',
+            workDir: 'C:\apps\order',
+            javaPath: 'C:\Program Files\Java\jdk-21\bin\java.exe',
+            jvmArgs: '-Xms2g -Xmx2g -XX:+UseG1GC -Dserver.port=8080',
+            startType: 'Automatic',
+            restart: true,
+          },
+        }],
+        groups: [],
+      });
+      useServiceDetailStore.getState().open('wec-ai-platform');
+    }
   }, []);
+
+  if (showDetail) {
+    return (
+      <div data-ui-version='v2' data-theme={new URLSearchParams(window.location.search).get('theme') || 'light'} style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--gn-bg-app)' }}>
+        <I18nProvider preference='zh-CN' onPreferenceChange={() => undefined}>
+          <ServiceDetail name='wec-ai-platform' />
+        </I18nProvider>
+      </div>
+    );
+  }
 
   if (showAdd) {
     return <AddServiceHarness />;

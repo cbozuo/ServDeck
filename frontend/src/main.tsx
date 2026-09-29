@@ -973,7 +973,7 @@ const renderRoot = async () => {
         const { default: PerfDataGridHarness } = await import('./dev/PerfDataGridHarness');
         rootComponent = <PerfDataGridHarness />;
     }
-    if (devHarnessMode === 'home' || devHarnessMode === 'add') {
+    if (devHarnessMode === 'home' || devHarnessMode === 'add' || devHarnessMode === 'detail') {
         const { default: HomeHarness } = await import('./dev/HomeHarness');
         rootComponent = <HomeHarness />;
     }

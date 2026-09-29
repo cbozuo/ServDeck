@@ -94,6 +94,10 @@ export function CheckForUpdatesSilently() {
   return window['go']['app']['App']['CheckForUpdatesSilently']();
 }
 
+export function CheckServicePorts(arg1) {
+  return window['go']['app']['App']['CheckServicePorts'](arg1);
+}
+
 export function ClearSQLAuditEvents(arg1) {
   return window['go']['app']['App']['ClearSQLAuditEvents'](arg1);
 }
@@ -794,6 +798,10 @@ export function GetSecurityUpdateStatus() {
   return window['go']['app']['App']['GetSecurityUpdateStatus']();
 }
 
+export function GetServiceDirUsage(arg1, arg2) {
+  return window['go']['app']['App']['GetServiceDirUsage'](arg1, arg2);
+}
+
 export function GetServyEngineConfig() {
   return window['go']['app']['App']['GetServyEngineConfig']();
 }
@@ -812,6 +820,10 @@ export function GetUpdateChannel() {
 
 export function GetUpdateDownloadTask() {
   return window['go']['app']['App']['GetUpdateDownloadTask']();
+}
+
+export function GetWindowsServiceDetail(arg1) {
+  return window['go']['app']['App']['GetWindowsServiceDetail'](arg1);
 }
 
 export function ImportConfigFile() {
@@ -968,6 +980,14 @@ export function ListReproductionBundleSources() {
 
 export function ListSQLDirectory(arg1) {
   return window['go']['app']['App']['ListSQLDirectory'](arg1);
+}
+
+export function ListServiceEngineEvents(arg1) {
+  return window['go']['app']['App']['ListServiceEngineEvents'](arg1);
+}
+
+export function ListServiceLogFiles(arg1) {
+  return window['go']['app']['App']['ListServiceLogFiles'](arg1);
 }
 
 export function ListWindowsServices() {
@@ -1174,6 +1194,10 @@ export function OpenSavedQueryDirectory() {
   return window['go']['app']['App']['OpenSavedQueryDirectory']();
 }
 
+export function OpenServiceLogDirectory(arg1) {
+  return window['go']['app']['App']['OpenServiceLogDirectory'](arg1);
+}
+
 export function PreflightDatabaseSQLImport(arg1, arg2, arg3) {
   return window['go']['app']['App']['PreflightDatabaseSQLImport'](arg1, arg2, arg3);
 }
@@ -1204,6 +1228,10 @@ export function ReadAppLogTail(arg1, arg2) {
 
 export function ReadSQLFile(arg1) {
   return window['go']['app']['App']['ReadSQLFile'](arg1);
+}
+
+export function ReadServiceLogTail(arg1, arg2, arg3) {
+  return window['go']['app']['App']['ReadServiceLogTail'](arg1, arg2, arg3);
 }
 
 export function RebindSavedQuery(arg1, arg2) {
@@ -1434,6 +1462,10 @@ export function SampleHostResources() {
   return window['go']['app']['App']['SampleHostResources']();
 }
 
+export function SampleServiceDetailMetrics(arg1) {
+  return window['go']['app']['App']['SampleServiceDetailMetrics'](arg1);
+}
+
 export function SampleServiceMetrics(arg1) {
   return window['go']['app']['App']['SampleServiceMetrics'](arg1);
 }
@@ -1464,6 +1496,10 @@ export function SaveQuery(arg1) {
 
 export function SaveSavedQueryGroup(arg1) {
   return window['go']['app']['App']['SaveSavedQueryGroup'](arg1);
+}
+
+export function SaveServiceConf(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SaveServiceConf'](arg1, arg2, arg3);
 }
 
 export function SelectBackupDirectory(arg1) {
@@ -1600,6 +1636,10 @@ export function TrustSSHHostKey(arg1, arg2, arg3) {
 
 export function TrustSSHHostKeyForConnection(arg1, arg2) {
   return window['go']['app']['App']['TrustSSHHostKeyForConnection'](arg1, arg2);
+}
+
+export function UninstallServyService(arg1) {
+  return window['go']['app']['App']['UninstallServyService'](arg1);
 }
 
 export function UpdateConnectionVisibility(arg1) {

@@ -465,6 +465,28 @@ input.asm-input.mono {
   gap: 10px;
   min-width: 0;
 }
+/* 滑杆定位容器：悬浮内存气泡（asm-heap-tip）以它为锚 */
+.asm-heap-slider {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.asm-heap-tip {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  transform: translateX(-50%);
+  background: var(--gn-fg-1);
+  color: var(--gn-bg-panel);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: var(--gn-shadow-md);
+}
 .asm-heap-range {
   -webkit-appearance: none;
   appearance: none;
@@ -894,6 +916,9 @@ input.asm-input.mono {
 }
 .asm-probe-text {
   min-width: 0;
+  /* 后端错误消息可能很长（如 servy 解析失败连带整页帮助）：限高滚动，避免撑爆弹窗 */
+  max-height: 120px;
+  overflow-y: auto;
 }
 .asm-probe-text b {
   font-weight: 700;
@@ -1152,6 +1177,22 @@ input.asm-input.mono {
   background: var(--gn-accent-soft);
   color: var(--gn-accent-2);
 }
+/* JDK 弹框打开期间的持续高亮（与 hover 同款）；关闭后 on 类摘除即恢复 */
+.asm-input-with-icon .asm-in-act.on {
+  background: var(--gn-accent-soft);
+  color: var(--gn-accent-2);
+}
+/* JDK 弹框打开期间输入框保持选中环（antd 弹框抢走焦点后 focus-within 会断） */
+.asm-input.jdk-hold,
+.asm-input.jdk-hold:focus-within {
+  border-color: var(--gn-accent);
+  box-shadow: 0 0 0 3px var(--gn-accent-soft);
+  outline: none;
+}
+.ant-modal-body .asm-root .asm-input.jdk-hold {
+  border-color: var(--gn-accent) !important;
+  box-shadow: 0 0 0 3px var(--gn-accent-soft) !important;
+}
 .asm-input-with-icon .asm-in-act svg {
   width: 15px;
   height: 15px;
@@ -1165,4 +1206,35 @@ input.asm-input.mono {
 .asm-foot-select .asm-foot-hint {
   font-size: 11px;
   color: var(--gn-fg-5);
+}
+
+/* 注册失败时的 stderr 日志尾部（弹窗内直接排障） */
+.asm-add-log {
+  max-height: 150px;
+  overflow-y: auto;
+  border-radius: 9px;
+  background: var(--gn-bg-app);
+  border: 1px solid var(--gn-br-1);
+  padding: 8px 11px;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--gn-fg-2);
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 10px 0 0;
+}
+
+/* 注册失败残留：错误条内的一键卸载小按钮 */
+.asm-probe-bar.error {
+  flex-wrap: wrap;
+}
+.asm-probe-bar.error .dtl-btn-sm.danger-o {
+  color: var(--gn-danger);
+  background: var(--gn-bg-panel);
+  border: 1px solid color-mix(in srgb, var(--gn-danger) 36%, transparent);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.asm-probe-bar.error .dtl-btn-sm.danger-o:hover {
+  background: color-mix(in srgb, var(--gn-danger) 8%, var(--gn-bg-panel));
 }

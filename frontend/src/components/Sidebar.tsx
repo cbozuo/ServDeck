@@ -1,7 +1,6 @@
 import SidebarConnectionRail from './sidebar/SidebarConnectionRail';
 import Modal from './common/ResizableDraggableModal';
 import { type TitleBarQuickAction } from './TitleBarQuickActions';
-import TitleBarQuickActionsHost from './TitleBarQuickActionsHost';
 import { type DataSyncEntryModeAlias } from './dataSyncEntryMode';
 import type { DatabaseCharsetOption, DatabaseCollationOption } from '../utils/databaseCharset';
 import SidebarSearchPanel, {
@@ -34,7 +33,7 @@ import {
 import { tryOpenSidebarObjectNode } from './sidebar/sidebarOpenObjectNode';
 import { useSidebarSearchModel } from './sidebar/useSidebarSearchModel';
 import { useV2ExplorerFilterReset } from './sidebar/useV2ExplorerFilterReset';
-import SidebarFilterSlot from './sidebar/SidebarFilterSlot';
+import TitleBarQuickActionsHost from './TitleBarQuickActionsHost';
 import { useSidebarFilterPersistence } from './sidebar/useSidebarFilterPersistence';
 import { useSidebarV2ActionHandlers } from './sidebar/useSidebarV2ActionHandlers';
 import { useSidebarCommandSearchRunner } from './sidebar/useSidebarCommandSearchRunner';
@@ -136,11 +135,11 @@ import { createSidebarResizeAwareFrameScheduler } from '../utils/sidebarResizeLi
   FilterOutlined,
   DashboardOutlined,
   WarningOutlined,
-  AimOutlined,
-  MoreOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  VerticalAlignTopOutlined,
+  
+  
+  
+  
+  
   SafetyCertificateOutlined,
   SkinOutlined,
 	} from '@ant-design/icons';
@@ -698,116 +697,6 @@ export const V2ExplorerContextSummary: React.FC<{ context: V2ExplorerContext }> 
       </span>
     </div>
   </Tooltip>
-);
-
-export type V2ExplorerToolbarActionLabels = {
-  objectActions: string;
-  locateCurrentTable: string;
-  locateCurrentTableUnavailable: string;
-  scrollToTop: string;
-  connectionActions: string;
-};
-
-export type V2ExplorerToolbarToggleAction = {
-  label: string;
-  onClick: () => void;
-  buttonRef?: React.Ref<HTMLButtonElement>;
-  placement: 'explorer-toolbar' | 'collapsed-titlebar';
-  expanded: boolean;
-};
-
-export const V2ExplorerToolbarActions: React.FC<{
-  labels: V2ExplorerToolbarActionLabels;
-  canLocateActiveTab: boolean;
-  hasActiveConnection: boolean;
-  onLocateCurrentTable: () => void;
-  onScrollToTop: () => void;
-  onOpenConnectionActions: (event: React.MouseEvent<HTMLElement>) => void;
-  toggleAction?: V2ExplorerToolbarToggleAction;
-}> = ({
-  labels,
-  canLocateActiveTab,
-  hasActiveConnection,
-  onLocateCurrentTable,
-  onScrollToTop,
-  onOpenConnectionActions,
-  toggleAction,
-}) => (
-  <>
-    <div className="gn-v2-explorer-action-group is-navigation" role="group" aria-label={labels.objectActions}>
-      <Tooltip
-        title={canLocateActiveTab ? labels.locateCurrentTable : labels.locateCurrentTableUnavailable}
-        placement="bottom"
-        mouseEnterDelay={0.35}
-      >
-        <span
-          className="gn-v2-explorer-action-wrap"
-          tabIndex={canLocateActiveTab ? undefined : 0}
-          aria-label={canLocateActiveTab ? undefined : labels.locateCurrentTableUnavailable}
-        >
-          <Button
-            size="small"
-            type="text"
-            className="gn-v2-explorer-tool"
-            icon={<AimOutlined />}
-            aria-label={labels.locateCurrentTable}
-            data-sidebar-locate-current-tab-action="true"
-            disabled={!canLocateActiveTab}
-            onClick={onLocateCurrentTable}
-          />
-        </span>
-      </Tooltip>
-      <Tooltip title={labels.scrollToTop} placement="bottom" mouseEnterDelay={0.35}>
-        <Button
-          size="small"
-          type="text"
-          className="gn-v2-explorer-tool"
-          icon={<VerticalAlignTopOutlined />}
-          aria-label={labels.scrollToTop}
-          data-sidebar-scroll-to-top-action="true"
-          onClick={onScrollToTop}
-        />
-      </Tooltip>
-    </div>
-    <div className="gn-v2-explorer-action-group is-connection" role="group" aria-label={labels.connectionActions}>
-      <Tooltip title={labels.connectionActions} placement="bottom" mouseEnterDelay={0.35}>
-        <span
-          className="gn-v2-explorer-action-wrap"
-          tabIndex={hasActiveConnection ? undefined : 0}
-          aria-label={hasActiveConnection ? undefined : labels.connectionActions}
-        >
-          <Button
-            size="small"
-            type="text"
-            className="gn-v2-explorer-tool"
-            icon={<MoreOutlined />}
-            aria-label={labels.connectionActions}
-            aria-haspopup="menu"
-            data-sidebar-active-connection-actions="true"
-            disabled={!hasActiveConnection}
-            onClick={onOpenConnectionActions}
-          />
-        </span>
-      </Tooltip>
-    </div>
-    {toggleAction && (
-      <Tooltip title={toggleAction.label} placement="bottom" mouseEnterDelay={0.35}>
-        <Button
-          ref={toggleAction.buttonRef}
-          size="small"
-          type="text"
-          className="gonavi-sidebar-collapse-trigger gn-v2-explorer-tool"
-          data-sidebar-collapse-trigger="true"
-          data-sidebar-toggle-placement={toggleAction.placement}
-          aria-label={toggleAction.label}
-          aria-controls="gonavi-sidebar-tree-panel"
-          aria-expanded={toggleAction.expanded}
-          icon={toggleAction.expanded ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
-          onClick={toggleAction.onClick}
-        />
-      </Tooltip>
-    )}
-  </>
 );
 
 const Sidebar: React.FC<{

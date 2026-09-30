@@ -870,14 +870,6 @@ describe('Sidebar locate toolbar', () => {
     expect(JSON.stringify(ungrouped)).not.toContain('all-saved-query-query-child');
   });
 
-  it('renders the current table locate action in the explorer toolbar', () => {
-    const markup = renderSidebarMarkup({  });
-    const locateActionIndex = markup.indexOf('data-sidebar-locate-current-tab-action="true"');
-
-    expect(locateActionIndex).toBeGreaterThanOrEqual(0);
-    expect(markup).toContain('data-sidebar-locate-current-tab-action="true"');
-  });
-
   it('expands a collapsed sidebar before resolving a locate request', () => {
     const source = readSourceFile('./Sidebar.tsx');
     const locateStart = source.indexOf('const locateObjectInSidebar = async');
@@ -902,49 +894,6 @@ describe('Sidebar locate toolbar', () => {
     const markup = renderSidebarMarkup();
     expect(markup).not.toContain('data-sidebar-legacy-toolbar="true"');
     expect(markup).not.toContain('data-sidebar-legacy-toolbar-item="true"');
-  });
-
-  it('renders exactly five expanded v2 explorer actions after moving global actions to the titlebar', () => {
-    const markup = renderSidebarMarkup({
-      v2ExplorerContext: {
-        active: true,
-        connectionName: '开发环境',
-        databaseName: 'gonavi',
-        objectName: 'connections',
-        tooltip: '开发环境 · gonavi · connections',
-      },
-      onCollapseSidebar: mocks.noop,
-      collapseSidebarLabel: t('app.sidebar.collapse'),
-      onOpenSettings: mocks.noop,
-    });
-    const actionsStart = markup.indexOf('<div class="gn-v2-explorer-actions"');
-    const summaryIndex = markup.indexOf('data-sidebar-active-context-summary="true"', actionsStart);
-    const commandSearchActionIndex = markup.indexOf('data-sidebar-command-search-action="true"', actionsStart);
-    const locateActionIndex = markup.indexOf('data-sidebar-locate-current-tab-action="true"', actionsStart);
-    const filtersStart = markup.indexOf('<div class="gn-v2-explorer-filter-tabs"', locateActionIndex);
-    const treeShellIndex = markup.indexOf('gn-v2-explorer-tree-shell', actionsStart);
-    const actionsEnd = filtersStart > locateActionIndex ? filtersStart : treeShellIndex;
-
-    expect(actionsStart).toBeGreaterThanOrEqual(0);
-    expect(summaryIndex).toBeGreaterThan(actionsStart);
-    expect(commandSearchActionIndex).toBeGreaterThan(summaryIndex);
-    expect(locateActionIndex).toBeGreaterThan(commandSearchActionIndex);
-    expect(actionsEnd).toBeGreaterThan(locateActionIndex);
-    expect(markup).not.toContain('<div class="gn-v2-explorer-search"');
-
-    const actionMarkup = markup.slice(actionsStart, actionsEnd);
-    const actionLabels = Array.from(
-      actionMarkup.matchAll(/<button\b[^>]*\baria-label="([^"]+)"/g),
-      (match) => match[1],
-    );
-
-    expect(actionLabels).toEqual([
-      t('sidebar.command_search.label'),
-      t('sidebar.action.locate_current_table'),
-      t('sidebar.action.scroll_to_top'),
-      t('sidebar.active_connection.actions'),
-      t('app.sidebar.collapse'),
-    ]);
   });
 
   it('reveals command-search objects with an exact-key centered tree scroll', () => {
@@ -976,15 +925,13 @@ describe('Sidebar locate toolbar', () => {
       onOpenSettings: mocks.noop,
     });
     const actionsStart = markup.indexOf('<div class="gn-v2-explorer-actions"');
-    const filtersStart = markup.indexOf('<div class="gn-v2-explorer-filter-tabs"', actionsStart);
     const treeShellIndex = markup.indexOf('gn-v2-explorer-tree-shell', actionsStart);
-    const actionsEnd = filtersStart > actionsStart ? filtersStart : treeShellIndex;
+    const actionsEnd = treeShellIndex;
     const summaryIndex = markup.indexOf('data-sidebar-active-context-summary="true"', actionsStart);
-    const locateActionIndex = markup.indexOf('data-sidebar-locate-current-tab-action="true"', actionsStart);
     const summaryTagStart = markup.lastIndexOf('<div', summaryIndex);
     const summaryTagEnd = markup.indexOf('>', summaryIndex);
     const summaryOpeningTag = markup.slice(summaryTagStart, summaryTagEnd + 1);
-    const summaryMarkup = markup.slice(summaryIndex, locateActionIndex);
+    const summaryMarkup = markup.slice(summaryIndex, actionsEnd);
     const summaryFields = Array.from(
       summaryMarkup.matchAll(/data-sidebar-active-context-field="([^"]+)"/g),
       (match) => match[1],
@@ -993,7 +940,6 @@ describe('Sidebar locate toolbar', () => {
     expect(actionsStart).toBeGreaterThanOrEqual(0);
     expect(actionsEnd).toBeGreaterThan(actionsStart);
     expect(summaryIndex).toBeGreaterThan(actionsStart);
-    expect(summaryIndex).toBeLessThan(locateActionIndex);
     expect(summaryIndex).toBeLessThan(actionsEnd);
     expect(summaryMarkup).not.toContain('gn-v2-explorer-context-status');
     expect(summaryMarkup).not.toContain('gn-v2-explorer-context-status-dot');
@@ -1047,8 +993,7 @@ describe('Sidebar locate toolbar', () => {
       onOpenSettings: mocks.noop,
     });
     const summaryIndex = markup.indexOf('data-sidebar-active-context-summary="true"');
-    const locateActionIndex = markup.indexOf('data-sidebar-locate-current-tab-action="true"', summaryIndex);
-    const summaryMarkup = markup.slice(summaryIndex, locateActionIndex);
+    const summaryMarkup = markup.slice(summaryIndex, markup.indexOf('gn-v2-explorer-tree-shell', summaryIndex));
 
     expect(summaryMarkup).toContain('data-sidebar-active-context="true"');
     expect(summaryMarkup).toContain('data-sidebar-active-context-depth="connection"');
@@ -1078,15 +1023,13 @@ describe('Sidebar locate toolbar', () => {
       onOpenSettings: mocks.noop,
     });
     const summaryIndex = markup.indexOf('data-sidebar-active-context-summary="true"');
-    const locateActionIndex = markup.indexOf('data-sidebar-locate-current-tab-action="true"', summaryIndex);
-    const summaryMarkup = markup.slice(summaryIndex, locateActionIndex);
+    const summaryMarkup = markup.slice(summaryIndex, markup.indexOf('gn-v2-explorer-tree-shell', summaryIndex));
     const summaryFields = Array.from(
       summaryMarkup.matchAll(/data-sidebar-active-context-field="([^"]+)"/g),
       (match) => match[1],
     );
 
     expect(summaryIndex).toBeGreaterThanOrEqual(0);
-    expect(locateActionIndex).toBeGreaterThan(summaryIndex);
     expect(summaryMarkup).toContain('data-sidebar-active-context="false"');
     expect(summaryMarkup).toContain('未选择 Host');
     expect(summaryMarkup).not.toContain('gn-v2-explorer-context-status');
@@ -1157,17 +1100,11 @@ describe('Sidebar locate toolbar', () => {
     expect(actionsSource).toContain("label: t('app.tools.entry.drivers.title')");
     expect(actionsSource).toContain("action: 'drivers'");
 
-    const aboutActionsStart = source.indexOf('const v2TitlebarAboutActions: TitleBarQuickAction[] = [');
-    const aboutActionsEnd = source.indexOf('\n  ];', aboutActionsStart);
+    // 标题栏「关于」动作当前为空数组（关于入口收敛进设置中心），只保留空态与挂载断言。
+    const aboutActionsStart = source.indexOf('const v2TitlebarAboutActions: TitleBarQuickAction[] = [];');
     expect(aboutActionsStart).toBeGreaterThan(actionsEnd);
-    expect(aboutActionsEnd).toBeGreaterThan(aboutActionsStart);
 
-    const aboutActionsSource = source.slice(aboutActionsStart, aboutActionsEnd);
-    expect(aboutActionsSource).toContain("key: 'about-go-navi'");
-    expect(aboutActionsSource).toContain("label: t('app.settings.group.about.title')");
-    expect(aboutActionsSource).toContain("{ group: 'about', pane: 'about-go-navi' }");
-
-    const renderSource = source.slice(aboutActionsEnd);
+    const renderSource = source.slice(aboutActionsStart);
     expect(renderSource).toContain('trailingActions={v2TitlebarAboutActions}');
     expect(renderSource).not.toContain('moreLabel=');
 
@@ -1191,9 +1128,10 @@ describe('Sidebar locate toolbar', () => {
     expect(markup).not.toContain('gn-v2-active-connection-header');
     expect(markup).not.toContain('gn-v2-active-connection-copy');
     expect(markup).not.toContain('gn-v2-explorer-search');
-    expect(markup).toContain('data-v2-sidebar-search-mode="command"');
-    expect(markup).toContain('data-sidebar-command-search-action="true"');
-    expect(markup).toContain('data-v2-command-search-icon-only="true"');
+    // 旧五动作工具栏（命令搜索/定位/回顶/连接动作/折叠）已迁出侧栏，只保留「不存在」回归保护。
+    expect(markup).not.toContain('data-sidebar-command-search-action="true"');
+    expect(markup).not.toContain('data-v2-command-search-icon-only="true"');
+    expect(markup).not.toContain('data-sidebar-locate-current-tab-action="true"');
     expect(markup).not.toContain('gn-v2-explorer-filter-action');
     expect(markup).not.toContain('重置侧栏筛选');
     expect(markup).not.toContain('搜索表、连接、动作... 或问 AI');
@@ -1202,11 +1140,7 @@ describe('Sidebar locate toolbar', () => {
     expect(markup).not.toContain('<kbd>K</kbd>');
     expect(markup).not.toContain('gn-v2-explorer-filter-tabs');
     const explorerActionsIndex = markup.indexOf('data-sidebar-explorer-actions="true"');
-    const commandSearchActionIndex = markup.indexOf('data-sidebar-command-search-action="true"');
-    const locateActionIndex = markup.indexOf('data-sidebar-locate-current-tab-action="true"');
     expect(explorerActionsIndex).toBeGreaterThanOrEqual(0);
-    expect(commandSearchActionIndex).toBeGreaterThan(explorerActionsIndex);
-    expect(locateActionIndex).toBeGreaterThan(commandSearchActionIndex);
     expect(markup).not.toContain('gn-v2-rail-workbench-actions');
     expect(markup).not.toContain('data-sidebar-sql-analysis-action="true"');
     expect(markup).not.toContain('data-sidebar-sql-audit-action="true"');
@@ -1221,7 +1155,6 @@ describe('Sidebar locate toolbar', () => {
     expect(markup).not.toContain('data-sidebar-batch-database-action="true"');
     expect(markup).not.toContain('data-sidebar-data-import-action="true"');
     expect(markup).not.toContain('data-sidebar-open-external-sql-file-action="true"');
-    expect(markup).toContain('data-sidebar-locate-current-tab-action="true"');
     expect(titlebarQuickActionsSource).toContain('data-titlebar-quick-actions');
     expect(source).toContain("key: 'data-workflow'");
     expect(source).toContain("app.tools.group.workflow.title");
@@ -1248,194 +1181,6 @@ describe('Sidebar locate toolbar', () => {
     );
   });
 
-  it('shows relational object-kind filters only for schema-capable SQL connections', () => {
-    mocks.state.connections = [{
-      id: 'pg-1',
-      name: 'PostGreSQL',
-      config: { type: 'postgres', host: 'localhost', port: 5432 },
-    }];
-    mocks.state.activeContext = { connectionId: 'pg-1', dbName: 'app' };
-
-    const markup = renderSidebarMarkup({  });
-    const locateActionIndex = markup.indexOf('data-sidebar-locate-current-tab-action="true"');
-    const explorerFilterTabsIndex = markup.indexOf('class="gn-v2-explorer-filter-tabs"');
-
-    expect(explorerFilterTabsIndex).toBeGreaterThan(locateActionIndex);
-    expect(markup).toContain(`aria-label="${t('sidebar.command_search.object_kind.all')}"`);
-    expect(markup).toContain(`aria-label="${t('sidebar.command_search.object_kind.views')}"`);
-    expect(markup).toContain(`aria-label="${t('sidebar.command_search.object_kind.routines')}"`);
-    expect(markup).toContain('data-object-kind-filter="all"');
-    expect(markup).toContain('aria-pressed="true"');
-  });
-
-  it('keeps relational object-kind filters when the SQL host is not connected or another tab is active', () => {
-    mocks.state.connections = [{
-      id: 'pg-1',
-      name: 'PostGreSQL',
-      config: { type: 'postgres', host: 'localhost', port: 5432 },
-    }];
-    mocks.state.activeContext = null;
-    mocks.state.activeTabId = 'settings';
-    mocks.state.tabs = [{
-      id: 'settings',
-      title: 'Settings',
-      type: 'settings',
-    }];
-
-    const markup = renderSidebarMarkup({  });
-
-    expect(markup).toContain('gn-v2-explorer-filter-tabs');
-    expect(markup).toContain(`aria-label="${t('sidebar.command_search.object_kind.all')}"`);
-    expect(markup).toContain(`aria-label="${t('sidebar.command_search.object_kind.tables')}"`);
-    expect(markup).not.toContain(`>${t('sidebar.command_search.object_kind.tables')}<`);
-  });
-
-  it('keeps the filter slot filled on a Nacos workbench, offering its own dimensions', () => {
-    mocks.state.connections = [{
-      id: 'pg-1',
-      name: 'PostGreSQL',
-      config: { type: 'postgres', host: 'localhost', port: 5432 },
-    }, {
-      id: 'nacos-1',
-      name: 'Nacos',
-      config: { type: 'nacos', host: 'localhost', port: 8848 },
-    }];
-    mocks.state.activeContext = { connectionId: 'nacos-1', dbName: 'public' };
-    mocks.state.activeTabId = 'nacos-services';
-    mocks.state.tabs = [{
-      id: 'nacos-services',
-      title: 'Nacos',
-      type: 'nacos-services',
-      connectionId: 'nacos-1',
-      dbName: 'public',
-    }];
-
-    const markup = renderSidebarMarkup({});
-    const filterSlotIndex = markup.indexOf('data-object-kind-filter-slot="true"');
-    const treeShellIndex = markup.indexOf('gn-v2-explorer-tree-shell');
-
-    // Slot keeps its position so the tree's vertical origin does not move.
-    expect(filterSlotIndex).toBeGreaterThanOrEqual(0);
-    expect(filterSlotIndex).toBeLessThan(treeShellIndex);
-
-    // A Nacos host has dimensions of its own, so the slot stays populated rather
-    // than going blank as soon as the host is selected.
-    expect(markup).toContain('data-object-kind-filter-visible="true"');
-    expect(markup).toContain('gn-v2-explorer-filter-tabs');
-    expect(markup).toContain('data-object-kind-filter="all"');
-    expect(markup).toContain('data-object-kind-filter="nacos-services"');
-    expect(markup).toContain('data-object-kind-filter="nacos-configs"');
-    expect(markup).toContain(`aria-label="${t('sidebar.command_search.object_kind.nacos_services')}"`);
-    expect(markup).toContain(`aria-label="${t('sidebar.command_search.object_kind.nacos_configs')}"`);
-
-    // The relational dimensions name object kinds a Nacos tree does not contain.
-    expect(markup).not.toContain('data-object-kind-filter="tables"');
-    expect(markup).not.toContain('data-object-kind-filter="views"');
-    expect(markup).not.toContain('data-object-kind-filter="routines"');
-  });
-
-  it('keeps the object-kind slot for an active Redis connection without inventing counts', () => {
-    mocks.state.connections = [{
-      id: 'redis-1',
-      name: 'Redis-开发240',
-      config: { type: 'redis', host: 'localhost', port: 6379 },
-    }];
-    mocks.state.activeContext = { connectionId: 'redis-1', dbName: 'db0' };
-    mocks.state.activeTabId = 'redis-keys';
-    mocks.state.tabs = [{
-      id: 'redis-keys',
-      title: 'Redis',
-      type: 'redis-keys',
-      connectionId: 'redis-1',
-      dbName: 'db0',
-    }];
-
-    const markup = renderSidebarMarkup({});
-    const filterSlotIndex = markup.indexOf('data-object-kind-filter-slot="true"');
-    const treeShellIndex = markup.indexOf('gn-v2-explorer-tree-shell');
-
-    // Slot keeps its position so the tree's vertical origin does not move.
-    expect(filterSlotIndex).toBeGreaterThanOrEqual(0);
-    expect(filterSlotIndex).toBeLessThan(treeShellIndex);
-    expect(markup).not.toContain('gn-v2-explorer-filter-tabs');
-    // The connection has not been expanded in this render, so the counts genuinely
-    // do not exist yet and the summary must stay absent rather than claim "0 keys".
-    expect(markup).not.toContain('data-redis-sidebar-overview="true"');
-  });
-
-  it('keeps relational object-kind filters hidden without an active host when only dedicated workbenches exist', () => {
-    mocks.state.connections = [{
-      id: 'nacos-1',
-      name: 'Nacos',
-      config: { type: 'nacos', host: 'localhost', port: 8848 },
-    }, {
-      id: 'mqtt-1',
-      name: 'MQTT',
-      config: { type: 'mqtt', host: 'localhost', port: 1883 },
-    }];
-    mocks.state.activeContext = null;
-    mocks.state.activeTabId = 'settings';
-    mocks.state.tabs = [{
-      id: 'settings',
-      title: 'Settings',
-      type: 'settings',
-    }];
-
-    const markup = renderSidebarMarkup({  });
-
-    expect(markup).not.toContain('gn-v2-explorer-filter-tabs');
-    expect(markup).not.toContain('data-object-kind-filter-slot');
-  });
-
-  it('hides relational object-kind filters for Nacos, which offers its own instead', () => {
-    mocks.state.connections = [{
-      id: 'nacos-1',
-      name: 'Nacos',
-      config: { type: 'nacos', host: 'localhost', port: 8848 },
-    }];
-    mocks.state.activeContext = { connectionId: 'nacos-1', dbName: 'public' };
-
-    const markup = renderSidebarMarkup({  });
-
-    expect(markup).not.toContain(`>${t('sidebar.command_search.object_kind.tables')}<`);
-    expect(markup).not.toContain(`>${t('sidebar.command_search.object_kind.views')}<`);
-    expect(markup).not.toContain(`>${t('sidebar.command_search.object_kind.routines')}<`);
-    expect(markup).not.toContain('data-object-kind-filter="tables"');
-    expect(markup).not.toContain('data-object-kind-filter="views"');
-
-    // What the slot carries instead: the two Nacos explorer branches.
-    expect(markup).toContain('data-object-kind-filter="nacos-services"');
-    expect(markup).toContain('data-object-kind-filter="nacos-configs"');
-  });
-
-  it('replaces relational explorer controls in an active message queue context', () => {
-    mocks.state.connections = [{
-      id: 'mqtt-1',
-      name: 'MQTT',
-      config: { type: 'mqtt', host: 'localhost', port: 1883 },
-    }];
-    mocks.state.activeContext = { connectionId: 'mqtt-1', dbName: 'topics' };
-    mocks.state.activeTabId = 'message-queue-mqtt-1-topics';
-    mocks.state.tabs = [{
-      id: 'message-queue-mqtt-1-topics',
-      title: 'MQTT · 消息',
-      type: 'message-queue',
-      connectionId: 'mqtt-1',
-      dbName: 'topics',
-    }];
-
-    const markup = renderSidebarMarkup({  });
-
-    expect(markup).toContain('data-v2-command-search-icon-only="true"');
-    expect(markup).toContain('data-sidebar-command-search-action="true"');
-    expect(markup).not.toContain('gn-v2-explorer-search');
-    expect(markup).not.toContain(t('sidebar.message_queue.search_placeholder'));
-    expect(markup).not.toContain('gn-v2-explorer-filter-tabs');
-    expect(markup).not.toContain(`>${t('sidebar.command_search.object_kind.tables')}<`);
-    expect(markup).not.toContain(`>${t('sidebar.command_search.object_kind.views')}<`);
-    expect(markup).not.toContain(`>${t('sidebar.command_search.object_kind.routines')}<`);
-  });
-
   it('can render the sidebar with the persistent filter input', () => {
     mocks.state.appearance.v2SidebarSearchMode = 'filter';
     mocks.state.appearance.v2SidebarPersistedFilter = 'fs_org';
@@ -1448,19 +1193,6 @@ describe('Sidebar locate toolbar', () => {
     expect(markup).toContain(`placeholder="${t('sidebar.search.placeholder')}"`);
     expect(markup).toContain('value="fs_org"');
     expect(markup).toContain('重置侧栏筛选');
-  });
-
-  it('keeps the v2 command trigger icon-only when the search shortcut is customized', () => {
-    mocks.state.shortcutOptions = cloneShortcutOptions(DEFAULT_SHORTCUT_OPTIONS);
-    mocks.state.shortcutOptions.focusSidebarSearch.mac = { combo: 'Meta+F', enabled: true };
-
-    const markup = renderSidebarMarkup({  });
-
-    expect(markup).toContain('data-v2-command-search-icon-only="true"');
-    expect(markup).not.toContain('gn-v2-search-shortcut');
-    expect(markup).not.toContain('<kbd>⌘</kbd>');
-    expect(markup).not.toContain('<kbd>F</kbd>');
-    expect(markup).not.toContain('<kbd>K</kbd>');
   });
 
   it('localizes the v2 command search scope shell and object filters through catalog keys', () => {
@@ -3283,10 +3015,6 @@ describe('Sidebar locate toolbar', () => {
 
     const css = readV2ThemeCss();
     expect(css).toMatch(/\.gn-v2-tree-table-comment \{[^}]*max-width: 24em;[^}]*text-overflow: ellipsis;/s);
-    expect(css).toMatch(/\.gn-v2-tab-hover-tooltip \.ant-tooltip-inner \{[^}]*min-width: 260px;[^}]*padding: 0;/s);
-    expect(css).toMatch(/\.gn-v2-tab-hover-card \{[^}]*cursor: text;[^}]*user-select: text;/s);
-    expect(css).toContain('--gn-v2-tab-hover-grid-columns: 56px minmax(0, 1fr);');
-    expect(css).toMatch(/\.gn-v2-tab-hover-row \{[^}]*grid-template-columns: var\(--gn-v2-tab-hover-grid-columns\);/s);
   });
 
   it('loads table comments through the sidebar table status metadata query', () => {

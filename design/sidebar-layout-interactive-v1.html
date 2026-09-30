@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServDeck 可交互高保真 — 左侧栏收起 / 展开整体布局</title>
+<!--
+  依据（真实代码）
+  ------------------------------------------------------------------
+  · 点左上角 LOGO 切换：App.tsx:7908 onClick={handleTitlebarSidebarToggle}
+      → App.tsx:7821 setIsSidebarCollapsed(!collapsed)
+  · 桌面端 shouldDockCollapsedSidebarActionsInTitlebar = true（titlebarLayout.ts:107-114）
+      → App.tsx:1228-1230 sidebarCollapsedWidth = 0
+      → 收起态 = 侧栏完全消失（截图1）；侧栏内全部动作搬到标题栏第二行
+  · App.tsx:7914-7933 LOGO 按钮 34×34，hover 时从 servdeck-icon.svg 换成 Fold/Unfold 图标
+  · App.css:4231-4237 [data-sidebar-collapsed='true'] { width:0 !important }
+  · serviceDetail.css:4-15 .dtl-root { padding:16px 22px 44px }（tab 横向间距唯一来源）
+  · serviceDetail.css:223-228 .dtl-tabs 自身无横向 padding
+  · v2-theme.css:4533-4553 .gn-v2-titlebar-collapsed-docked .gn-v2-collapsed-sidebar-actions
+      → absolute; left:6px*uiScale; bottom:1px; height:26px*explorerScale
+
+  本页只做可交互对比，不改任何项目源码。
+  交互：点左上角 LOGO（或按 C 键）真实切换收起/展开；可切换三套方案。
+-->
+<style>
+  :root, [data-theme="light"], [data-theme="custom"] {
+    --gn-bg-app:      rgb(246 246 244);
+    --gn-bg-chrome:   rgb(236 236 234);
+    --gn-bg-titlebar: rgb(250 250 248);
+    --gn-bg-panel:    rgb(255 255 255);
+    --gn-bg-panel-2:  rgb(250 250 248);
+    --gn-bg-input:    rgb(255 255 255);
+    --gn-bg-hover:    rgba(15, 23, 42, 0.045);
+    --gn-bg-active:   rgba(15, 23, 42, 0.075);
+    --gn-bg-selected: color-mix(in srgb, var(--gn-accent) 14%, transparent);
+    --gn-fg-1: #0c1322; --gn-fg-2: #1f2937; --gn-fg-3: #4b5563;
+    --gn-fg-4: #6b7280; --gn-fg-5: #9ca3af;
+    --gn-br-1: rgba(15, 23, 42, 0.08);
+    --gn-br-2: rgba(15, 23, 42, 0.12);
+    --gn-br-3: rgba(15, 23, 42, 0.18);
+    --gn-accent:       #15803d;
+    --gn-accent-2:     #166534;
+    --gn-accent-soft:  color-mix(in srgb, var(--gn-accent) 16%, var(--gn-bg-panel));
+    --gn-accent-strong: #15803d;
+    --gn-accent-strong-hover: #126634;
+    --gn-on-accent: #ffffff;
+    --gn-info:  #0369a1;
+    --gn-warn:  #d97706;
+    --gn-danger: #dc2626;
+    --gn-shadow-md:  0 4px 14px rgba(15, 23, 42, 0.08);
+    --gn-shadow-lg:  0 12px 40px rgba(15, 23, 42, 0.14);
+    --gn-shadow-card: 0 0 0 0.5px rgba(15, 23, 42, 0.10), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --gn-font-sans: "Inter", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", -apple-system, "Segoe UI", sans-serif;
+    --gn-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+    --gn-ui-scale: 1;
+    --gn-sidebar-rail-scale: 1;
+  }
+  [data-theme="custom"] {
+    --gn-accent: #6d28d9; --gn-accent-2: #5b21b6;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 14%, var(--gn-bg-panel));
+    --gn-accent-strong: #6d28d9; --gn-accent-strong-hover: #5b21b6;
+  }
+  [data-theme="dark"] {
+    --gn-bg-app:      rgb(12 14 18);
+    --gn-bg-chrome:   rgb(20 23 28);
+    --gn-bg-titlebar: rgb(27 31 39);
+    --gn-bg-panel:    rgb(22 26 33);
+    --gn-bg-panel-2:  rgb(27 31 39);
+    --gn-bg-input:    rgb(15 18 23);
+    --gn-bg-hover:    rgba(255, 255, 255, 0.05);
+    --gn-bg-active:   rgba(255, 255, 255, 0.08);
+    --gn-bg-selected: color-mix(in srgb, var(--gn-accent) 18%, transparent);
+    --gn-fg-1: #ffffff; --gn-fg-2: #f5f5f5; --gn-fg-3: #e6e6e6;
+    --gn-fg-4: #d9d9d9; --gn-fg-5: #cccccc;
+    --gn-br-1: rgba(255, 255, 255, 0.06);
+    --gn-br-2: rgba(255, 255, 255, 0.10);
+    --gn-br-3: rgba(255, 255, 255, 0.16);
+    --gn-accent: #22c55e; --gn-accent-2: #16a34a;
+    --gn-accent-soft: color-mix(in srgb, var(--gn-accent) 22%, transparent);
+    --gn-accent-strong: #15803d; --gn-accent-strong-hover: #126634;
+    --gn-info: #38bdf8; --gn-warn: #f59e0b; --gn-danger: #f87171;
+    --gn-shadow-md:  0 4px 14px rgba(0, 0, 0, 0.45);
+    --gn-shadow-lg:  0 12px 40px rgba(0, 0, 0, 0.55);
+    --gn-shadow-card: 0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--gn-font-sans); background: var(--gn-bg-app); color: var(--gn-fg-1);
+    font-size: 13px; padding: 20px 24px 96px; line-height: 1.55;
+  }
+  button { font-family: inherit; border: 0; background: transparent; color: inherit; cursor: pointer; }
+  svg.ic { width: 16px; height: 16px; display: block; }
+
+  /* ---------- 页头 ---------- */
+  .page-head { max-width: 1180px; margin: 0 auto 16px; }
+  .page-head h1 { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
+  .page-head p { margin-top: 5px; font-size: 12.5px; color: var(--gn-fg-3); max-width: 940px; }
+  .page-head code { font-family: var(--gn-font-mono); font-size: 11px; background: var(--gn-bg-hover);
+    padding: 1px 5px; border-radius: 4px; color: var(--gn-fg-2); }
+
+  /* ---------- 控制条 ---------- */
+  .ctl {
+    position: sticky; top: 0; z-index: 50; max-width: 1180px; margin: 0 auto 16px;
+    background: color-mix(in srgb, var(--gn-bg-panel) 93%, transparent);
+    backdrop-filter: blur(10px); border-radius: 11px; box-shadow: var(--gn-shadow-md);
+    padding: 10px 12px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  }
+  .ctl .lbl { font-size: 11.5px; font-weight: 700; color: var(--gn-fg-4); }
+  .ctl .seg { display: inline-flex; background: var(--gn-bg-hover); border-radius: 8px; padding: 3px; gap: 2px; }
+  .ctl .seg button { height: 26px; padding: 0 11px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--gn-fg-4); }
+  .ctl .seg button:hover { color: var(--gn-fg-1); }
+  .ctl .seg button.on { background: var(--gn-bg-panel); color: var(--gn-fg-1); box-shadow: var(--gn-shadow-md); }
+  .ctl .toggle {
+    height: 30px; padding: 0 13px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+    background: var(--gn-accent-strong); color: var(--gn-on-accent);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .ctl .toggle:hover { background: var(--gn-accent-strong-hover); }
+  .ctl .spring { flex: 1 1 auto; }
+  .ctl .kbd { font-family: var(--gn-font-mono); font-size: 10.5px; color: var(--gn-fg-5);
+    border: 1px solid var(--gn-br-2); border-radius: 4px; padding: 1px 5px; }
+  .ctl .state-chip {
+    font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+    background: var(--gn-accent-soft); color: var(--gn-accent-2);
+  }
+  .ctl .state-chip.off { background: var(--gn-bg-hover); color: var(--gn-fg-4); }
+
+  /* ---------- 方案说明 ---------- */
+  .plan-intro { max-width: 1180px; margin: 0 auto 12px; display: flex; gap: 12px; align-items: flex-start; }
+  .plan-intro .bdg {
+    width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; display: grid; place-items: center;
+    font-family: var(--gn-font-mono); font-size: 13px; font-weight: 700;
+    background: var(--gn-accent); color: var(--gn-on-accent);
+  }
+  .plan-intro .bdg.mute { background: var(--gn-bg-hover); color: var(--gn-fg-4); }
+  .plan-intro h2 { font-size: 14.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .plan-intro .rec { height: 19px; padding: 0 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700;
+    background: var(--gn-accent-soft); color: var(--gn-accent-2); display: inline-flex; align-items: center; }
+  .plan-intro .no { height: 19px; padding: 0 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700;
+    background: var(--gn-bg-hover); color: var(--gn-fg-4); display: inline-flex; align-items: center; }
+  .plan-intro p { margin-top: 4px; font-size: 12px; color: var(--gn-fg-3); max-width: 1000px; }
+
+  /* ---------- 应用窗口 ---------- */
+  .win {
+    max-width: 1180px; margin: 0 auto 22px;
+    background: var(--gn-bg-chrome); border-radius: 11px;
+    box-shadow: var(--gn-shadow-card); overflow: hidden; position: relative;
+  }
+  .win.standalone { box-shadow: 0 8px 28px rgba(15,23,42,.13); }
+
+  /* 标题栏（48px，可两行） */
+  .tbar {
+    position: relative; flex-shrink: 0; background: var(--gn-bg-titlebar);
+    display: flex; align-items: center; justify-content: flex-start;
+    padding-left: 11px; border-bottom: 1px solid var(--gn-br-1);
+    transition: height .2s ease;
+  }
+  .tbar-leading { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .logo-btn {
+    width: 34px; height: 34px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--gn-fg-3); position: relative;
+  }
+  .logo-btn:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .logo-btn .lg-img { width: 20px; height: 20px; display: grid; place-items: center; }
+  .logo-btn .lg-fold { display: none; }
+  .logo-btn:hover .lg-img { display: none; }
+  .logo-btn:hover .lg-fold { display: grid; }
+  .tb-divider { width: 1px; height: 16px; background: var(--gn-br-2); flex-shrink: 0; }
+  .tb-act {
+    height: 30px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+    color: var(--gn-fg-3); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .tb-act:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .tb-spring { flex: 1 1 auto; min-width: 0; }
+  .tb-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .tb-icon { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; color: var(--gn-fg-4); }
+  .tb-icon:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .wctl { display: flex; align-items: center; padding-right: 4px; }
+  .wctl i { width: 40px; height: 40px; display: grid; place-items: center; color: var(--gn-fg-4); font-style: normal; font-size: 11px; }
+  .wctl i:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .wctl i.x:hover { background: #e81123; color: #fff; }
+
+  /* 收起态：标题栏第二行的侧栏动作（.gn-v2-collapsed-sidebar-actions） */
+  .dock-actions {
+    display: flex; align-items: center; gap: 2px; height: 26px;
+    padding: 0 2px; overflow: hidden;
+  }
+  .dock-tool {
+    width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center;
+    color: var(--gn-fg-4); flex-shrink: 0; font-size: 12px;
+  }
+  .dock-tool:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+  .dock-tool.on { background: var(--gn-bg-selected); color: var(--gn-accent-2); }
+  .dock-sep { width: 1px; height: 13px; background: var(--gn-br-2); margin: 0 5px; flex-shrink: 0; }
+  .dock-label { font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4); padding: 0 5px; white-space: nowrap; }
+
+  /* 主体 */
+  .wbody { display: flex; min-height: 300px; }
+
+  /* 侧栏 */
+  .sider {
+    flex-shrink: 0; background: var(--gn-bg-panel-2);
+    display: flex; flex-direction: column; overflow: hidden;
+    transition: width .2s ease, flex-basis .2s ease, opacity .2s ease;
+  }
+  .sider-head { padding: 8px 14px 4px; display: flex; align-items: center; gap: 6px; }
+  .s-input {
+    flex: 1; min-width: 0; height: 27px; border-radius: 6px; background: var(--gn-bg-input);
+    border: 1px solid var(--gn-br-2); display: flex; align-items: center; gap: 6px;
+    padding: 0 8px; font-size: 11.5px; color: var(--gn-fg-5);
+  }
+  .s-icn { width: 27px; height: 27px; border-radius: 6px; display: grid; place-items: center;
+    color: var(--gn-fg-4); border: 1px solid var(--gn-br-2); flex-shrink: 0; }
+  .s-icn:hover { background: var(--gn-bg-hover); color: var(--gn-fg-1); }
+
+  .s-tree { flex: 1; overflow-y: auto; padding: 4px 8px 10px; }
+  .s-row {
+    min-height: 28px; padding: 0 8px; border-radius: 6px; display: flex; align-items: center; gap: 7px;
+    font-size: 12.5px; color: var(--gn-fg-2); cursor: pointer;
+  }
+  .s-row:hover { background: var(--gn-bg-hover); }
+  .s-row.root { font-weight: 600; color: var(--gn-fg-1); }
+  .s-row.root .cnt { margin-left: auto; font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-fg-5); }
+  .s-row.grp { padding-left: 18px; }
+  .s-row.grp .cnt { margin-left: auto; font-family: var(--gn-font-mono); font-size: 11px; color: var(--gn-fg-5); }
+  .s-row.leaf { padding-left: 30px; }
+  .s-row.leaf.on { background: var(--gn-bg-selected); color: var(--gn-fg-1); font-weight: 600; }
+  .s-row.leaf .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot.run { background: var(--gn-accent); }
+  .dot.stop { background: var(--gn-fg-5); opacity: .55; }
+  .s-row .ic { width: 14px; height: 14px; color: var(--gn-fg-4); flex-shrink: 0; }
+
+  .s-foot {
+    flex-shrink: 0; border-top: 1px solid var(--gn-br-1); padding: 9px 14px;
+    display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--gn-fg-3);
+    background: var(--gn-bg-panel-2);
+  }
+  .s-foot .ed { width: 7px; height: 7px; border-radius: 50%; background: var(--gn-accent); flex-shrink: 0; }
+  .s-foot .ver { margin-left: auto; font-family: var(--gn-font-mono); font-size: 10.5px; color: var(--gn-fg-5); }
+
+  /* 主区 */
+  .main { flex: 1; min-width: 0; background: var(--gn-bg-panel-2); position: relative; overflow: hidden; }
+
+  /* 工作台页签 */
+  .wtabs {
+    height: 36px; background: var(--gn-bg-panel-2); display: flex; align-items: center;
+    border-bottom: 0.5px solid var(--gn-br-1); padding: 0 12px; overflow: hidden;
+  }
+  .wtab {
+    width: 190px; min-width: 190px; height: 36px; border-radius: 8px; margin-right: 2px;
+    display: flex; align-items: center; gap: 7px; padding: 0 10px; font-size: 12px;
+    color: var(--gn-fg-3); position: relative;
+  }
+  .wtab.on { background: var(--gn-bg-panel); box-shadow: inset 0 2px 0 var(--gn-accent); color: var(--gn-fg-1); font-weight: 600; }
+  .wtab .tx { margin-left: auto; color: var(--gn-fg-5); font-size: 11px; }
+
+  /* 详情页 */
+  .dtl { display: flex; flex-direction: column; gap: 13px; }
+
+  .hero {
+    display: flex; align-items: flex-start; gap: 14px; border-radius: 13px;
+    background: linear-gradient(115deg, color-mix(in srgb, #2563eb 8%, var(--gn-bg-panel)) 0%, var(--gn-bg-panel) 56%);
+    border-left: 3px solid #2563eb; box-shadow: var(--gn-shadow-card);
+  }
+  .hero-ico {
+    border-radius: 12px; flex-shrink: 0; display: grid; place-items: center;
+    background: color-mix(in srgb, #2563eb 12%, var(--gn-bg-panel));
+    border: 1px solid color-mix(in srgb, #2563eb 26%, transparent);
+    font-size: 20px; font-weight: 800; color: #2563eb;
+  }
+  .hero-main { flex: 1; min-width: 0; }
+  .hero-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .hero-name h1 { font-weight: 700; letter-spacing: -0.015em; }
+  .badge { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 700; background: var(--gn-bg-hover); color: var(--gn-fg-4); }
+  .badge i { border-radius: 50%; background: var(--gn-fg-5); }
+  .hero-desc { color: var(--gn-fg-3); }
+  .hero-acts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .hbtn { height: 30px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    background: var(--gn-bg-panel); border: 1px solid var(--gn-br-2); color: var(--gn-fg-3);
+    display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .hbtn.pri { background: var(--gn-accent-strong); border-color: transparent; color: var(--gn-on-accent); }
+  .hbtn.danger { background: var(--gn-bg-panel); border-color: color-mix(in srgb, var(--gn-danger) 38%, transparent);
+    color: var(--gn-danger); }
+
+  /* 详情页 tab（复刻 .dtl-tabs，无自带横向 padding） */
+  .dtl-tabs { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--gn-br-1); }
+  .dtl-tab { position: relative; height: 35px; padding: 0 14px; font-size: 13px; font-weight: 600;
+    color: var(--gn-fg-4); display: inline-flex; align-items: center; white-space: nowrap; }
+  .dtl-tab:hover { color: var(--gn-fg-2); }
+  .dtl-tab.on { color: var(--gn-fg-1); }
+  .dtl-tab.on::after { content: ""; position: absolute; left: 9px; right: 9px; bottom: 0; height: 2px;
+    border-radius: 2px; background: var(--gn-accent); }
+
+  /* 小节标题 */
+  .sec-title { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--gn-fg-2); }
+  .sec-title .sub { font-weight: 400; font-size: 11px; color: var(--gn-fg-5); }
+
+  /* 资源卡 4 列 */
+  .res-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px; }
+  .res-card { background: var(--gn-bg-panel); border-radius: 11px; box-shadow: var(--gn-shadow-card);
+    display: flex; flex-direction: column; min-width: 0; }
+  .rc-head { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4); }
+  .rc-head .ic { width: 14px; height: 14px; opacity: .85; flex-shrink: 0; }
+  .rc-val { font-family: var(--gn-font-mono); font-weight: 700; font-variant-numeric: tabular-nums;
+    display: flex; align-items: baseline; gap: 3px; color: var(--gn-fg-1); }
+  .rc-val small { font-weight: 500; color: var(--gn-fg-5); }
+  .rc-val.mute { color: var(--gn-fg-5); }
+  .rc-note { margin-top: auto; font-size: 10.5px; color: var(--gn-fg-5); font-family: var(--gn-font-mono); }
+  .m-bar { height: 5px; border-radius: 3px; background: var(--gn-bg-hover); overflow: hidden; }
+  .m-bar i { display: block; height: 100%; border-radius: 3px; }
+  .rc-evt { font-size: 12.5px; line-height: 1.55; color: var(--gn-fg-2); font-weight: 500;
+    font-family: var(--gn-font-sans); }
+  .panel { background: var(--gn-bg-panel); border-radius: 11px; box-shadow: var(--gn-shadow-card); }
+  .trend { display: flex; align-items: center; justify-content: center; color: var(--gn-fg-5); font-size: 12px; }
+  .trend-legend { margin-left: auto; display: flex; gap: 12px; font-size: 11px; color: var(--gn-fg-4); }
+  .trend-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .trend-legend i { width: 8px; height: 8px; border-radius: 2px; }
+
+  /* ---------- 尺寸（方案差异注入处） ---------- */
+  .win { --sb-w: 200px; --hero-pad: 15px 18px 14px 17px; --hero-ico: 46px; --hero-h1: 17px;
+         --dtl-pad: 15px 22px 26px; --res-pad: 12px 14px 11px; --rc-val: 22px;
+         --tabs-pad: 0; --wtabs-pad: 0 12px; --gap: 13px; }
+
+  /* 主区左右内边距与 tab 栏的联动：方案 A/B/D 让 tab 与内容同基线 */
+  .dtl { padding: var(--dtl-pad); gap: var(--gap); }
+  .dtl-tabs { padding: var(--tabs-pad); }
+  .wtabs { padding: var(--wtabs-pad); }
+  .hero { padding: var(--hero-pad); }
+  .hero-ico { width: var(--hero-ico); height: var(--hero-ico); }
+  .hero-name h1 { font-size: var(--hero-h1); }
+  .res-card { padding: var(--res-pad); }
+  .rc-val { font-size: var(--rc-val); margin-top: 8px; }
+  .rc-head { margin-bottom: 0; }
+  .m-bar { margin-top: 8px; }
+  .rc-note { padding-top: 7px; }
+  .rc-evt { margin-top: 8px; }
+
+  /* ============ 方案 A：收起时主区栅格收紧（全局适配密度） ============ */
+  .win.planA.collapsed { --dtl-pad: 15px 22px 26px; --tabs-pad: 0; }
+
+  /* ============ 方案 B：收起时 tab 栏自带 gutter ============ */
+  .win.planB.collapsed { --tabs-pad: 0 22px; }
+
+  /* ============ 方案 C：收起时第一列动作归主区（tab 与 Hero 基线不动） ============ */
+  .win.planC.collapsed { --tabs-pad: 0 22px; --dtl-pad: 15px 22px 26px; }
+
+  /* ---------- 收起态过渡（侧栏宽度 → 0） ---------- */
+  .sider { width: var(--sb-w); flex-basis: var(--sb-w); }
+  .win.collapsed .sider { width: 0 !important; flex-basis: 0 !important; opacity: 0; border: 0; }
+  .win.collapsed .dock-actions { display: flex; }
+  .win:not(.collapsed) .dock-actions { display: none; }
+
+  /* ---------- 过渡帧提示（复刻截图3 的中间态） ---------- */
+  .win.mid .sider { width: 92px; flex-basis: 92px; }
+  .win.mid .s-input, .win.mid .s-row .txt, .win.mid .s-foot { display: none; }
+
+  /* ---------- 距离标尺 ---------- */
+  .ruler { position: relative; }
+  .ruler .rv {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    border-left: 1px dashed color-mix(in srgb, var(--gn-info) 60%, transparent); z-index: 6; pointer-events: none;
+  }
+  .ruler .rv b {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    height: 17px; display: inline-flex; align-items: center; padding: 0 6px;
+    background: color-mix(in srgb, var(--gn-info) 13%, var(--gn-bg-panel));
+    border: 1px solid color-mix(in srgb, var(--gn-info) 38%, transparent); border-radius: 5px;
+    font-family: var(--gn-font-mono); font-size: 10px; font-weight: 700; color: var(--gn-info); white-space: nowrap;
+  }
+
+  /* ---------- 差异徽标（展示具体做了什么） ---------- */
+  .notes { max-width: 1180px; margin: -6px auto 22px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .note {
+    flex: 1 1 260px; background: var(--gn-bg-panel); border-radius: 9px;
+    box-shadow: var(--gn-shadow-card); padding: 10px 13px; font-size: 12px; color: var(--gn-fg-3);
+  }
+  .note b { color: var(--gn-fg-1); }
+  .note.warn { box-shadow: var(--gn-shadow-card), inset 3px 0 0 color-mix(in srgb, var(--gn-warn) 70%, transparent); }
+  .note.ok { box-shadow: var(--gn-shadow-card), inset 3px 0 0 color-mix(in srgb, var(--gn-accent) 70%, transparent); }
+  .note code { font-family: var(--gn-font-mono); font-size: 11px; background: var(--gn-bg-hover);
+    padding: 1px 5px; border-radius: 4px; color: var(--gn-fg-2); }
+
+  /* ---------- 主题 dock ---------- */
+  .theme-dock { position: fixed; right: 18px; bottom: 14px; z-index: 60;
+    background: var(--gn-bg-panel); border-radius: 12px;
+    box-shadow: var(--gn-shadow-lg), 0 0 0 1px var(--gn-br-2);
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .theme-dock .td-tip { font-size: 10.5px; color: var(--gn-fg-5); }
+  .td-seg { display: flex; background: var(--gn-bg-hover); border-radius: 8px; padding: 3px; gap: 2px; }
+  .td-seg button { height: 24px; padding: 0 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; color: var(--gn-fg-4); }
+  .td-seg button.on { background: var(--gn-bg-panel); color: var(--gn-fg-1); box-shadow: var(--gn-shadow-md); }
+</style>
+</head>
+<body data-theme="light">
+
+<div class="page-head">
+  <h1>左侧栏收起 / 展开 · 整体布局优化</h1>
+  <p>
+    点左上角 LOGO 切换（真实行为：<code>App.tsx:7908 handleTitlebarSidebarToggle</code>）。
+    桌面端收起宽度 = <code>0</code>（<code>App.tsx:1228-1230</code>），侧栏内全部动作搬到标题栏第二行
+    （<code>v2-theme.css:4533</code>）。<strong>问题：收起后主区从窗口左缘 0px 起算，而展开时是 200px 起算，
+    同一套内边距在两种宽度下密度观感不一致</strong> —— 下面三套方案对比这个差异的收法。
+  </p>
+</div>
+
+<div class="ctl">
+  <span class="lbl">方案</span>
+  <div class="seg" id="planSeg">
+    <button data-p="A" class="on">A · 栅格紧致化</button>
+    <button data-p="B">B · tab 自带 gutter</button>
+    <button data-p="C">C · 首列动作归主区</button>
+  </div>
+  <span class="spring"></span>
+  <button class="toggle" id="toggleBtn">
+    <svg class="ic" style="width:13px;height:13px"><use href="#i-panel"/></svg><span id="tgTxt">收起左侧栏</span>
+  </button>
+  <span class="kbd">C</span>
+  <span class="state-chip" id="stateChip">展开态</span>
+</div>
+
+<!-- ================= 方案 A ================= -->
+<div class="plan-intro" data-p="A">
+  <span class="bdg">A</span>
+  <div>
+    <h2>栅格紧致化<span class="rec">推荐</span></h2>
+    <p>
+      收起后主区获得更宽的可视宽度，因此<strong>网格列宽、卡片内边距、Hero 尺寸按容器宽度自适应收紧</strong>，
+      让 4 列资源卡在同一行内获得更舒适的呼吸感，内容不至于显得"散"。tab 栏与 Hero 保持同一 22px 基线。
+      收起前后主区内容左边界不变（都是 22px），<strong>切换时零横向位移</strong>，只有侧栏在滑动。
+    </p>
+  </div>
+</div>
+<div class="win planA" data-p="A" id="winA">
+  <div class="tbar" id="tbarA"></div>
+  <div class="wbody" id="bodyA"></div>
+</div>
+<div class="notes" data-p="A">
+  <div class="note ok"><b>收起时</b>：主区 4 列资源卡间距与内边距按容器宽度自适应；tab 与 Hero 左边界锁定 22px，切换无位移。</div>
+  <div class="note warn"><b>实现要点</b>：需给 <code>.dtl-root</code> 引入容器查询（<code>container-type: inline-size</code>）或按 <code>data-sidebar-collapsed</code> 切换密度变量。</div>
+</div>
+
+<!-- ================= 方案 B ================= -->
+<div class="plan-intro" data-p="B" hidden>
+  <span class="bdg">B</span>
+  <div>
+    <h2>tab 栏自带 gutter<span class="no">局部修补</span></h2>
+    <p>
+      只解决 tab 栏：给 <code>.dtl-tabs</code> 补 <code>padding: 0 22px</code>，与 <code>.dtl-root</code> 的横向
+      padding 对齐，浮层 / 分离窗口里也不贴边。改动最小、风险最低。
+      <strong>但整体布局的"密度不一致"没有被处理</strong> —— 收起后主区变宽 200px，卡片和间距仍是展开态的取值。
+    </p>
+  </div>
+</div>
+<div class="win planB" data-p="B" id="winB" hidden>
+  <div class="tbar" id="tbarB"></div>
+  <div class="wbody" id="bodyB"></div>
+</div>
+<div class="notes" data-p="B" hidden>
+  <div class="note ok"><b>收获</b>：1 行 CSS 解决 tab 贴边，含浮层场景。</div>
+  <div class="note warn"><b>局限</b>：整体布局密度未优化；收起后右侧留白观感偏空。</div>
+</div>
+
+<!-- ================= 方案 C ================= -->
+<div class="plan-intro" data-p="C" hidden>
+  <span class="bdg">C</span>
+  <div>
+    <h2>收起时首列动作归入主区<span class="no">改动较大</span></h2>
+    <p>
+      收起后不在标题栏第二行摊开动作，而是在<strong>主区左上角内联一行动作</strong>（放在工作台页签行右侧），
+      这样标题栏恒为单行、不会因收起而"长高"，主区顶部也更紧凑。
+      代价是收起态与展开态的动作位置不同，用户需要重新建立位置记忆。
+    </p>
+  </div>
+</div>
+<div class="win planC" data-p="C" id="winC" hidden>
+  <div class="tbar" id="tbarC"></div>
+  <div class="wbody" id="bodyC"></div>
+</div>
+<div class="notes" data-p="C" hidden>
+  <div class="note ok"><b>收获</b>：标题栏恒单行，收起/展开不再改变标题栏高度。</div>
+  <div class="note warn"><b>局限</b>：动作位置在两种状态下不同，违反位置一致性原则。</div>
+</div>
+
+<div class="theme-dock">
+  <span class="td-tip">原型演示 · 全 Token 驱动</span>
+  <div class="td-seg">
+    <button data-t="light" class="on">亮色</button>
+    <button data-t="dark">暗色</button>
+    <button data-t="custom">自定义</button>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-logo" viewBox="0 0 24 24"><path d="M4 4h9a5 5 0 0 1 0 10H4z" fill="currentColor" opacity=".9"/><path d="M4 14h6a5 5 0 0 1 0 10H4z" fill="currentColor" opacity=".55"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6.2 3v10" stroke="currentColor" stroke-width="1.3"/></symbol>
+    <symbol id="i-fold" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6.2 3v10" stroke="currentColor" stroke-width="1.3"/><path d="M11 6.4L9.2 8l1.8 1.6" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-unfold" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6.2 3v10" stroke="currentColor" stroke-width="1.3"/><path d="M9.2 6.4L11 8l-1.8 1.6" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="8.9" y="2.5" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="2.5" y="8.9" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="8.9" y="8.9" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2.1 2.1M16.9 16.9L19 19M19 5l-2.1 2.1M7.1 16.9L5 19" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M10.4 10.4L13.5 13.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M13.2 8a5.2 5.2 0 1 1-1.6-3.75" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M13.4 1.8v3h-3" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 16 16"><path d="M1.8 4.2a1.4 1.4 0 0 1 1.4-1.4h3l1.6 1.8h5a1.4 1.4 0 0 1 1.4 1.4v6a1.4 1.4 0 0 1-1.4 1.4H3.2a1.4 1.4 0 0 1-1.4-1.4z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 16 16"><rect x="4.4" y="4.4" width="7.2" height="7.2" rx="1.6" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="6.7" y="6.7" width="2.6" height="2.6" rx=".6" fill="currentColor" opacity=".55"/><path d="M6.4 1.9v2.3M9.6 1.9v2.3M6.4 11.8v2.3M9.6 11.8v2.3M1.9 6.4h2.3M1.9 9.6h2.3M11.8 6.4h2.3M11.8 9.6h2.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-mem" viewBox="0 0 16 16"><rect x="1.6" y="5" width="12.8" height="6" rx="1.3" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M4.4 8h7.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".45"/><path d="M4.5 11.2v1.6M6.9 11.2v1.6M9.1 11.2v1.6M11.5 11.2v1.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-thread" viewBox="0 0 16 16"><path d="M2.6 3.4h10.8M2.6 8h10.8M2.6 12.6h10.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".55"/><circle cx="5.3" cy="3.4" r="1.7" fill="currentColor"/><circle cx="10.4" cy="8" r="1.7" fill="currentColor"/><circle cx="7.2" cy="12.6" r="1.7" fill="currentColor"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 16 16"><path d="M8 2.2l5.4 2.7L8 7.6 2.6 4.9z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M2.6 8L8 10.7 13.4 8M2.6 11.1L8 13.8l5.4-2.7" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/></symbol>
+    <symbol id="i-disk" viewBox="0 0 16 16"><ellipse cx="8" cy="4.3" rx="5.3" ry="2.1" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M2.7 4.3v7.4c0 1.2 2.4 2.1 5.3 2.1s5.3-.9 5.3-2.1V4.3" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-net" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.7" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M2.3 8h11.4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M8 2.3c1.7 1.7 2.6 3.6 2.6 5.7S9.7 12 8 13.7C6.3 12 5.4 10.1 5.4 8S6.3 4 8 2.3z" stroke="currentColor" stroke-width="1.1" fill="none"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M8 5.2V8l2.1 1.4" stroke="currentColor" stroke-width="1.2" fill="none"/></symbol>
+    <symbol id="i-play" viewBox="0 0 16 16"><path d="M5.5 3.6L12.3 8l-6.8 4.4z" fill="currentColor"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 16 16"><rect x="4.5" y="4.5" width="7" height="7" rx="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-restart" viewBox="0 0 16 16"><path d="M13.2 8a5.2 5.2 0 1 1-1.6-3.75" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M13.4 1.8v3h-3" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 1.8l5.2 2v3.6c0 3.1-2.1 5.6-5.2 6.8-3.1-1.2-5.2-3.7-5.2-6.8V3.8z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M5.9 7.9l1.6 1.6 2.8-2.9" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 16 16"><path d="M2.8 4.2h10.4M6.5 4.2V2.9a.9.9 0 0 1 .9-.9h1.2a.9.9 0 0 1 .9.9v1.3M4.2 4.2l.6 8.4a1.2 1.2 0 0 0 1.2 1.1h4a1.2 1.2 0 0 0 1.2-1.1l.6-8.4" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 16 16"><path d="M2.5 12.5L6 8.6l3 2 4.5-6.1" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 13.8h11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".45"/></symbol>
+    <symbol id="i-java" viewBox="0 0 16 16"><path d="M4 6.9h7v3.4a3 3 0 0 1-3 3h-1a3 3 0 0 1-3-3z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M11 7.5h.8a1.7 1.7 0 0 1 0 3.4h-.9" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<script>
+(function () {
+  'use strict';
+
+  var TREE = [
+    { k: 'root', ic: 'i-grid', t: '全部服务', cnt: '2' },
+    { k: 'grp',  ic: 'i-folder', t: '单独', cnt: '0 个服务' },
+    { k: 'grp',  ic: 'i-folder', t: 'Java服务', cnt: '1 个服务' },
+    { k: 'leaf', dot: 'run', t: 'AI 服务' },
+    { k: 'leaf', dot: 'stop', t: '问问', on: true }
+  ];
+
+  var TABS = ['概览', '部署参数', '外观', '日志', '事件'];
+
+  var RES = [
+    { ic: 'i-cpu',   t: 'CPU 使用率', v: '—', u: '%',  note: '1min 0.0% · 峰值 0.0%' },
+    { ic: 'i-mem',   t: '内存占用',   v: '—', u: 'MB', note: '工作集内存', bar: 4 },
+    { ic: 'i-thread',t: '线程数',     v: '—',         note: '峰值 0 · 2s 采样' },
+    { ic: 'i-layers',t: '句柄数',     v: '—',         note: 'Windows Handle Count' },
+    { ic: 'i-disk',  t: '磁盘 I/O',   v: '—',         note: '进程磁读写速率', duo: true },
+    { ic: 'i-net',   t: '网络连接',   v: '—',         note: '该 PID 的 TCP+UDP 连接数（Windows 无按进程流量统计）' },
+    { ic: 'i-folder',t: '程序目录占用', v: '0.5', u: 'GB', note: '目录磁盘统计 · 定期刷新（非实时）' },
+    { ic: 'i-clock', t: '最近事件',   evt: '暂无事件', note: '时间 · 查看全部' }
+  ];
+
+  function tree() {
+    return TREE.map(function (r) {
+      if (r.k === 'root') return '<div class="s-row root"><svg class="ic"><use href="#' + r.ic + '"/></svg>' + r.t + '<span class="cnt">' + r.cnt + '</span></div>';
+      if (r.k === 'grp')  return '<div class="s-row grp"><svg class="ic"><use href="#' + r.ic + '"/></svg>' + r.t + '<span class="cnt">' + r.cnt + '</span></div>';
+      return '<div class="s-row leaf' + (r.on ? ' on' : '') + '"><i class="dot ' + r.dot + '"></i><span class="txt">' + r.t + '</span></div>';
+    }).join('');
+  }
+
+  function resCard(r) {
+    var head = '<div class="rc-head"><svg class="ic"><use href="#' + r.ic + '"/></svg>' + r.t + '</div>';
+    var body;
+    if (r.evt) {
+      body = '<div class="rc-evt">' + r.evt + '</div>';
+    } else if (r.duo) {
+      body = '<div class="rc-val" style="flex-direction:column;align-items:flex-start;gap:2px">' +
+             '<span style="font-size:15px">↓ —</span><span style="font-size:15px">↑ —</span></div>';
+    } else {
+      body = '<div class="rc-val' + (r.v === '—' ? ' mute' : '') + '">' + r.v +
+             (r.u ? '<small>' + r.u + '</small>' : '') + '</div>' +
+             (r.bar ? '<div class="m-bar"><i style="width:' + r.bar + '%;background:var(--gn-info)"></i></div>' : '');
+    }
+    return '<div class="res-card">' + head + body + '<div class="rc-note">' + r.note + '</div></div>';
+  }
+
+  function dockActions(plan) {
+    // 方案 C：动作不落在标题栏，标题栏恒单行
+    if (plan === 'C') return '';
+    return '<div class="dock-actions">' +
+      '<button class="dock-tool" title="展开左侧栏"><svg class="ic" style="width:14px;height:14px"><use href="#i-unfold"/></svg></button>' +
+      '<button class="dock-tool" title="添加服务"><svg class="ic" style="width:14px;height:14px"><use href="#i-plus"/></svg></button>' +
+      '<button class="dock-tool" title="管理分组"><svg class="ic" style="width:14px;height:14px"><use href="#i-folder"/></svg></button>' +
+      '<button class="dock-tool" title="数据目录"><svg class="ic" style="width:14px;height:14px"><use href="#i-disk"/></svg></button>' +
+      '<span class="dock-sep"></span>' +
+      '<span class="dock-label">服务引擎已就绪 · v10.1.0</span>' +
+      '</div>';
+  }
+
+  function tbar(plan, collapsed) {
+    const secondRow = collapsed && plan !== 'C';
+    return '' +
+      '<div class="tbar-leading">' +
+        '<button class="logo-btn" data-toggle="1" title="' + (collapsed ? '展开左侧栏' : '折叠左侧栏') + '">' +
+          '<span class="lg-img"><svg class="ic" style="width:20px;height:20px;color:var(--gn-accent)"><use href="#i-logo"/></svg></span>' +
+          '<span class="lg-fold"><svg class="ic" style="width:18px;height:18px"><use href="#' + (collapsed ? 'i-unfold' : 'i-fold') + '"/></svg></span>' +
+        '</button>' +
+        '<span class="tb-divider"></span>' +
+        '<button class="tb-act"><svg class="ic" style="width:13px;height:13px"><use href="#i-plus"/></svg>添加服务</button>' +
+        '<span class="tb-divider"></span>' +
+        '<button class="tb-act"><svg class="ic" style="width:13px;height:13px"><use href="#i-folder"/></svg>管理分组</button>' +
+        (plan === 'C' && collapsed
+          ? '<span class="tb-divider"></span><button class="tb-act"><svg class="ic" style="width:13px;height:13px"><use href="#i-disk"/></svg>数据目录</button>' +
+            '<span class="tb-divider"></span><span class="dock-label" style="font-weight:500">服务引擎已就绪 · v10.1.0</span>'
+          : '') +
+      '</div>' +
+      '<div class="tb-spring"></div>' +
+      '<div class="tb-right">' +
+        '<button class="tb-icon"><svg class="ic" style="width:17px;height:17px"><use href="#i-gear"/></svg></button>' +
+        '<span class="wctl"><i>—</i><i>□</i><i>✕</i></span>' +
+      '</div>' +
+      (secondRow ? dockActions(plan) : '');
+  }
+
+  function sider() {
+    return '' +
+      '<div class="sider-head">' +
+        '<div class="s-input"><svg class="ic" style="width:13px;height:13px"><use href="#i-search"/></svg><span>筛选服务…</span></div>' +
+        '<button class="s-icn"><svg class="ic" style="width:13px;height:13px"><use href="#i-refresh"/></svg></button>' +
+      '</div>' +
+      '<div class="s-tree">' + tree() + '</div>' +
+      '<div class="s-foot"><i class="ed"></i>服务引擎已就绪<span class="ver">v10.1.0</span></div>';
+  }
+
+  function main(plan, collapsed) {
+    const tabsPad = (plan === 'B' || plan === 'C') && collapsed;
+    return '' +
+      '<div class="wtabs"><div class="wtab on">RUSTFS<span class="tx">✕</span></div></div>' +
+      '<div class="dtl' + (plan === 'A' && collapsed ? ' tight' : '') + '" style="' +
+        (tabsPad ? 'padding:15px 22px 26px' : '') + '">' +
+        '<div class="hero">' +
+          '<span class="hero-ico">R</span>' +
+          '<div class="hero-main">' +
+            '<div class="hero-name"><h1>问问</h1><span class="badge"><i></i>已停止</span></div>' +
+            '<div class="hero-desc">当前未运行</div>' +
+          '</div>' +
+          '<div class="hero-acts">' +
+            '<button class="hbtn pri"><svg class="ic" style="width:13px;height:13px"><use href="#i-play"/></svg>启动</button>' +
+            '<button class="hbtn"><svg class="ic" style="width:13px;height:13px"><use href="#i-stop"/></svg>停止</button>' +
+            '<button class="hbtn"><svg class="ic" style="width:13px;height:13px"><use href="#i-restart"/></svg>重启</button>' +
+            '<button class="hbtn"><svg class="ic" style="width:13px;height:13px"><use href="#i-shield"/></svg>重新注册</button>' +
+            '<button class="hbtn danger"><svg class="ic" style="width:13px;height:13px"><use href="#i-trash"/></svg>卸载</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ruler" style="position:relative">' +
+          '<div class="rv"><b>' + (collapsed && plan !== 'A' ? '22px' : '22px') + '</b></div>' +
+          '<div class="dtl-tabs"' + (tabsPad ? ' style="padding:0 22px"' : '') + '>' +
+            TABS.map(function (t, i) {
+              return '<button class="dtl-tab' + (i === 0 ? ' on' : '') + '">' + t + '</button>';
+            }).join('') +
+          '</div>' +
+        '</div>' +
+        '<div class="sec-title">资源占用 <span class="sub">· 进程级采样，每 2 秒 · 目录占用为定期统计</span><span style="margin-left:auto;font-weight:400;font-size:11px;color:var(--gn-fg-5)">近 30 分钟趋势见下方</span></div>' +
+        '<div class="res-grid">' + RES.map(resCard).join('') + '</div>' +
+        '<div class="panel trend" style="flex-direction:column;gap:10px;padding:14px 16px">' +
+          '<div style="display:flex;align-items:center;width:100%"><span style="font-size:12.5px;font-weight:700;color:var(--gn-fg-2)">资源趋势 · 近 30 分钟</span>' +
+            '<span class="trend-legend"><span><i style="background:var(--gn-accent)"></i>CPU</span><span><i style="background:var(--gn-info)"></i>内存</span><span><i style="background:var(--gn-warn)"></i>线程</span></span>' +
+          '</div>' +
+          '<div style="width:100%;height:120px;display:grid;place-items:center;color:var(--gn-fg-5);font-size:12px">启动服务后开始采样（每 2 秒）</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function render(plan, collapsed) {
+    var id = function (s) { return document.getElementById(s + plan); };
+    var win = id('win'), tb = id('tbar'), bd = id('body'), wrap = document.getElementById('win' + plan);
+    if (!wrap) return;
+    wrap.classList.toggle('collapsed', collapsed);
+    wrap.classList.toggle('plan' + plan, true);
+    tb.innerHTML = tbar(plan, collapsed);
+    // 方案 C 收起时：主区首行外挂一行动作
+    var inline = (plan === 'C' && collapsed)
+      ? '<div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:6px 0 0;border-bottom:1px solid var(--gn-br-1)"></div>'
+      : '';
+    bd.innerHTML = sider() + '<div class="main">' + main(plan, collapsed) + '</div>' + inline;
+  }
+
+  var plan = 'A';
+  var collapsed = false;
+
+  function syncAll() {
+    ['A', 'B', 'C'].forEach(function (p) { render(p, collapsed); });
+    document.querySelectorAll('.plan-intro[data-p]').forEach(function (el) { el.hidden = el.dataset.p !== plan; });
+    document.querySelectorAll('.win[data-p]').forEach(function (el) { el.hidden = el.dataset.p !== plan; });
+    document.querySelectorAll('.notes[data-p]').forEach(function (el) { el.hidden = el.dataset.p !== plan; });
+    document.querySelectorAll('#planSeg button').forEach(function (b) { b.classList.toggle('on', b.dataset.p === plan); });
+    var txt = document.getElementById('tgTxt');
+    var chip = document.getElementById('stateChip');
+    txt.textContent = collapsed ? '展开左侧栏' : '收起左侧栏';
+    chip.textContent = collapsed ? '收起态' : '展开态';
+    chip.classList.toggle('off', collapsed);
+  }
+
+  document.getElementById('planSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-p]');
+    if (!b) return;
+    plan = b.dataset.p;
+    syncAll();
+  });
+
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-toggle]')) {
+      collapsed = !collapsed;
+      syncAll();
+    }
+  });
+
+  document.getElementById('toggleBtn').addEventListener('click', function () {
+    collapsed = !collapsed;
+    syncAll();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'c' || e.key === 'C') {
+      if (e.target && /input|textarea/i.test(e.target.tagName || '')) return;
+      collapsed = !collapsed;
+      syncAll();
+    }
+  });
+
+  document.querySelectorAll('.td-seg button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.body.dataset.theme = b.dataset.t;
+      document.querySelectorAll('.td-seg button').forEach(function (x) { x.classList.toggle('on', x === b); });
+    });
+  });
+
+  syncAll();
+})();
+</script>
+</body>
+</html>

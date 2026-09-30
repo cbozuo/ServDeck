@@ -96,65 +96,14 @@ type BrandAssetConfig = {
 };
 
 // ─── 官方品牌资源（文件在 /db-icons/ 下） ────────────────────
-
+// ServDeck 的服务类型只有 java/mysql/redis/rustfs 四种（serviceTemplates），
+// 其余数据库品牌的图标文件与条目已随 GoNavi 遗产清理移除；
+// 未列出的类型经 hasDbIconAsset=false 自动降级为内联 SVG 组件（getDbIcon），不再依赖图片文件。
 const BRAND_ASSET_CONFIGS: Record<string, BrandAssetConfig> = {
     mysql: { src: '/db-icons/mysql.svg' },
-    mariadb: { src: '/db-icons/mariadb.svg' },
-    oceanbase: { src: '/db-icons/oceanbase.png', iconScale: 0.72 },
-    postgres: { src: '/db-icons/postgres.svg' },
     redis: { src: '/db-icons/redis.svg' },
     rustfs: { src: '/db-icons/rustfs.png', iconScale: 0.72 },
-    nginx: { src: '/db-icons/nginx.svg' },
-    mongodb: { src: '/db-icons/mongodb.svg' },
-    elasticsearch: { src: '/db-icons/elasticsearch.svg' },
     jvm: { src: '/db-icons/java.svg', iconScale: 0.68 },
-    kingbase: { src: '/db-icons/kingbase.ico', iconScale: 0.72 },
-    dameng: { src: '/db-icons/dameng.png', iconScale: 0.72 },
-    oracle: { src: '/db-icons/oracle.ico', iconScale: 0.72 },
-    sqlserver: { src: '/db-icons/sqlserver.svg' },
-    clickhouse: { src: '/db-icons/clickhouse.svg' },
-    sqlite: { src: '/db-icons/sqlite.svg' },
-    duckdb: { src: '/db-icons/duckdb.svg' },
-    vastbase: { src: '/db-icons/vastbase.svg', iconScale: 0.84 },
-    opengauss: { src: '/db-icons/opengauss.ico', iconScale: 0.72 },
-    gaussdb: { src: '/db-icons/gaussdb.ico', iconScale: 0.72 },
-    goldendb: { src: '/db-icons/goldendb.ico', iconScale: 0.72 },
-    highgo: { src: '/db-icons/highgo.ico', iconScale: 0.72 },
-    iris: { src: '/db-icons/iris.png', iconScale: 0.72 },
-    cache: { src: '/db-icons/iris.png', iconScale: 0.72 },
-    tdengine: { src: '/db-icons/tdengine.ico', iconScale: 0.72 },
-    iotdb: {
-        src: '/db-icons/iotdb.svg',
-        background: '#0F766E',
-        borderColor: '#0F766E',
-        iconScale: 0.82,
-    },
-    rocketmq: {
-        src: '/db-icons/rocketmq.png',
-        background: '#0F172A',
-        borderColor: '#EA580C',
-        iconScale: 0.84,
-    },
-    mqtt: {
-        src: '/db-icons/mqtt.svg',
-        background: '#0F172A',
-        borderColor: '#0EA5A4',
-        iconScale: 0.84,
-    },
-    kafka: { src: '/db-icons/kafka.png', iconScale: 0.8 },
-    rabbitmq: { src: '/db-icons/rabbitmq.svg', iconScale: 0.74 },
-    nacos: { src: '/db-icons/nacos.svg' },
-    chroma: { src: '/db-icons/chroma.svg', iconScale: 0.9 },
-    qdrant: { src: '/db-icons/qdrant.svg', iconScale: 0.74 },
-    milvus: { src: '/db-icons/milvus.svg', iconScale: 0.74 },
-    diros: { src: '/db-icons/diros.svg' },
-    starrocks: {
-        src: '/db-icons/starrocks.png',
-        background: '#0B1021',
-        borderColor: '#00A6A6',
-        iconScale: 0.84,
-    },
-    sphinx: { src: '/db-icons/sphinx.svg' },
 };
 
 const BRAND_ASSET_TYPES = new Set(Object.keys(BRAND_ASSET_CONFIGS));

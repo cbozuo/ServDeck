@@ -82,7 +82,7 @@ export function useServiceDetail(name: string, deploy: ServiceDeploySnapshot | u
   const [deployDirty, setDeployDirty] = useState(false);
   const lastCpuSampleRef = useRef<{ pid: number; cpuTotal: number; at: number } | null>(null);
 
-  const refreshInfo = useCallback(async () => {
+  const refreshInfo = useCallback(async (): Promise<ServiceDetailInfo | null> => {
     try {
       const result = await GetWindowsServiceDetail(name);
       if (result.success) {
@@ -92,10 +92,12 @@ export function useServiceDetail(name: string, deploy: ServiceDeploySnapshot | u
         if (next && next.installed === false) {
           setSample(null);
         }
+        return next;
       }
     } catch {
       // 非 Windows 构建保留现状
     }
+    return null;
   }, [name]);
 
   const refreshMetrics = useCallback(async () => {
@@ -175,6 +177,33 @@ export function useServiceDetail(name: string, deploy: ServiceDeploySnapshot | u
     await Promise.all([refreshInfo(), refreshMetrics(), refreshPorts()]);
   }, [refreshInfo, refreshMetrics, refreshPorts]);
 
+  /** 过渡态跟随器（事件驱动，无常驻轮询）：操作完成后 SCM 可能仍在过渡
+      （servy 启动超时返回 ≠ 启动结束），每 2s 刷一次快照，状态落到稳定态
+      （Running/Stopped/未注册）或超时（90s）即自动停止。重复调用会先停旧的。 */
+  const followTimerRef = useRef<number | null>(null);
+  const stopFollow = useCallback(() => {
+    if (followTimerRef.current !== null) {
+      window.clearInterval(followTimerRef.current);
+      followTimerRef.current = null;
+    }
+  }, []);
+  const followUntilStable = useCallback(() => {
+    stopFollow();
+    const startedAt = Date.now();
+    followTimerRef.current = window.setInterval(() => {
+      void (async () => {
+        const snapshot = await refreshInfo();
+        const stable = !snapshot
+          || snapshot.state === 'Running'
+          || snapshot.state === 'Stopped';
+        if (stable || Date.now() - startedAt > 90_000) {
+          stopFollow();
+        }
+      })();
+    }, POLL_MS);
+  }, [refreshInfo, stopFollow]);
+  useEffect(() => stopFollow, [stopFollow]);
+
   // deployDraft 跟随纳管记录的 deploy 快照：卸载（deploy → undefined）清空草稿，
   // 重新注册写入新快照（undefined → 有值）时重置为最新，避免继续编辑已失效的旧草稿。
   const lastDeployPropRef = useRef(deploy);
@@ -218,6 +247,7 @@ export function useServiceDetail(name: string, deploy: ServiceDeploySnapshot | u
     refreshInfo,
     refreshMetrics,
     refreshAfterAction,
+    followUntilStable,
     ruleInput,
   };
 }

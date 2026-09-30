@@ -52,6 +52,11 @@ export function detailAvailability(action: DetailAction, input: DetailRuleInput)
   if (pendingDenied(pending)) {
     return DENY('detail.rule.pending');
   }
+  // SCM 过渡态（StartPending 等，徽章「启动中…」）：与 pending 转场同口径拒绝写操作，
+  // 避免按钮 pending 结束后、SCM 未落稳定态的窗口期可再次启停/注册（配置文件保存不受进程态影响）。
+  if (processState === 'Pending' && action !== 'saveConf') {
+    return DENY('detail.rule.pending');
+  }
   if (!isInstalled(input) && action !== 'register' && action !== 'editDeploy' && action !== 'saveConf') {
     return DENY('detail.rule.notInstalled');
   }

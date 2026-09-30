@@ -18,27 +18,31 @@ const formatMtime = (epoch: number): string => {
  * 行级时间：servy 引擎写盘不支持逐行时间戳，每行的真实输出时刻 ServDeck 拿不到。
  * 只标注「可确证」的时间——本次会话轮询检测到的新增行 = 检测时刻（误差 ≤ 轮询间隔）；
  * 打开页面就存在的历史行不标时间（标文件修改时刻会误导排查，用户明确反对假时间）。
+ * 历史按文件区分：切换文件 = 另一份内容，整份视为首载（全部不标时间）——
+ * 否则新旧文件前缀 diff 失败会把整份文件误标成切换时刻（用户踩过：以为报错发生在启动时刻）。
  * 返回数组里 0 = 无可确证时间，渲染时留空。
  */
-const useLineTimes = (lines: string[]): number[] => {
-  const historyRef = useRef<{ lines: string[]; times: number[] }>({ lines: [], times: [] });
+const useLineTimes = (file: string | null, lines: string[]): number[] => {
+  const historyRef = useRef<{ file: string | null; lines: string[]; times: number[] }>({ file: null, lines: [], times: [] });
   return useMemo(() => {
     const prev = historyRef.current;
+    const isFirstLoad = prev.file !== file || prev.lines.length === 0;
     let shared = 0;
-    const max = Math.min(prev.lines.length, lines.length);
-    while (shared < max && prev.lines[shared] === lines[shared]) {
-      shared += 1;
+    if (!isFirstLoad) {
+      const max = Math.min(prev.lines.length, lines.length);
+      while (shared < max && prev.lines[shared] === lines[shared]) {
+        shared += 1;
+      }
     }
-    // 首次加载（无历史）：全部无时间；增量刷新：共享前缀保留原判，新增行 = 检测时刻
-    const isFirstLoad = prev.lines.length === 0;
+    // 首次加载 / 刚切换文件：全部无时间；增量刷新：共享前缀保留原判，新增行 = 检测时刻
     const now = Date.now();
     const times = lines.map((_, index) => {
-      if (index < shared) return prev.times[index];
+      if (!isFirstLoad && index < shared) return prev.times[index];
       return isFirstLoad ? 0 : now;
     });
-    historyRef.current = { lines, times };
+    historyRef.current = { file, lines, times };
     return times;
-  }, [lines]);
+  }, [file, lines]);
 };
 
 /** 日志页签：文件 chips + 工具条 + 终端式视图（级别着色，行带时间，自动滚动到底部）。 */
@@ -55,7 +59,7 @@ export const DetailLogsPane: React.FC<{ name: string; logDir: string; enabled: b
     () => content.split('\n').filter((line, index, all) => line.trim() !== '' || index < all.length - 1),
     [content],
   );
-  const lineTimes = useLineTimes(lines);
+  const lineTimes = useLineTimes(activeFile, lines);
 
   // 自动滚动：内容刷新（3 秒轮询）后贴底；用户关掉开关或向上滚动空间由开关控制
   useEffect(() => {

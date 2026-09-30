@@ -344,6 +344,14 @@ body[data-ui-version="v2"] .asm-modal .ant-modal .ant-modal-body {
   outline: 0;
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
+
+/* 裸 input 的禁用态没有 antd 灰化，必须显式声明（堆内存数值框锁定时被点名） */
+input.asm-input:disabled,
+.asm-select:disabled {
+  color: var(--gn-fg-5, var(--ant-color-text-quaternary));
+  background: var(--gn-bg-hover, rgba(15, 23, 42, 0.03));
+  cursor: not-allowed;
+}
 .asm-input input,
 .asm-input-with-icon input {
   border: 0;

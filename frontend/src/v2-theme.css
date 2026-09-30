@@ -4646,6 +4646,8 @@ body[data-ui-version="v2"] .gn-v2-main-tabs > .ant-tabs-nav {
   height: 36px;
   flex: 0 0 36px;
   background: var(--gn-bg-panel-2);
+  /* 收起侧栏/窄窗口时首尾页签的圆角不再贴死窗口边缘被裁 */
+  padding: 0 12px;
 }
 
 body[data-ui-version="v2"] .gn-v2-main-tabs-double > .ant-tabs-nav {

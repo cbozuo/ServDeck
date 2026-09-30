@@ -252,13 +252,9 @@ const FloatingWorkbenchWindows: React.FC = () => {
           padding: 6px 8px 6px 12px;
           border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'};
           background: ${isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'};
-          cursor: var(--gn-drag-cursor-grab, grab);
+          /* 光标与浏览器 tab 一致用普通箭头；拖拽走指针事件，不依赖手掌光标（用户反馈：手/拳头都去掉） */
+          cursor: default;
           user-select: none;
-        }
-        /* Windows 的 move/grab 系统指针是白色系，浅色主题下不可见；
-           自绘手掌光标（utils/dragCursors）随视口/主题自适应，与主标签栏一致。 */
-        .gn-detached-window-header:active {
-          cursor: var(--gn-drag-cursor-grabbing, grabbing);
         }
         .gn-detached-window-title {
           min-width: 0;
@@ -344,7 +340,7 @@ const FloatingWorkbenchWindows: React.FC = () => {
             className="gn-detached-window-header"
             onPointerDown={(event) => startInteraction(event, windowState.tabId, 'move', windowState)}
           >
-            <div className="gn-detached-window-title" title={title}>
+            <div className="gn-detached-window-title">
               <span>{title}</span>
               {(connectionName || hostSummary) ? (
                 <span className="gn-detached-window-subtitle">

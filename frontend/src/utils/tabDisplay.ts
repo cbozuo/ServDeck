@@ -557,8 +557,10 @@ export const getTabDisplayKindLabel = (tab: TabData): string => {
   if (tab.type === 'sql-audit') return 'AUDIT';
   if (tab.type === 'dml-snapshot') return 'SNAPSHOT';
   if (tab.type === 'driver-manager') return 'DRIVER';
-  if (tab.type === 'settings-center') return 'SETTINGS';
-  if (tab.type === 'service-detail') return 'SVC';
+  // 设置中心：标题已表意，不再叠加英文类型角标（用户反馈）
+  if (tab.type === 'settings-center') return '';
+  // 服务详情：服务名已是完整标题，去掉 SVC 缩写角标
+  if (tab.type === 'service-detail') return '';
   if (tab.type === 'request-diagnostics') return 'TRACE';
   if (tab.type.startsWith('redis')) return 'REDIS';
   if (tab.type.startsWith('jvm')) return 'JVM';

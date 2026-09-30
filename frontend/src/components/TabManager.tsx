@@ -105,8 +105,10 @@ const getTabKindLabel = (tab: TabData): string => {
   if (tab.type === 'sql-audit') return t('tab_manager.kind_badge.sql_audit');
   if (tab.type === 'dml-snapshot') return t('tab_manager.kind_badge.dml_snapshot');
   if (tab.type === 'driver-manager') return t('tab_manager.kind_badge.driver_manager');
-  if (tab.type === 'settings-center') return t('tab_manager.kind_badge.settings_center');
-  if (tab.type === 'service-detail') return t('tab_manager.kind_badge.service_detail');
+  // 设置中心：标题「设置中心」已表意，不叠加类型角标（用户反馈：去掉 SETTINGS 英文）
+  if (tab.type === 'settings-center') return '';
+  // 服务详情：服务名已是完整标题，去掉 SVC 缩写角标（用户反馈）
+  if (tab.type === 'service-detail') return '';
   if (tab.type === 'message-queue') return t('message_queue_workbench.tab_kind');
   if (tab.type.startsWith('redis')) return t('tab_manager.kind_badge.redis');
   if (tab.type.startsWith('jvm')) return t('tab_manager.kind_badge.jvm');
@@ -335,74 +337,6 @@ const buildLinkedExternalSQLDirectoryShortcuts = (
 const buildWorkbenchQueryTabId = (): string =>
   `query-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-const getTabKindTooltipLabel = (tab: TabData): string => {
-  if (tab.type === 'query') return t('tab_manager.hover.kind.query');
-  if (tab.type === 'table') return t('tab_manager.hover.kind.table');
-  if (tab.type === 'design') return t('tab_manager.hover.kind.design');
-  if (tab.type === 'table-overview') return t('tab_manager.hover.kind.table_overview');
-  if (tab.type === 'table-export') return t('tab_manager.hover.kind.table_export');
-  if (tab.type === 'data-import') return t('tab_manager.hover.kind.data_import');
-  if (tab.type === 'data-sync') {
-    return t(
-      tab.dataSyncEntryMode === 'compare' ||
-        tab.dataSyncEntryMode === 'schemaCompare' ||
-        tab.dataSyncEntryMode === 'dataCompare'
-        ? 'app.tools.entry.compare.title'
-        : 'app.tools.entry.sync.title',
-    );
-  }
-  if (tab.type === 'sql-file-execution') return t('sidebar.sql_file_exec.title');
-  if (tab.type === 'sql-analysis') return t('tab_manager.hover.kind.sql_analysis');
-  if (tab.type === 'sql-audit') return t('tab_manager.hover.kind.sql_audit');
-  if (tab.type === 'dml-snapshot') return t('tab_manager.hover.kind.dml_snapshot');
-  if (tab.type === 'driver-manager') return t('tab_manager.hover.kind.driver_manager');
-  if (tab.type === 'settings-center') return t('tab_manager.hover.kind.settings_center');
-  if (tab.type === 'service-detail') return t('tab_manager.hover.kind.service_detail');
-  if (tab.type === 'message-queue') return t('message_queue_workbench.tab_kind');
-  if (tab.type === 'redis-keys') return t('tab_manager.hover.kind.redis_keys');
-  if (tab.type === 'redis-command') return t('tab_manager.hover.kind.redis_command');
-  if (tab.type === 'redis-monitor') return t('tab_manager.hover.kind.redis_monitor');
-  if (tab.type === 'nacos-config') return t('tab_manager.hover.kind.nacos_config');
-  if (tab.type === 'nacos-services') return t('tab_manager.hover.kind.nacos_services');
-  if (tab.type === 'jvm-overview') return t('tab_manager.hover.kind.jvm_overview');
-  if (tab.type === 'jvm-resource') return t('tab_manager.hover.kind.jvm_resource');
-  if (tab.type === 'jvm-audit') return t('tab_manager.hover.kind.jvm_audit');
-  if (tab.type === 'jvm-diagnostic') return t('tab_manager.hover.kind.jvm_diagnostic');
-  if (tab.type === 'jvm-monitoring') return t('tab_manager.hover.kind.jvm_monitoring');
-  if (tab.type === 'trigger') return t('tab_manager.hover.kind.trigger');
-  if (tab.type === 'view-def') {
-    return tab.viewKind === 'materialized'
-      ? t('tab_manager.hover.kind.materialized_view')
-      : t('tab_manager.hover.kind.view');
-  }
-  if (tab.type === 'event-def') return t('tab_manager.hover.kind.event');
-  if (tab.type === 'routine-def') return t('tab_manager.hover.kind.routine');
-  if (tab.type === 'sequence-def') return t('tab_manager.hover.kind.sequence');
-  if (tab.type === 'package-def') return t('tab_manager.hover.kind.package');
-  if (tab.type === 'database-link-def') return t('tab_manager.hover.kind.database_link');
-  return t('tab_manager.hover.kind.fallback');
-};
-
-const getTabObjectLabel = (tab: TabData): string => {
-  if (tab.tableName) return tab.tableName;
-  if (tab.viewName) return tab.viewName;
-  if (tab.eventName) return tab.eventName;
-  if (tab.routineName) return tab.routineName;
-  if (tab.sequenceName) return tab.sequenceName;
-  if (tab.packageName) return tab.packageName;
-  if (tab.databaseLinkName) return tab.databaseLinkName;
-  if (tab.triggerName) return tab.triggerName;
-  if (tab.resourcePath) return tab.resourcePath;
-  if (tab.filePath) return tab.filePath;
-  if (tab.type === 'driver-manager') return t('app.tools.entry.drivers.title');
-  if (tab.type === 'settings-center') return t('app.settings.title');
-  if (tab.type === 'service-detail') return tab.serviceName || tab.title;
-  if (tab.type === 'sql-analysis' || tab.type === 'sql-audit' || tab.type === 'dml-snapshot') return tab.title;
-  if (tab.type === 'message-queue') return tab.messageQueueTarget || tab.dbName || '';
-  if (tab.type.startsWith('redis')) return `db${tab.redisDB ?? 0}`;
-  return '';
-};
-
 const getCloseOtherTabIds = (tabs: TabData[], id: string): string[] =>
   tabs.filter((tab) => tab.id !== id).map((tab) => tab.id);
 
@@ -427,13 +361,6 @@ export const closeConfirmedWorkbenchTabs = (
     .forEach((id) => closeTab(id));
 };
 
-export const stopTabHoverDragPropagation = (event: React.SyntheticEvent<HTMLElement>) => {
-  event.stopPropagation();
-};
-
-export const resolveTabHoverOpen = (isHoverInfoOpen: boolean, isTabMenuOpen: boolean) =>
-  isHoverInfoOpen && !isTabMenuOpen;
-
 export const openTabDisplaySettings = () => {
   if (typeof window === 'undefined') {
     return;
@@ -457,97 +384,11 @@ export const shouldShowV2ConnectionLabel = (displayTitle: string, connectionLabe
   return !prefixedConnectionPattern.test(normalizedDisplayTitle);
 };
 
-export const resolveTabHoverTitle = (displayModel: TabDisplayModel | undefined, fallbackTitle: string): string => {
-  if (!displayModel) {
-    return fallbackTitle;
-  }
-
-  const objectPart = [...displayModel.primaryParts, ...displayModel.secondaryParts]
-    .find((part) => part.key === 'object');
-  if (objectPart?.text) {
-    return objectPart.text;
-  }
-
-  const primaryText = displayModel.primaryParts
-    .filter((part) => part.key !== 'kind')
-    .map((part) => part.text)
-    .join(' ')
-    .trim();
-  return primaryText || displayModel.primaryText || fallbackTitle;
-};
-
-type TabHoverInfoProps = {
-  tab: TabData;
-  displayModel?: TabDisplayModel;
-  displayTitle: string;
-  connectionLabel?: string;
-  hostSummary?: string;
-};
-
-export const TabHoverInfo: React.FC<TabHoverInfoProps> = ({
-  tab,
-  displayModel,
-  displayTitle,
-  connectionLabel,
-  hostSummary,
-}) => {
-  const objectLabel = getTabObjectLabel(tab);
-  const hoverTitle = resolveTabHoverTitle(displayModel, displayTitle);
-  const schemaPart = displayModel
-    ? [...displayModel.primaryParts, ...displayModel.secondaryParts].find((part) => part.key === 'schema')
-    : undefined;
-  // 服务详情 tab 没有连接/库/对象语义，硬凑只会产生「未绑定连接/未指定」噪音；
-  // 头部（徽标+服务名）已承载全部有效信息，行区留空。
-  const hoverRows = tab.type === 'service-detail' ? [] : [
-    [t('tab_manager.hover.label.type'), getTabKindTooltipLabel(tab)],
-    [t('tab_manager.hover.label.connection'), connectionLabel || t('tab_manager.hover.fallback.unbound_connection')],
-    ['Host', hostSummary || t('tab_manager.hover.fallback.host_not_configured')],
-    [t('tab_manager.hover.label.database'), tab.dbName || t('tab_manager.hover.fallback.database_not_specified')],
-    ['Schema', schemaPart?.value],
-    [t('tab_manager.hover.label.object'), objectLabel],
-  ].filter(([, value]) => Boolean(value));
-
-  return (
-    <div
-      className="gn-v2-tab-hover-card"
-      data-tab-hover-info="true"
-      onPointerDown={stopTabHoverDragPropagation}
-      onPointerMove={stopTabHoverDragPropagation}
-      onPointerUp={stopTabHoverDragPropagation}
-      onPointerDownCapture={stopTabHoverDragPropagation}
-      onPointerUpCapture={stopTabHoverDragPropagation}
-      onMouseDown={stopTabHoverDragPropagation}
-      onMouseMove={stopTabHoverDragPropagation}
-      onMouseUp={stopTabHoverDragPropagation}
-      onClick={stopTabHoverDragPropagation}
-      onClickCapture={stopTabHoverDragPropagation}
-      onTouchStart={stopTabHoverDragPropagation}
-      onTouchMove={stopTabHoverDragPropagation}
-      onTouchEnd={stopTabHoverDragPropagation}
-    >
-      <div className="gn-v2-tab-hover-head">
-        <span>{getTabKindLabel(tab)}</span>
-        <strong>{hoverTitle}</strong>
-      </div>
-      <div className="gn-v2-tab-hover-rows">
-        {hoverRows.map(([label, value]) => (
-          <div className="gn-v2-tab-hover-row" key={label}>
-            <span>{label}</span>
-            <strong>{value}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 type SortableTabLabelProps = {
   tab: TabData;
   displayModel: TabDisplayModel;
   displayTitle: string;
   menuItems: MenuProps['items'];
-  connectionLabel?: string;
-  hostSummary?: string;
   environmentColor?: string;
   environmentLabel?: string;
   environmentType?: string;
@@ -583,19 +424,15 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
   displayModel,
   displayTitle,
   menuItems,
-  connectionLabel,
-  hostSummary,
   environmentColor,
   environmentLabel,
   environmentType,
   onClose,
 }) => {
-  const [isHoverInfoOpen, setIsHoverInfoOpen] = useState(false);
   const [isTabMenuOpen, setIsTabMenuOpen] = useState(false);
 
   const handleTabLabelContextMenu = (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault();
-    setIsHoverInfoOpen(false);
     setIsTabMenuOpen(true);
   };
 
@@ -614,11 +451,6 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
 
   const handleTabMenuOpenChange = (open: boolean) => {
     setIsTabMenuOpen(open);
-    setIsHoverInfoOpen(false);
-  };
-
-  const handleHoverInfoOpenChange = (open: boolean) => {
-    setIsHoverInfoOpen(open && !isTabMenuOpen);
   };
 
   const tabDisplayPartCount = displayModel.primaryParts.length + displayModel.secondaryParts.length;
@@ -675,27 +507,7 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
     </span>
   );
 
-  // 设置中心没有连接/Host/库表元数据可展示，悬停信息卡纯属噪音，直接跳过。
-  const wrappedLabel = tab.type === 'settings-center' ? labelNode : <Tooltip
-      title={(
-        <TabHoverInfo
-          tab={tab}
-          displayModel={displayModel}
-          displayTitle={displayTitle}
-          connectionLabel={connectionLabel}
-          hostSummary={hostSummary}
-        />
-      )}
-      placement="bottomLeft"
-      mouseEnterDelay={1.2}
-      open={resolveTabHoverOpen(isHoverInfoOpen, isTabMenuOpen)}
-      onOpenChange={handleHoverInfoOpenChange}
-      destroyOnHidden
-      rootClassName="gn-v2-tab-hover-tooltip"
-    >
-      {labelNode}
-    </Tooltip>;
-
+  // 页签悬停不再弹出信息卡（用户反馈纯遮挡），标签本身已带 title 语义由右键菜单补充操作。
   return (
     <Dropdown
       menu={{ items: menuItems }}
@@ -707,7 +519,7 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
         showHeader: false,
       })}
     >
-      {wrappedLabel}
+      {labelNode}
     </Dropdown>
   );
 };
@@ -850,9 +662,8 @@ const DraggableTabNode: React.FC<DraggableTabNodeProps> = ({ node }) => {
     transform: CSS.Transform.toString(transform),
     transition: transition || 'transform 180ms cubic-bezier(0.22, 1, 0.36, 1)',
     opacity: isDragging ? 0.88 : 1,
-    cursor: isDragging
-      ? 'var(--gn-drag-cursor-grabbing, grabbing)'
-      : 'var(--gn-drag-cursor-grab, grab)',
+    // 光标全程普通箭头（与浏览器 tab 一致，用户反馈：手/拳头都去掉）；拖拽走指针事件，不依赖光标
+    cursor: 'default',
     touchAction: 'none',
     zIndex: isDragging ? 2 : node.props.style?.zIndex,
   };
@@ -1604,8 +1415,6 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onF
           displayModel={displayModel}
           displayTitle={displayTitle}
           menuItems={menuItems}
-          connectionLabel={connection?.name}
-          hostSummary={hostSummary}
           environmentColor={environment?.color}
           environmentLabel={environment?.label}
           environmentType={environment?.type}
@@ -1885,7 +1694,7 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onF
             }
             .main-tabs .tab-dnd-node.is-dragging,
             .main-tabs .tab-dnd-node.is-dragging .tab-dnd-label {
-              cursor: var(--gn-drag-cursor-grabbing, grabbing) !important;
+              cursor: default !important;
             }
             body[data-theme='dark'] .main-tabs .ant-tabs-tab-btn:focus-visible {
               outline: none !important;

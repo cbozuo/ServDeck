@@ -14,10 +14,11 @@ import { signalMainWindowFrontendReady, waitForMainWindowContentPaint, waitForSt
 import { configureAntdStaticOverlayLayer } from './utils/overlayZIndex'
 import { normalizeConnectionEnvironmentType } from './utils/connectionEnvironment'
 import { resolveBrandIconRemoteSrc } from './brand/brandIcons'
-import { installDynamicDragCursors } from './utils/dragCursors'
 
 configureAntdStaticOverlayLayer();
-installDynamicDragCursors();
+// 自绘拖拽手掌光标已停用：tab/浮层拖拽光标统一回退系统箭头（用户反馈）
+// import { installDynamicDragCursors } from './utils/dragCursors'
+// installDynamicDragCursors();
 
 const resolveDevHarnessMode = (): string => {
     if (typeof window === 'undefined') {

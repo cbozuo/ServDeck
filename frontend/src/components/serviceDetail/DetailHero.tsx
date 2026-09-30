@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Modal } from 'antd';
 import {
-  CheckCircleFilled,
-  CloseCircleFilled,
+  CaretRightFilled,
+  CheckOutlined,
+  DeleteOutlined,
   ExclamationCircleFilled,
   InfoCircleFilled,
   PauseCircleFilled,
   PlayCircleFilled,
+  PoweroffOutlined,
   QuestionCircleFilled,
   ReloadOutlined,
-  StopOutlined,
 } from '@ant-design/icons';
 import { useI18n } from '../../i18n/provider';
 import { APP_NESTED_MODAL_Z_INDEX } from '../../utils/overlayZIndex';
@@ -24,12 +25,13 @@ import {
   type DetailRuleInput,
 } from './detailRules';
 
+// 图标走轻量语义系（实心三角/电源/旋转/对勾/删除），避免一排五个圆圈的重复感
 const ACTION_ICONS: Partial<Record<DetailAction, React.ReactNode>> = {
-  start: <PlayCircleFilled />,
-  stop: <StopOutlined />,
+  start: <CaretRightFilled />,
+  stop: <PoweroffOutlined />,
   restart: <ReloadOutlined />,
-  register: <CheckCircleFilled />,
-  uninstall: <CloseCircleFilled />,
+  register: <CheckOutlined />,
+  uninstall: <DeleteOutlined />,
 };
 
 export interface DetailHeroProps {
@@ -120,8 +122,10 @@ export const DetailHero: React.FC<DetailHeroProps> = ({
               ? (ruleInput.mode === 'managed' && installed ? 'detail.action.reRegister' : 'detail.action.register')
               : 'detail.action.uninstall',
     );
+    // 启动恒占主位（primary）：运行中禁用时由 CSS 降为软底淡字，主按钮位不消失；
+    // 危险动作（卸载）用红描边与中性组同构，仅靠色相区分
     const className =
-      action === 'start' && avail.allowed ? 'dtl-btn primary'
+      action === 'start' ? 'dtl-btn primary'
         : action === 'uninstall' ? 'dtl-btn danger-o'
           : 'dtl-btn';
     const disabled = !avail.allowed;

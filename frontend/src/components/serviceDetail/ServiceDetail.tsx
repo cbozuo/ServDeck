@@ -13,6 +13,7 @@ import {
 } from '../../../wailsjs/go/app/App';
 import { useServiceDetail, type ServiceDetailData } from './useServiceDetail';
 import { buildDefaultDeploy, deployProcessParams } from './defaultDeploy';
+import { getDbIconAssetSrc } from '../DatabaseIcons';
 import { DetailLookPane } from './DetailLookPane';
 import { DetailHero } from './DetailHero';
 import { DetailOverviewPane } from './DetailOverviewPane';
@@ -28,8 +29,10 @@ type DetailTab = 'overview' | 'deploy' | 'look' | 'logs' | 'events';
 
 const TAB_KEYS: DetailTab[] = ['overview', 'deploy', 'look', 'logs', 'events'];
 
+// 图标解析与列表页同口径（getDbIconAssetSrc 查 BRAND_ASSET_CONFIGS 的真实后缀，
+// 如 rustfs.png）——曾自行拼 .svg 后缀，非 svg 图标类型（rustfs 等）在详情页破图
 const resolveIconSrc = (serviceType: string, iconDataUrl?: string): string =>
-  iconDataUrl || `/db-icons/${serviceType}.svg`;
+  iconDataUrl || getDbIconAssetSrc(serviceType);
 
 /**
  * 服务详情页（workbench tab 形态，每服务一个 tab，可拖出为浮层窗口）：
@@ -50,7 +53,9 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
   const accentColor = entry?.accentColor;
   const iconSrc = resolveIconSrc(entry?.serviceType ?? 'java', entry?.iconDataUrl);
   const running = detail.ruleInput.processState === 'Running';
-  const locked = running || detail.pending !== null;
+  // 锁定 = 运行中 / 本页操作转场中 / SCM 过渡态（StartPending 等——徽章显示「启动中…」
+  // 时 SCM 尚未落到稳定态，参数必须保持锁定，否则过渡期可编辑会误导）
+  const locked = running || detail.pending !== null || detail.ruleInput.processState === 'Pending';
 
   // 趋势缓冲：详情可见期间每轮采样推入
   useEffect(() => {
@@ -87,8 +92,11 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
     } finally {
       detail.setPending(null);
       await detail.refreshAfterAction();
+      // 操作完成后 SCM 可能仍在过渡（servy 启动超时返回 ≠ 启动结束）：
+      // 跟随刷新直至落稳；状态已稳时跟随器首个 tick 即自行停止
+      detail.followUntilStable();
     }
-    // detail.setPending/refreshAfterAction 均为稳定引用
+    // detail.setPending/refreshAfterAction/followUntilStable 均为稳定引用
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail]);
 
@@ -212,18 +220,6 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
     [detail, name, t],
   );
 
-  // ESC：返回总览（确认弹窗由 antd 自身处理）
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        close();
-      }
-    };
-    document.addEventListener('keydown', handler, true);
-    return () => document.removeEventListener('keydown', handler, true);
-  }, [close]);
-
   const dirLabel = t('detail.res.dirProgram');
   const memMaxMB = useMemo(() => {
     // 堆上限 = -Xmx（托管 Java 服务）；未配置时不显示上限
@@ -267,7 +263,7 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
             onClick={() => setTab(key)}
           >
             {t(`detail.tab.${key}`)}
-            {key === 'deploy' && detail.deployDirty ? <i className="dtl-dot-badge" /> : null}
+            {key === 'deploy' && !locked && detail.deployDirty ? <i className="dtl-dot-badge" /> : null}
           </button>
         ))}
       </div>
@@ -294,14 +290,11 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
             deploy={detail.deployDraft}
             deployDirty={detail.deployDirty}
             locked={locked}
-            running={running}
             installed={detail.info ? detail.info.installed !== false : true}
             onDeployChange={(next) => {
               detail.setDeployDraft(next);
               detail.setDeployDirty(true);
             }}
-            onStopForEdit={() => handleControl('stop')}
-            onReRegister={handleRegister}
             onConfSave={handleSaveConf}
             addedAt={entry?.addedAt}
           />

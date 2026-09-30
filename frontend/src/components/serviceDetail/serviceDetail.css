@@ -157,28 +157,33 @@
   justify-content: flex-end;
   margin-left: auto;
 }
+/* Hero 五命令层级：启动=accent 实底主按钮（禁用保留软底形态，主位不消失）；
+   停止/重启/重新注册=中性描边；卸载=红描边同构，仅靠色相区分危险 */
 .dtl-btn {
-  height: 33px;
-  padding: 0 14px;
+  height: 30px;
+  padding: 0 12px;
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
+  gap: 5px;
+  font-size: 12px;
   font-weight: 600;
   font-family: inherit;
   color: var(--gn-fg-2);
   background: var(--gn-bg-panel);
   border: 1px solid var(--gn-br-2);
-  box-shadow: var(--gn-shadow-card);
   cursor: pointer;
-  transition: background 0.12s ease, opacity 0.12s ease;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.dtl-btn .anticon {
+  font-size: 13px;
 }
 .dtl-btn:hover:not(:disabled) {
   background: var(--gn-bg-hover);
+  border-color: var(--gn-br-3);
 }
 .dtl-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 .dtl-btn.primary {
@@ -190,12 +195,20 @@
 .dtl-btn.primary:hover:not(:disabled) {
   background: var(--gn-accent-strong-hover);
 }
+/* 运行中/过渡态的启动禁用：软 accent 底淡字，仍读得出「这是主按钮」 */
+.dtl-btn.primary:disabled {
+  background: var(--gn-accent-soft);
+  color: color-mix(in srgb, var(--gn-accent-strong) 50%, var(--gn-fg-5));
+  box-shadow: none;
+  opacity: 1;
+}
 .dtl-btn.danger-o {
   color: var(--gn-danger);
-  border-color: color-mix(in srgb, var(--gn-danger) 36%, transparent);
+  border-color: color-mix(in srgb, var(--gn-danger) 32%, transparent);
 }
 .dtl-btn.danger-o:hover:not(:disabled) {
   background: color-mix(in srgb, var(--gn-danger) 8%, var(--gn-bg-panel));
+  border-color: color-mix(in srgb, var(--gn-danger) 45%, transparent);
 }
 .dtl-btn.busy {
   pointer-events: none;
@@ -565,21 +578,6 @@
   background: var(--gn-bg-active);
   color: var(--gn-fg-1);
 }
-.dtl-lock-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 9px;
-  padding: 9px 12px;
-  margin-bottom: 12px;
-  font-size: 11.5px;
-  color: var(--gn-warn);
-  background: color-mix(in srgb, var(--gn-warn) 9%, var(--gn-bg-panel));
-}
-.dtl-lock-bar span {
-  flex: 1;
-  line-height: 1.5;
-}
 .dtl-btn-sm {
   height: 28px;
   padding: 0 11px;
@@ -613,7 +611,10 @@
 .dtl-fields.locked .dtl-flag,
 .dtl-fields.locked .dtl-seg button,
 .dtl-fields.locked .asm-seg button,
-.dtl-fields.locked .dtl-switch {
+.dtl-fields.locked .dtl-switch,
+.dtl-fields.locked .asm-heap-range,
+.dtl-fields.locked .asm-heap-input,
+.dtl-fields.locked .asm-heap-cap {
   opacity: 0.55;
 }
 .dtl-field {
@@ -793,32 +794,6 @@
 }
 .dtl-switch.on i {
   left: 17px;
-}
-.dtl-cmd {
-  font-size: 11px;
-  line-height: 1.85;
-  color: var(--gn-fg-2);
-  background: var(--gn-bg-app);
-  border: 1px solid var(--gn-br-1);
-  border-radius: 9px;
-  padding: 10px 12px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  margin: 0;
-}
-.dtl-restart-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  border-radius: 9px;
-  padding: 8px 12px;
-  font-size: 11.5px;
-  color: var(--gn-warn);
-  background: color-mix(in srgb, var(--gn-warn) 9%, var(--gn-bg-panel));
-}
-.dtl-deploy-cta {
-  align-self: flex-start;
 }
 
 /* ── 日志页 ── */

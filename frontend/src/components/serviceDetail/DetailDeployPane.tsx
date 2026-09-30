@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircleFilled, CopyOutlined, ExclamationCircleFilled, InfoCircleFilled, LockFilled } from '@ant-design/icons';
-import { Tooltip, message } from 'antd';
+import { CheckCircleFilled, InfoCircleFilled, LockFilled } from '@ant-design/icons';
+import { Tooltip } from 'antd';
 import { useI18n } from '../../i18n/provider';
 import { HeapMemoryField } from '../../addService/HeapMemoryField';
 import { JdkPickerModal } from '../../addService/JdkPickerModal';
@@ -17,46 +17,12 @@ export interface DetailDeployPaneProps {
   deploy: ServiceDeploySnapshot | null;
   deployDirty: boolean;
   locked: boolean;
-  /** 进程运行中（区别于 pending 转场）：锁定条与「已锁定」只对运行态展示 */
-  running: boolean;
   /** SCM 中是否存在此服务；false = 已卸载/未注册，状态卡与主行动切换为「注册」形态 */
   installed: boolean;
   onDeployChange: (next: ServiceDeploySnapshot) => void;
-  onStopForEdit: () => void;
-  onReRegister: () => void;
   onConfSave: (file: string, content: string) => void;
   /** 纳管记录的加入时间（ISO），显示在「注册时间」行 */
   addedAt?: string;
-}
-
-/** 安装命令预览（对应 servy-cli install；与后端 buildServyInstallArgs 同口径）。 */
-function buildInstallPreview(deploy: ServiceDeploySnapshot, serviceType: string, name: string): string {
-  const q = (value: string): string => `"${value}"`;
-  const args: string[] = [
-    'install',
-    '--name', q(name),
-    '-p', q(deploy.javaPath || deploy.programFile),
-    '--displayName', q(deploy.displayName),
-    '--startupDir', q(deploy.workDir || deploy.programFile.replace(/[\\/][^\\/]*$/, '')),
-    '--startupType', q(deploy.startType),
-    '--stdout', q('<LOG_DIR>\\service-out.log'),
-    '--stderr', q('<LOG_DIR>\\service-err.log'),
-  ];
-  if (deploy.description) {
-    args.push('--description', q(deploy.description));
-  }
-  const params = serviceType === 'java'
-    ? deploy.jvmArgs ?? ''
-    : deploy.params ?? '';
-  if (params) {
-    args.push('--params', q(params));
-  }
-  if (deploy.restart) {
-    args.push('--enableSizeRotation');
-  }
-  const install = ['servy-cli.exe', ...args].join(' ');
-  const start = `servy-cli.exe start --name ${q(name)}`;
-  return `${install}\n${start}`;
 }
 
 const templateOf = (serviceType: string): ServiceTemplate | null =>
@@ -75,19 +41,16 @@ const startTypeLabel = (value: string): string => {
   return `service.modal.startType.${value.toLowerCase()}`;
 };
 
-/** 部署参数页签：托管状态卡 + 纳管信息（只读）+ 运行参数表单（运行中锁定）+ 安装命令预览 + 配置文件托管。 */
+/** 部署参数页签：托管状态卡 + 纳管信息（只读）+ 运行参数表单（运行中锁定）+ 配置文件托管。 */
 export const DetailDeployPane: React.FC<DetailDeployPaneProps> = ({
   info,
   serviceType,
   deploy,
   deployDirty,
   locked,
-  running,
   installed,
   addedAt,
   onDeployChange,
-  onStopForEdit,
-  onReRegister,
   onConfSave,
 }) => {
   const { t } = useI18n();
@@ -129,11 +92,6 @@ export const DetailDeployPane: React.FC<DetailDeployPaneProps> = ({
       : `${deploy.jvmArgs ?? ''} ${flag}`.trim();
     patch({ jvmArgs: args });
   };
-
-  const command = useMemo(() => {
-    if (!deploy) return '';
-    return buildInstallPreview(deploy, serviceType, info?.name ?? '');
-  }, [deploy, info?.name, serviceType]);
 
   void template;
 
@@ -195,23 +153,14 @@ export const DetailDeployPane: React.FC<DetailDeployPaneProps> = ({
         </div>
       </div>
 
-      {/* 运行参数（运行中锁定） */}
+      {/* 运行参数（运行中锁定：全部控件禁操作；「待写回」仅停止且有改动时出现） */}
       <div className="dtl-panel">
         <div className="dtl-panel-head">
           <span>{t('detail.deploy.runtimeTitle')}</span>
-          {running && <span className="dtl-chip lock"><LockFilled />{t('detail.deploy.locked')}</span>}
-          {deployDirty && <span className="dtl-chip dirty">{t('detail.deploy.dirty')}</span>}
+          {/* 锁定态（运行中 / SCM 过渡态 / 操作转场中）恒显「已锁定」 */}
+          {locked && <span className="dtl-chip lock"><LockFilled />{t('detail.deploy.locked')}</span>}
+          {!locked && deployDirty && <span className="dtl-chip dirty">{t('detail.deploy.dirty')}</span>}
         </div>
-
-        {running && (
-          <div className="dtl-lock-bar">
-            <ExclamationCircleFilled />
-            <span>{t('detail.deploy.lockBody')}</span>
-            <button type="button" className="dtl-btn-sm" onClick={onStopForEdit}>
-              {t('detail.deploy.stopForEdit')}
-            </button>
-          </div>
-        )}
 
         <div className={`dtl-fields${locked ? ' locked' : ''}`}>
           {isJava && (
@@ -367,38 +316,6 @@ export const DetailDeployPane: React.FC<DetailDeployPaneProps> = ({
         onClosed={() => jvmPathInputRef.current?.focus()}
         onApply={(path) => patch({ javaPath: path })}
       />
-
-      {/* 安装命令预览 */}
-      <div className="dtl-panel">
-        <div className="dtl-panel-head">
-          <span>{t('detail.deploy.cmdTitle')}</span>
-          <button
-            type="button"
-            className="dtl-in-act"
-            title={t('detail.deploy.copyCmd')}
-            onClick={() => {
-              void navigator.clipboard?.writeText(command);
-              message.success(t('app.engine.message.copied'));
-            }}
-          >
-            <CopyOutlined />
-          </button>
-        </div>
-        <pre className="dtl-cmd mono">{command}</pre>
-        {/* 只留提示文案：注册入口统一走页面底部的「重新注册」主按钮（两处按钮冗余，用户反馈） */}
-        <div className="dtl-restart-bar" style={{ visibility: deployDirty ? 'visible' : 'hidden' }}>
-          <ExclamationCircleFilled />
-          <span>{t('detail.deploy.dirtyHint')}</span>
-        </div>
-      </div>
-
-      {/* 注册主行动：已注册=重新注册写回 SCM；未注册=装入系统服务。
-          不描 accent 边框（.dtl-btn.primary 已是 transparent 边框）——
-          内联 accent 边在自定义外观色与主题底色不同系时会打架（如绿底红框）。 */}
-      <button type="button" className="dtl-btn primary dtl-deploy-cta" onClick={onReRegister}>
-        <CheckCircleFilled />
-        {t(installed ? 'detail.action.reRegister' : 'detail.action.register')}
-      </button>
     </div>
   );
 };

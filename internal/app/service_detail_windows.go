@@ -295,7 +295,7 @@ func listeningTCPPorts() map[int]bool {
 		return ports
 	}
 	count := *(*uint32)(unsafe.Pointer(&buf[0]))
-	const rowSize = tcpOwnerPidRowSize
+	const rowSize = tcp4RowSize
 	for i := uint32(0); i < count; i++ {
 		base := uintptr(4) + uintptr(i)*uintptr(rowSize)
 		if base+2 > uintptr(size) {

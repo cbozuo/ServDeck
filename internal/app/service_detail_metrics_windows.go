@@ -13,7 +13,8 @@ import (
 // serviceDetailSample 是详情页一次 2 秒采样的指标集。
 // cpuPct/threads/handles/disk 由 PDH 按进程实例给出（与主机/服务列表采样同基建）。
 type serviceDetailSample struct {
-	State     string  `json:"state"`
+	State string `json:"state"`
+	// PID 参与本轮采样的进程；servy 包装注册时为其工作负载子进程（java.exe 等）
 	PID       uint32  `json:"pid"`
 	CPUTotal  float64 `json:"cpuTotal"`
 	MemBytes  uint64  `json:"memBytes"`
@@ -154,6 +155,8 @@ func sampleServiceDetailMetrics(name string) *serviceDetailSample {
 	if sample.State != "Running" || sample.PID == 0 {
 		return sample
 	}
+	// SCM PID 可能是 servy 包装进程：把指标目标切到真正的工作负载子进程
+	sample.PID = resolveWorkloadPID(sample.PID)
 
 	values, err := serviceDetailCollector.collect()
 	if err != nil {
@@ -213,49 +216,45 @@ func processBaseName(pid uint32) string {
 }
 
 // pidConnectionCount 统计该 PID 的 TCP+UDP 连接数（iphlpapi GetExtended*Table 手动绑定，
-// x/sys/windows 未封装这些导出；行结构为 MIB_TCPROW_OWNER_PID / MIB_UDPROW_OWNER_PID）。
+// x/sys/windows 未封装这些导出）。双栈监听在 v4/v6 表各有一行，v4 表即可覆盖真实 socket 数；
+// v6 表（AF_INET6）在实测的 Win11 构建上返回的行布局与文档的 MIB_TCP6ROW_OWNER_PID 不符
+// （48/44 偏移读不到 pid），为避免按错误布局数出 0 或脏值，v6 行不参与计数。
 var (
-	iphlpapi                 = windows.NewLazySystemDLL("iphlpapi.dll")
-	procGetExtendedTcpTable  = iphlpapi.NewProc("GetExtendedTcpTable")
-	procGetExtendedUdpTable  = iphlpapi.NewProc("GetExtendedUdpTable")
+	iphlpapi                = windows.NewLazySystemDLL("iphlpapi.dll")
+	procGetExtendedTcpTable = iphlpapi.NewProc("GetExtendedTcpTable")
+	procGetExtendedUdpTable = iphlpapi.NewProc("GetExtendedUdpTable")
 )
 
 const (
-	tcpTableOwnerPidAll      = 5
-	udpTableOwnerPid         = 1
-	tcpOwnerPidRowSize       = 24
-	udpOwnerPidRowSize       = 16
-	ownerPidRowPidOffset     = 8
+	tcpTableOwnerPidAll = 5
+	udpTableOwnerPid    = 1
+)
+
+// MIB_TCPROW_OWNER_PID / MIB_UDPROW_OWNER_PID 的行宽与 OwningPid 字段偏移。
+const (
+	tcp4RowSize = 24
+	tcp4PidAt   = 20
+	udp4RowSize = 12
+	udp4PidAt   = 8
 )
 
 func pidConnectionCount(pid uint32) int {
-	return countExtendedRowsWithPid(procGetExtendedTcpTable, tcpTableOwnerPidAll, tcpOwnerPidRowSize, pid) +
-		countExtendedRowsWithPid(procGetExtendedUdpTable, udpTableOwnerPid, udpOwnerPidRowSize, pid)
+	return countExtendedRowsWithPid(procGetExtendedTcpTable, windows.AF_INET, tcpTableOwnerPidAll, tcp4RowSize, tcp4PidAt, pid) +
+		countExtendedRowsWithPid(procGetExtendedUdpTable, windows.AF_INET, udpTableOwnerPid, udp4RowSize, udp4PidAt, pid)
 }
 
-// countExtendedRowsWithPid 调用 GetExtended*Table 并统计 owner PID 匹配的行数。
-func countExtendedRowsWithPid(proc *windows.LazyProc, tableClass uint32, rowSize int, pid uint32) int {
-	buf := make([]byte, 64*1024)
-	size := uint32(len(buf))
-	ret, _, _ := proc.Call(
-		uintptr(unsafe.Pointer(&buf[0])),
-		uintptr(unsafe.Pointer(&size)),
-		0,
-		windows.AF_INET,
-		uintptr(tableClass),
-		0,
-	)
-	if ret != 0 {
+// countExtendedRowsWithPid 调用 GetExtended*Table 并统计 OwningPid 匹配的行数。
+func countExtendedRowsWithPid(proc *windows.LazyProc, family uint32, tableClass uint32, rowSize int, pidOffset int, pid uint32) int {
+	buf, ok := extendedTableSnapshot(proc, family, tableClass)
+	if !ok {
 		return 0
 	}
-	if size < 4 {
-		return 0
-	}
+	size := uintptr(len(buf))
 	count := *(*uint32)(unsafe.Pointer(&buf[0]))
 	total := 0
 	for i := uint32(0); i < count; i++ {
-		offset := uintptr(4) + uintptr(i)*uintptr(rowSize) + ownerPidRowPidOffset
-		if offset+4 > uintptr(size) {
+		offset := uintptr(4) + uintptr(i)*uintptr(rowSize) + uintptr(pidOffset)
+		if offset+4 > size {
 			break
 		}
 		rowPid := uint32(buf[offset]) | uint32(buf[offset+1])<<8 | uint32(buf[offset+2])<<16 | uint32(buf[offset+3])<<24
@@ -264,4 +263,30 @@ func countExtendedRowsWithPid(proc *windows.LazyProc, tableClass uint32, rowSize
 		}
 	}
 	return total
+}
+
+// extendedTableSnapshot 取一张 owner-PID 表的完整快照；缓冲不足时按返回的所需大小重试一次，
+// 表异常大（>16MB）视为环境异常放弃。
+func extendedTableSnapshot(proc *windows.LazyProc, family uint32, tableClass uint32) ([]byte, bool) {
+	size := uint32(64 * 1024)
+	for attempt := 0; attempt < 2; attempt++ {
+		buf := make([]byte, size)
+		needed := size
+		ret, _, _ := proc.Call(
+			uintptr(unsafe.Pointer(&buf[0])),
+			uintptr(unsafe.Pointer(&needed)),
+			0,
+			uintptr(family),
+			uintptr(tableClass),
+			0,
+		)
+		if ret == 0 {
+			return buf, true
+		}
+		if ret != uintptr(windows.ERROR_INSUFFICIENT_BUFFER) || needed <= size || needed > 16<<20 {
+			return nil, false
+		}
+		size = needed
+	}
+	return nil, false
 }

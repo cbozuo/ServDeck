@@ -46,7 +46,8 @@ func sampleServiceMetrics(names []string) ([]serviceMetricSample, error) {
 		status, err := service.Query()
 		if err == nil {
 			sample.State = serviceStateString(status.State)
-			sample.PID = status.ProcessId
+			// servy 包装注册时 SCM PID 是包装进程，切到工作负载子进程采样
+			sample.PID = resolveWorkloadPID(status.ProcessId)
 		}
 		service.Close()
 		if sample.PID != 0 {
@@ -67,7 +68,10 @@ func sampleProcessMetrics(pid uint32) (cpuSeconds float64, memBytes uint64) {
 
 	var creation, exit, kernel, user windows.Filetime
 	if err := windows.GetProcessTimes(handle, &creation, &exit, &kernel, &user); err == nil {
-		cpuSeconds = (float64(kernel.Nanoseconds()) + float64(user.Nanoseconds())) / 1e9
+		// kernel/user 是时长（100ns 单位），不能走带 1601 纪元减除的 Filetime.Nanoseconds()
+		kernel100ns := int64(kernel.HighDateTime)<<32 | int64(kernel.LowDateTime)
+		user100ns := int64(user.HighDateTime)<<32 | int64(user.LowDateTime)
+		cpuSeconds = float64(kernel100ns+user100ns) / 1e7
 	}
 	var mem processMemoryCounters
 	mem.Cb = uint32(unsafe.Sizeof(mem))

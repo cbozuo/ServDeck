@@ -146,7 +146,9 @@ export const DetailOverviewPane: React.FC<DetailOverviewPaneProps> = ({
                   points={band.points.map((p) => `${p.x},${p.y}`).join(' ')}
                   fill="none"
                   stroke={['var(--gn-accent)', 'var(--gn-info)', 'var(--gn-warn)'][index]}
-                  strokeWidth="0.006"
+                  // non-scaling-stroke 下宽度按屏幕像素解释：viewBox 是 0-1 归一化坐标，
+                  // 宽度按 viewBox 单位给值会小到不可见
+                  strokeWidth="1.4"
                   vectorEffect="non-scaling-stroke"
                 />
               </React.Fragment>

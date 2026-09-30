@@ -274,6 +274,18 @@
   flex: 1;
   min-height: 0;
 }
+/* 事件页签的内容多包一层 dtl-panel（日志没有）——panel 也要进 flex 链，否则
+   它被内容撑高、事件框跟着长到容器外，内部滚动永远不触发。 */
+.dtl-body.dtl-body-fill .dtl-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.dtl-body.dtl-body-fill .dtl-panel > .dtl-log-view {
+  flex: 1;
+  min-height: 0;
+}
 .dtl-body.dtl-body-fill .dtl-log-view {
   flex: 1;
   height: auto;

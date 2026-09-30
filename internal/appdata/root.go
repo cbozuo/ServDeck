@@ -106,6 +106,10 @@ type bootstrapConfig struct {
 	SavedQueryDirectory string `json:"savedQueryDirectory,omitempty"`
 	AgentDataDirectory  string `json:"agentDataDirectory,omitempty"`
 	ServyEnginePath     string `json:"servyEnginePath,omitempty"`
+	// LogRetentionDays 服务日志保留天数：>0 生效；-1 = 永久保留；
+	// 缺失/0 = 未配置（走 DefaultLogRetentionDays）。序列化用 -1 而非 0 表达
+	// 「永久」正是为了区分「用户明确设置过」与「从未设置」。
+	LogRetentionDays int `json:"logRetentionDays,omitempty"`
 }
 
 func readBootstrapConfig() (bootstrapConfig, error) {
@@ -129,7 +133,7 @@ func writeBootstrapConfig(cfg bootstrapConfig) error {
 	cfg.SavedQueryDirectory = strings.TrimSpace(cfg.SavedQueryDirectory)
 	cfg.AgentDataDirectory = strings.TrimSpace(cfg.AgentDataDirectory)
 	cfg.ServyEnginePath = strings.TrimSpace(cfg.ServyEnginePath)
-	if cfg.DataRoot == "" && cfg.LogDirectory == "" && cfg.SavedQueryDirectory == "" && cfg.AgentDataDirectory == "" && cfg.ServyEnginePath == "" {
+	if cfg.DataRoot == "" && cfg.LogDirectory == "" && cfg.SavedQueryDirectory == "" && cfg.AgentDataDirectory == "" && cfg.ServyEnginePath == "" && cfg.LogRetentionDays == 0 {
 		if err := os.Remove(BootstrapPath()); err != nil && !os.IsNotExist(err) {
 			return err
 		}

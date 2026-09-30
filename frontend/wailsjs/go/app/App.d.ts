@@ -412,6 +412,8 @@ export function GetSecurityUpdateStatus():Promise<app.SecurityUpdateStatus>;
 
 export function GetServiceDirUsage(arg1:string,arg2:string):Promise<connection.QueryResult>;
 
+export function GetServiceLogRetentionDays():Promise<connection.QueryResult>;
+
 export function GetServyEngineConfig():Promise<connection.QueryResult>;
 
 export function GetSlowQueries(arg1:connection.ConnectionConfig,arg2:string,arg3:string,arg4:number):Promise<connection.QueryResult>;
@@ -799,6 +801,8 @@ export function SelectServyEngineFile():Promise<connection.QueryResult>;
 export function SetLanguage(arg1:string):Promise<void>;
 
 export function SetMacNativeWindowControls(arg1:boolean):Promise<void>;
+
+export function SetServiceLogRetentionDays(arg1:number):Promise<connection.QueryResult>;
 
 export function SetUpdateChannel(arg1:string):Promise<connection.QueryResult>;
 

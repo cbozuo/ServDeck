@@ -802,6 +802,10 @@ export function GetServiceDirUsage(arg1, arg2) {
   return window['go']['app']['App']['GetServiceDirUsage'](arg1, arg2);
 }
 
+export function GetServiceLogRetentionDays() {
+  return window['go']['app']['App']['GetServiceLogRetentionDays']();
+}
+
 export function GetServyEngineConfig() {
   return window['go']['app']['App']['GetServyEngineConfig']();
 }
@@ -1576,6 +1580,10 @@ export function SetLanguage(arg1) {
 
 export function SetMacNativeWindowControls(arg1) {
   return window['go']['app']['App']['SetMacNativeWindowControls'](arg1);
+}
+
+export function SetServiceLogRetentionDays(arg1) {
+  return window['go']['app']['App']['SetServiceLogRetentionDays'](arg1);
 }
 
 export function SetUpdateChannel(arg1) {

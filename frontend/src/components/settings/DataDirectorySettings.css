@@ -237,7 +237,10 @@
 }
 
 .gn-storage-note .anticon {
-  margin-top: 2px;
+  /* 图标与文字对齐：半行距 = (1.5 − 1) / 2 = 0.25em，1em 图标落进 1.5em 首行行框正中。
+     用 em 而非固定 px：字号 / UI 缩放变化时依然精确居中（固定 18px 盒在字号放大时偏上）。 */
+  flex-shrink: 0;
+  margin-top: 0.25em;
   color: var(--gn-info, #0369a1);
 }
 

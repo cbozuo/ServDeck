@@ -208,6 +208,8 @@ func main() {
 		OnStartup: func(ctx context.Context) {
 			defer signalStartupNativeIconReady()
 			runtimeCtx = ctx
+			// 服务日志保留清理调度：启动补扫 + 每 24 小时一轮（保留天数在设置中心「应用数据目录」配置）
+			go app.StartServiceLogRetentionScheduler()
 			if hideWindowUntilFrontendReady {
 				// Subscribe before startup continues so a fast first paint cannot
 				// emit gonavi:frontend-ready into an empty event bus.

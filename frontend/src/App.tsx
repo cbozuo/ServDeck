@@ -318,8 +318,11 @@ import {
   SelectDataRootDirectory,
   SelectSavedQueryDirectory,
   SelectServyEngineFile,
+  GetServiceLogRetentionDays,
+  SetServiceLogRetentionDays,
   SetWindowTranslucency,
 } from '../wailsjs/go/app/App';
+import { SegmentedControl } from './addService/SegmentedControl';
 import { getAntdLocale } from './i18n/frameworkLocale';
 import { useI18n } from './i18n/provider';
 import {
@@ -637,6 +640,15 @@ type ToolCenterPaneKey =
   | 'shortcut-settings';
 
 type SettingsCenterGroupKey = 'preferences' | 'services' | ToolCenterGroupKey | 'about';
+
+/** 日志保留天数选项（-1 = 永久保留，禁用自动清理）。 */
+const LOG_RETENTION_OPTIONS: Array<{ value: number }> = [
+  { value: 7 },
+  { value: 14 },
+  { value: 30 },
+  { value: 90 },
+  { value: -1 },
+];
 type SettingsCenterPaneKey =
   | 'language'
   | 'theme'
@@ -4319,6 +4331,28 @@ function App() {
   const handleOpenDataRootPane = useCallback(() => {
       handleOpenToolCenterPane('config', 'data-root-application');
   }, [handleOpenToolCenterPane]);
+  /** 服务日志保留天数：面板加载读取一次；切换选项即保存并带回清理数量反馈。 */
+  const [logRetentionDays, setLogRetentionDays] = useState<number | null>(null);
+  useEffect(() => {
+      void GetServiceLogRetentionDays().then((result) => {
+          if (result.success) {
+              setLogRetentionDays(Number((result.data as { days?: number } | null)?.days ?? 7));
+          }
+      });
+  }, []);
+  const handleLogRetentionChange = useCallback((days: number) => {
+      void SetServiceLogRetentionDays(days).then((result) => {
+          if (!result.success) {
+              message.error(result.message || t('app.data_root.log_retention.invalid'));
+              return;
+          }
+          const removed = Number((result.data as { removed?: number } | null)?.removed ?? 0);
+          setLogRetentionDays(days);
+          message.success(removed > 0
+              ? t('app.data_root.log_retention.saved', { count: removed })
+              : t('app.data_root.log_retention.saved_none'));
+      });
+  }, [t]);
   /** Title-bar / explorer settings entries → settings center navigation. */
   const handleTitleBarSettingsNavigation = useCallback((spec: {
     group: 'preferences' | 'services' | 'config' | 'workflow' | 'workspace' | 'about';
@@ -4772,6 +4806,37 @@ function App() {
                           ]} />
                       </div>
                   </section>
+
+                  {!readOnly && (
+                      <section className="gn-storage-panel" data-log-retention-settings="true">
+                          <div className="gn-storage-panel__body">
+                              <div className="gn-storage-panel__header">
+                                  <DirectorySectionHeading
+                                      title={t('app.data_root.log_retention.title')}
+                                      description={t('app.data_root.log_retention.desc')}
+                                  />
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                                  <span className="gn-storage-field-label">{t('app.data_root.log_retention.keep')}</span>
+                                  <SegmentedControl
+                                      accent
+                                      options={LOG_RETENTION_OPTIONS.map((option) => ({
+                                          value: String(option.value),
+                                          label: option.value === -1
+                                              ? t('app.data_root.log_retention.permanent')
+                                              : t('app.data_root.log_retention.days', { n: option.value }),
+                                      }))}
+                                      value={String(logRetentionDays ?? 7)}
+                                      onChange={(value) => handleLogRetentionChange(Number(value))}
+                                      ariaLabel={t('app.data_root.log_retention.title')}
+                                  />
+                              </div>
+                              <DirectoryNote>
+                                  {t('app.data_root.log_retention.note')}
+                              </DirectoryNote>
+                          </div>
+                      </section>
+                  )}
 
                   {!readOnly && (
                       <section className="gn-storage-panel" data-servy-engine-settings="true">

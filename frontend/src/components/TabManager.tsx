@@ -1708,17 +1708,10 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onF
               box-shadow: 0 0 0 2px rgba(9, 109, 217, 0.32);
               background: rgba(9, 109, 217, 0.08);
             }
-            body[data-theme='light'] .main-tabs .ant-tabs-tab.ant-tabs-tab-active {
-              background: rgba(24, 144, 255, 0.10) !important;
-              border-color: rgba(24, 144, 255, 0.28) !important;
-            }
-body[data-theme='dark'] .main-tabs .ant-tabs-tab.ant-tabs-tab-active {
-              background: rgba(255, 214, 102, 0.12) !important;
-              border-color: rgba(255, 214, 102, 0.4) !important;
-            }
+            /* v2/IDEA 风 active：背景融入标签栏、无边框（主题高亮条由 v2-theme.css 的 inset 底边承担） */
             body[data-ui-version='v2'] .main-tabs .ant-tabs-tab.ant-tabs-tab-active {
               background: var(--gn-bg-panel) !important;
-              border-color: var(--gn-br-2) !important;
+              border-color: transparent !important;
             }
             body[data-ui-version='v2'] .gn-v2-tab-hover-tooltip .ant-tooltip-inner {
               min-width: 260px;

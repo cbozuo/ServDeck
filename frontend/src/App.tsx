@@ -1225,9 +1225,9 @@ function App() {
   );
   const titleBarHeight = titleBarLayout.height;
   const [brandLogoHovered, setBrandLogoHovered] = useState(false);
-  const sidebarCollapsedWidth = !shouldDockCollapsedSidebarActionsInTitlebar
-      ? 38 * effectiveUiScale * effectiveSidebarRailScale
-      : 0;
+  // 纯净收起：侧栏整体滑出（宽度 0），不留 fixed-rail 功能图标——
+  // 展开入口为标题栏「折叠左侧树」按钮。
+  const sidebarCollapsedWidth = 0;
   const renderedSidebarWidth = isSidebarCollapsed ? sidebarCollapsedWidth : sidebarWidth;
   const settingsCenterModalZIndex = APP_FOREGROUND_MODAL_Z_INDEX;
   const settingsChildModalZIndex = Math.max(
@@ -7818,7 +7818,11 @@ function App() {
   const sidebarPanelCollapseLabel = t('app.sidebar.collapse');
   const sidebarPanelExpandLabel = t('app.sidebar.expand');
   const sidebarPanelToggleLabel = isSidebarCollapsed ? sidebarPanelExpandLabel : sidebarPanelCollapseLabel;
+  // 折叠按钮的提示受控：点击后立即收起（hover 链因侧栏收起的布局位移可能悬挂不消失），
+  // 移开再移入时经 onOpenChange 重新按 0.3s 延迟显示。
+  const [sidebarToggleTipOpen, setSidebarToggleTipOpen] = useState(false);
   const handleTitlebarSidebarToggle = useCallback(() => {
+      setSidebarToggleTipOpen(false);
       setIsSidebarCollapsed((collapsed) => !collapsed);
   }, [setIsSidebarCollapsed]);
   const allowDebugNativeContextMenu = isWailsDevNativeContextMenu(import.meta.env.DEV);
@@ -7899,7 +7903,13 @@ function App() {
             } as any}
           >
               <div className="gonavi-titlebar-leading">
-                  <Tooltip title={sidebarPanelToggleLabel} placement="bottomRight" mouseEnterDelay={0.3}>
+                  <Tooltip
+                    title={sidebarPanelToggleLabel}
+                    placement="bottomRight"
+                    mouseEnterDelay={0.3}
+                    open={sidebarToggleTipOpen}
+                    onOpenChange={setSidebarToggleTipOpen}
+                  >
                       <button
                         type="button"
                         data-titlebar-brand-toggle="true"
@@ -7907,7 +7917,7 @@ function App() {
                         aria-expanded={!isSidebarCollapsed}
                         onClick={handleTitlebarSidebarToggle}
                         onMouseEnter={() => setBrandLogoHovered(true)}
-                        onMouseLeave={() => setBrandLogoHovered(false)}
+                        onMouseLeave={() => { setBrandLogoHovered(false); setSidebarToggleTipOpen(false); }}
                         onFocus={() => setBrandLogoHovered(true)}
                         onBlur={() => setBrandLogoHovered(false)}
                         className={brandLogoHovered ? 'is-hovered' : undefined}
@@ -8064,9 +8074,6 @@ function App() {
                     <div style={{ height: '100%', opacity: connectionWorkbenchState.ready ? 1 : 0.72, pointerEvents: connectionWorkbenchState.ready ? 'auto' : 'none' }}>
                         <ServiceTreeSidebar
                             onAddService={() => setIsAddServiceModalOpen(true)}
-                            onExpandSidebar={handleExpandSidebarPanel}
-                            expandSidebarLabel={sidebarPanelExpandLabel}
-                            expandSidebarButtonRef={sidebarCollapsedToggleRef}
                         />
                     </div>
                     {!connectionWorkbenchState.ready && (

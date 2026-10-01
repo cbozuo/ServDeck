@@ -1399,7 +1399,12 @@ describe('Sidebar locate toolbar', () => {
     expect(treeLabelCss).toContain('text-overflow: ellipsis;');
     expect(css).toMatch(/\.gn-v2-tree-title\.is-mono \{[^}]*max-width: 100%;[^}]*min-width: 0;[^}]*flex: 1 1 auto;/s);
     expect(css).toMatch(/\.gn-v2-tree-title\.is-mono \.gn-v2-tree-label \{[^}]*flex: 0 1 auto;[^}]*overflow: hidden;[^}]*text-overflow: ellipsis;/s);
-    expect(css).toMatch(/\.gn-v2-tree-folder-icon \{[^}]*width: 20px;[^}]*height: 20px;[^}]*flex: 0 0 20px;/s);
+    // 服务树行尾状态点（方案 2）：形状/颜色/动画与详情页徽标一致；folder 图标承担分组展开交互。
+    expect(css).toMatch(/\.gst-state-dot\.run \{[^}]*background: var\(--gn-accent\);[^}]*animation: gn-state-pulse[^;]*;/s);
+    expect(css).toMatch(/\.gst-state-dot\.stop \{[^}]*background: var\(--gn-fg-5, var\(--gn-fg-4\)\);/s);
+    expect(css).toMatch(/\.gst-state-dot\.unreg \{[^}]*background: var\(--gn-warn\);/s);
+    expect(css).toMatch(/\.gn-v2-explorer-tree-shell \.gn-v2-tree-folder-icon \{[^}]*cursor: pointer;/s);
+    expect(css).toMatch(/\.gn-v2-explorer-tree-shell \.ant-tree-switcher:not\(\.ant-tree-switcher-noop\) \{[^}]*color: transparent !important;/s);
     expect(css).toMatch(/\.gn-v2-tree-title:not\(\.is-mono\) \{[^}]*max-width: 100%;[^}]*min-width: 0;/s);
     expect(css).toMatch(/\.gn-v2-tree-title\.is-connection \.gn-v2-tree-label,[^}]*text-overflow: ellipsis;/s);
     // Status dot pinned right; the content wrapper reserves its slot.

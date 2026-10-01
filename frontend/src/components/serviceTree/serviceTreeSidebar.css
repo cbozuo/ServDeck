@@ -15,21 +15,24 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 6px 12px 8px;
-  padding: 7px 10px;
+  /* padding-right 8px：与树行计数的右列对齐（8 + 树行右内边距 6 + 内容区 6 = 20，
+     = 本行 margin 12 + padding-right 8） */
+  margin: 6px 12px 0;
+  padding: 7px 8px 7px 10px;
   border-radius: 8px;
   /* 视图标题行而非可选中节点：不再常驻 accent 选中底色（用户反馈） */
   background: transparent;
 }
 
 .gst-all-services-icon {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--gn-fg-4);
   flex-shrink: 0;
 }
 
 .gst-panel-title {
-  font-size: 12.5px;
+  /* 比组名再大一号：根行 14px / 组名 13px */
+  font-size: 14px;
   font-weight: 700;
   color: var(--gn-fg-1);
   overflow: hidden;
@@ -64,15 +67,18 @@
   white-space: nowrap;
 }
 
+/* 分组名粗体与树行尾状态点样式在 v2-theme.css（与树行规则集中） */
+
 .gst-node-count {
   flex: 0 0 auto;
+  margin-left: auto;
   font-size: 11px;
   line-height: 16px;
-  padding: 0 6px;
-  border-radius: 999px;
-  color: var(--gn-fg-3, var(--gn-fg-2));
-  background: var(--gn-bg-hover, rgba(128, 128, 128, 0.14));
+  font-variant-numeric: tabular-nums;
+  color: var(--gn-fg-4, var(--gn-fg-3));
 }
+
+/* 树行尾状态点样式在 v2-theme.css（.gst-state-dot，与树行规则集中） */
 
 /* 空态 */
 .gst-empty {

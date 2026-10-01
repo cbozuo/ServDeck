@@ -59,6 +59,9 @@ const STORAGE_KEY = 'servdeck-managed-services-v1';
 interface ManagedServicesState {
   services: ManagedServiceEntry[];
   groups: ManagedServiceGroup[];
+  /** SCM 运行状态（name → Running/Stopped/StartPending…），运行时数据不持久化；由服务树轮询采样写入。 */
+  serviceStates: Record<string, string>;
+  setServiceStates: (states: Record<string, string>) => void;
   addService: (entry: ManagedServiceEntry) => void;
   removeService: (name: string) => void;
   addGroup: (name: string) => ManagedServiceGroup;
@@ -123,6 +126,8 @@ function persist(state: { services: ManagedServiceEntry[]; groups: ManagedServic
 
 export const useServiceRegistryStore = create<ManagedServicesState>((set) => ({
   ...loadFromStorage(),
+  serviceStates: {},
+  setServiceStates: (states) => set({ serviceStates: states }),
   addService: (entry) =>
     set((state) => {
       const rest = state.services.filter((item) => item.name !== entry.name);

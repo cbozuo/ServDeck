@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ServDeck · 标签栏 × 侧栏收展 协调性提案</title>
+<style>
+  :root {
+    --bg: #eef1f4; --panel: #ffffff; --ink: #1a2230; --muted: #6b7686;
+    --line: #e2e6ec; --nav: #f3f5f7; --green: #16a34a; --content: #ffffff;
+    --side: #f7f9fa; --hover: #eceff3;
+  }
+  html.dark {
+    --bg: #0d1117; --panel: #171d27; --ink: #e8edf4; --muted: #8b95a5;
+    --line: #263041; --nav: #1a212c; --content: #131923; --side: #141a23; --hover: #222b38;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.7 "Segoe UI", "Microsoft YaHei", sans-serif;
+    padding: 36px clamp(20px, 5vw, 80px) 90px;
+  }
+  header { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; flex-wrap: wrap; }
+  h1 { font-size: 24px; font-weight: 800; }
+  .switch { margin-left: auto; display: flex; gap: 8px; }
+  .switch button {
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    border-radius: 8px; padding: 6px 16px; cursor: pointer; font-size: 13px;
+  }
+  .switch button.on { border-color: var(--green); color: var(--green); font-weight: 700; }
+  .lead { color: var(--muted); font-size: 13px; margin-bottom: 26px; max-width: 980px; }
+  .lead b { color: var(--ink); }
+
+  .scheme {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 22px 24px 26px; margin-bottom: 26px;
+  }
+  .scheme h2 { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .scheme h2 em {
+    font-style: normal; font-size: 11px; font-weight: 700; color: var(--green);
+    background: color-mix(in srgb, var(--green) 12%, transparent);
+    border-radius: 99px; padding: 2px 10px; letter-spacing: .05em;
+  }
+  .scheme h2 .demo-btn {
+    margin-left: auto; font-size: 12px; font-weight: 700; cursor: pointer;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+    border-radius: 8px; padding: 5px 14px; transition: all .2s;
+  }
+  .scheme h2 .demo-btn:hover { border-color: var(--green); color: var(--green); }
+  .scheme .desc { font-size: 12.5px; color: var(--muted); margin: 6px 0 16px; max-width: 900px; }
+  .scheme .desc b { color: var(--ink); }
+
+  /* ── 窗口 mockup ── */
+  .win {
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    background: var(--content); box-shadow: 0 12px 32px rgba(10, 20, 30, .10);
+    user-select: none;
+  }
+  .titlebar {
+    height: 44px; display: flex; align-items: center; gap: 14px; padding: 0 14px;
+    background: var(--nav); border-bottom: 1px solid var(--line);
+  }
+  .logo { width: 20px; height: 20px; border-radius: 6px; flex: 0 0 auto;
+    background: linear-gradient(135deg, #2fbf63, #15803d); position: relative; }
+  .logo::after { content: ""; position: absolute; left: 4px; right: 4px; top: 5.5px; height: 3px;
+    border-radius: 2px; background: #fff; box-shadow: 0 5.5px 0 rgba(255,255,255,.8); }
+  .qbtn { width: 26px; height: 26px; border-radius: 7px; background: var(--hover); }
+  .winctl { margin-left: auto; display: flex; gap: 16px; color: var(--muted); font-size: 12px; }
+
+  .frame { display: flex; height: 300px; }
+  .side {
+    flex: 0 0 auto; width: 232px; background: var(--side);
+    border-right: 1px solid var(--line); padding: 14px 12px;
+    transition: width .32s cubic-bezier(.4, 0, .2, 1), padding .32s cubic-bezier(.4, 0, .2, 1);
+    overflow: hidden; white-space: nowrap;
+  }
+  .side.collapsed { width: 48px; padding: 14px 8px; }
+  .side .search {
+    height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--content);
+    display: flex; align-items: center; padding: 0 9px; color: var(--muted); font-size: 12px;
+    gap: 6px; margin-bottom: 14px; overflow: hidden;
+  }
+  .side .dot-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px;
+    color: var(--muted); font-size: 12.5px; overflow: hidden; }
+  .side .dot-row.on { background: color-mix(in srgb, var(--green) 13%, transparent); color: var(--green); font-weight: 700; }
+  .side .dot { width: 12px; height: 12px; border-radius: 4px; background: var(--green); flex: 0 0 auto; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .tabsbar { height: 36px; flex: 0 0 36px; background: var(--nav); border-bottom: 1px solid var(--line);
+    display: flex; align-items: stretch; overflow: hidden; }
+  .tab {
+    width: 190px; flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; font-size: 13px; font-weight: 700; color: var(--muted);
+    position: relative; cursor: default; white-space: nowrap; overflow: hidden;
+  }
+  .tab.active { background: var(--content); color: var(--ink); }
+  .tab.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--green); }
+  .tab .x { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; }
+  .content { flex: 1; padding: 20px; color: var(--muted); font-size: 12.5px; }
+
+  /* 方案特化 */
+  /* P1: 图标条收起 + 结构线 */
+  .p1 .side.collapsed { width: 48px; }
+  .p1 .side .keep { width: 16px; height: 16px; border-radius: 5px; background: var(--green); margin: 2px auto 16px; }
+  /* P2: 完全收起 */
+  .p2 .side.collapsed { width: 0; padding: 14px 0; border-right-color: transparent; }
+  /* P3: 把手区（tab 栏左端固定把手） */
+  .handle {
+    flex: 0 0 34px; display: grid; place-items: center; cursor: pointer; color: var(--muted);
+    border-right: 1px solid var(--line);
+  }
+  .handle:hover { background: var(--hover); color: var(--ink); }
+  .handle span { display: block; width: 14px; height: 2px; background: currentColor; border-radius: 1px;
+    box-shadow: 0 4.5px 0 currentColor, 0 -4.5px 0 currentColor; }
+  /* P4: 侧栏骨架同步收缩 */
+  .p4 .side .block { height: 12px; border-radius: 6px; background: var(--hover); margin: 0 0 10px;
+    transition: width .32s cubic-bezier(.4, 0, .2, 1); }
+  .p4 .side.collapsed .block { width: 20px; margin-left: auto; margin-right: auto; }
+
+  .verdict { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px;
+    font-size: 12px; font-weight: 700; color: var(--green); }
+  .verdict::before { content: "●"; font-size: 8px; }
+  .against { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; margin-left: 18px;
+    font-size: 12px; color: var(--muted); }
+  .against::before { content: "○"; font-size: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>标签栏 × 侧栏收展 · 协调性提案</h1>
+  <div class="switch">
+    <button id="btnLight" class="on">浅色</button>
+    <button id="btnDark">深色</button>
+  </div>
+</header>
+<p class="lead">
+  当前的问题：<b>侧栏收起/展开时，标签栏起点瞬间跳变</b>（从侧栏右边界跳到窗口左缘），且起点处缺少结构性锚点，
+  标题栏（通栏）与标签栏（被侧栏截断）之间没有对齐关系。以下 4 个方案各自给出收展策略——
+  每个窗口的 <b>「收起 ⇄ 展开」按钮可交互演示</b>（0.32s 缓动过渡）。
+</p>
+
+<!-- ═══ P1 ═══ -->
+<div class="scheme p1">
+  <h2>P1 · 图标条收起 + 贯穿结构线 <em>推荐</em>
+    <button class="demo-btn" data-p="p1">收起侧栏</button>
+  </h2>
+  <p class="desc">
+    侧栏收起<b>不是消失，而是收成 48px 图标条</b>（LOGO/搜索图标保留）。侧栏右边界这条结构线
+    从标题栏底部贯穿到底部、位置永远存在——标签栏起点移动幅度只有 232−48=184px 且带缓动动画，
+    视觉上「侧栏收进去」而非「标签栏突然搬家」。结构感、可达性、动画舒适度三者兼得，最接近 IDEA / VS Code 的行为。
+  </p>
+  <div class="win">
+    <div class="titlebar"><div class="logo"></div><div class="qbtn"></div><div class="qbtn"></div><div class="winctl"><span>—</span><span>▢</span><span>✕</span></div></div>
+    <div class="frame">
+      <div class="side" id="p1-side">
+        <div class="search"><span>⌕</span><span>筛选服务…</span></div>
+        <div class="dot-row on"><span class="dot"></span><span>全部服务</span></div>
+        <div class="dot-row"><span class="dot" style="background:var(--muted)"></span><span>测试</span></div>
+        <div class="dot-row"><span class="dot" style="background:var(--muted)"></span><span>WORK_TICKET</span></div>
+      </div>
+      <div class="main">
+        <div class="tabsbar">
+          <div class="tab">设置中心 <span class="x">✕</span></div>
+          <div class="tab active">WORK_TICKET-1.0 <span class="x">✕</span></div>
+        </div>
+        <div class="content">服务详情内容区</div>
+      </div>
+    </div>
+  </div>
+  <span class="verdict">起点永不跳出结构线，收展是「内容收纳」而非「区域消失」</span>
+  <span class="against">占用 48px 常驻宽度（换来结构稳定）</span>
+</div>
+
+<!-- ═══ P2 ═══ -->
+<div class="scheme p2">
+  <h2>P2 · 完全收起 + 平滑滑动 <em>最省空间</em>
+    <button class="demo-btn" data-p="p2">收起侧栏</button>
+  </h2>
+  <p class="desc">
+    保持现有「完全收起」行为，只补上缺失的<b>过渡动画</b>：侧栏宽度 0.32s 缓动收拢，标签栏与内容区平滑左移跟随。
+    收起后标签栏贴窗口左缘（tab 首签左 padding 加大 14px 做呼吸留白）。改动最小——只是给现状加动画，
+    但结构线消失、起点跳到边缘的观感问题依然存在。
+  </p>
+  <div class="win">
+    <div class="titlebar"><div class="logo"></div><div class="qbtn"></div><div class="qbtn"></div><div class="winctl"><span>—</span><span>▢</span><span>✕</span></div></div>
+    <div class="frame">
+      <div class="side" id="p2-side">
+        <div class="search"><span>⌕</span><span>筛选服务…</span></div>
+        <div class="dot-row on"><span class="dot"></span><span>全部服务</span></div>
+        <div class="dot-row"><span class="dot" style="background:var(--muted)"></span><span>测试</span></div>
+      </div>
+      <div class="main">
+        <div class="tabsbar">
+          <div class="tab">设置中心 <span class="x">✕</span></div>
+          <div class="tab active">WORK_TICKET-1.0 <span class="x">✕</span></div>
+        </div>
+        <div class="content">服务详情内容区</div>
+      </div>
+    </div>
+  </div>
+  <span class="verdict">改动成本最低，动画立刻消除「跳变感」</span>
+  <span class="against">收起后标签栏贴死窗口左缘，结构锚点消失</span>
+</div>
+
+<!-- ═══ P3 ═══ -->
+<div class="scheme p3">
+  <h2>P3 · 标签栏把手区 <em>功能最顺</em>
+    <button class="demo-btn" data-p="p3">收起侧栏</button>
+  </h2>
+  <p class="desc">
+    在标签栏最左侧放一个<b>常驻 34px 把手区</b>（三横线图标，点击收起/展开侧栏）。
+    无论侧栏什么状态，标签栏起点都从把手右侧开始——<b>起点永远稳定</b>；侧栏收起后开关仍在原位可达，
+    形成天然的「展开入口」。IDEA 侧栏条与现代 IDE 都用这种「把手上移进工具行」的手法。
+  </p>
+  <div class="win">
+    <div class="titlebar"><div class="logo"></div><div class="qbtn"></div><div class="qbtn"></div><div class="winctl"><span>—</span><span>▢</span><span>✕</span></div></div>
+    <div class="frame">
+      <div class="side" id="p3-side">
+        <div class="search"><span>⌕</span><span>筛选服务…</span></div>
+        <div class="dot-row on"><span class="dot"></span><span>全部服务</span></div>
+        <div class="dot-row"><span class="dot" style="background:var(--muted)"></span><span>测试</span></div>
+      </div>
+      <div class="main">
+        <div class="tabsbar">
+          <div class="handle" title="收起 / 展开侧栏"><span></span></div>
+          <div class="tab">设置中心 <span class="x">✕</span></div>
+          <div class="tab active">WORK_TICKET-1.0 <span class="x">✕</span></div>
+        </div>
+        <div class="content">服务详情内容区</div>
+      </div>
+    </div>
+  </div>
+  <span class="verdict">起点零移动 + 收起后展开入口可达性最好</span>
+  <span class="against">标签栏常驻让渡 34px；把手与侧栏内已有开关形成双入口</span>
+</div>
+
+<!-- ═══ P4 ═══ -->
+<div class="scheme p4">
+  <h2>P4 · 骨架同步收缩 <em>过渡最细腻</em>
+    <button class="demo-btn" data-p="p4">收起侧栏</button>
+  </h2>
+  <p class="desc">
+    P1 的进阶版：收起瞬间侧栏内容不是被裁切，而是<b>降级为骨架条</b>（文本行收缩为居中短横块），
+    搜索框收成图标方块——所有元素同步做尺寸动画，全程无裁切、无闪跳。实现成本最高（需要给每个元素
+    定义收起态形态），但动画质感是四个方案里最好的。
+  </p>
+  <div class="win">
+    <div class="titlebar"><div class="logo"></div><div class="qbtn"></div><div class="qbtn"></div><div class="winctl"><span>—</span><span>▢</span><span>✕</span></div></div>
+    <div class="frame">
+      <div class="side" id="p4-side">
+        <div class="search" style="justify-content:center"><span>⌕</span></div>
+        <div class="block" style="width:150px"></div>
+        <div class="block" style="width:120px"></div>
+        <div class="block" style="width:138px"></div>
+        <div class="block" style="width:96px"></div>
+      </div>
+      <div class="main">
+        <div class="tabsbar">
+          <div class="tab">设置中心 <span class="x">✕</span></div>
+          <div class="tab active">WORK_TICKET-1.0 <span class="x">✕</span></div>
+        </div>
+        <div class="content">服务详情内容区</div>
+      </div>
+    </div>
+  </div>
+  <span class="verdict">动画质感最佳，侧栏收展像「呼吸」而非「折叠」</span>
+  <span class="against">每个侧栏元素都要定义收起态，实现与回归成本最高</span>
+</div>
+
+<!-- ═══ 完全收起态专项 ═══ -->
+<div class="scheme">
+  <h2>完全收起态 · 三种形态专项对比 <em>针对「完全收起」</em></h2>
+  <p class="desc">
+    切换入口在标题栏最左侧的「折叠左侧树」按钮（下方 mockup 已按真实位置绘制）。
+    完全收起（侧栏整体滑出、不留图标条）时，左缘如何收场有三种好看的解法——
+    每个窗口的 <b>「完全收起」</b>按钮可交互演示。
+  </p>
+
+  <!-- α 纯净通栏 -->
+  <h2 style="font-size:14px;margin:18px 0 8px">α · 纯净通栏 <em>最干净</em>
+    <button class="demo-btn" data-p="cx">完全收起</button>
+  </h2>
+  <p class="desc">侧栏完全滑出、左缘零残留，主区通栏展开；LOGO 与「折叠左侧树」按钮仍在标题栏原位，展开入口不变。适合「收起就是为了内容最大化」的用户。</p>
+  <div class="win">
+    <div class="titlebar">
+      <button class="demo-btn" data-p="cx" style="margin-right:2px;font-size:11px;padding:3px 10px;border-radius:6px">⇤</button>
+      <div class="logo"></div><div class="qbtn"></div><div class="qbtn"></div><div class="winctl"><span>—</span><span>▢</span><span>✕</span></div>
+    </div>
+    <div class="frame">
+      <div class="side" id="cx-side">
+        <div class="search"><span>⌕</span><span>筛选服务…</span></div>
+        <div class="dot-row on"><span class="dot"></span><span>全部服务</span></div>
+        <div class="dot-row"><span class="dot" style="background:var(--muted)"></span><span>测试</span></div>
+      </div>
+      <div class="main">
+        <div class="tabsbar">
+          <div class="tab">设置中心 <span class="x">✕</span></div>
+          <div class="tab active">WORK_TICKET-1.0 <span class="x">✕</span></div>
+        </div>
+        <div class="content">服务详情内容区 —— 收起后通栏铺满，标签栏贴窗口左缘但首签带 14px 呼吸留白</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- β 悬浮抽屉耳朵 -->
+  <h2 style="font-size:14px;margin:22px 0 8px">β · 悬浮抽屉耳朵 <em>最轻盈优雅</em>
+    <button class="demo-btn" data-p="cb">完全收起</button>
+  </h2>
+  <p class="desc">
+    收起后左缘中央留一枚<b>半凸出的「抽屉耳朵」</b>（6px 竖条，悬停自动滑出为 22px 并高亮，点击展开侧栏）。
+    平时几乎隐形（一条细边），需要时触手可及——比标题栏按钮更近手位，也比图标条轻得多。收展都有缓动。
+  </p>
+  <div class="win">
+    <div class="titlebar">
+      <button class="demo-btn" data-p="cb" style="margin-right:2px;font-size:11px;padding:3px 10px;border-radius:6px">⇤</button>
+      <div class="logo"></div><div class="qbtn"></div><div class="qbtn"></div><div class="winctl"><span>—</span><span>▢</span><span>✕</span></div>
+    </div>
+    <div class="frame" style="position:relative">
+      <div class="side" id="cb-side">
+        <div class="search"><span>⌕</span><span>筛选服务…</span></div>
+        <div class="dot-row on"><span class="dot"></span><span>全部服务</span></div>
+        <div class="dot-row"><span class="dot" style="background:var(--muted)"></span><span>测试</span></div>
+      </div>
+      <div class="main">
+        <div class="tabsbar">
+          <div class="tab">设置中心 <span class="x">✕</span></div>
+          <div class="tab active">WORK_TICKET-1.0 <span class="x">✕</span></div>
+        </div>
+        <div class="content">服务详情内容区</div>
+      </div>
+      <!-- 抽屉耳朵：收起后出现 -->
+      <div class="drawer-ear" id="cb-ear" title="展开侧栏" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- γ 图标 Rail -->
+  <h2 style="font-size:14px;margin:22px 0 8px">γ · 图标 Rail <em>信息密度保留</em>
+    <button class="demo-btn" data-p="cg">完全收起</button>
+  </h2>
+  <p class="desc">
+    收起为 48px 图标轨：搜索框收成图标块，树根（全部服务/分组/最近）收成一列图标，悬停显示 tooltip、
+    点击「展开并定位」。P1 的等价形态——适合常年在窄屏工作、不想让树彻底消失的用户。
+  </p>
+  <div class="win">
+    <div class="titlebar">
+      <button class="demo-btn" data-p="cg" style="margin-right:2px;font-size:11px;padding:3px 10px;border-radius:6px">⇤</button>
+      <div class="logo"></div><div class="qbtn"></div><div class="qbtn"></div><div class="winctl"><span>—</span><span>▢</span><span>✕</span></div>
+    </div>
+    <div class="frame">
+      <div class="side" id="cg-side">
+        <div class="search"><span>⌕</span><span>筛选服务…</span></div>
+        <div class="dot-row on"><span class="dot"></span><span>全部服务</span></div>
+        <div class="dot-row"><span class="dot" style="background:var(--muted)"></span><span>测试</span></div>
+        <div class="dot-row"><span class="dot" style="background:var(--muted)"></span><span>WORK_TICKET</span></div>
+      </div>
+      <div class="main">
+        <div class="tabsbar">
+          <div class="tab">设置中心 <span class="x">✕</span></div>
+          <div class="tab active">WORK_TICKET-1.0 <span class="x">✕</span></div>
+        </div>
+        <div class="content">服务详情内容区</div>
+      </div>
+    </div>
+  </div>
+
+  <span class="verdict">推荐 β：耳朵平时隐形不占宽度，优雅且交互半径最短</span>
+  <span class="against">α 最干净但展开入口只在标题栏；γ 最重但信息不丢</span>
+</div>
+
+<style>
+  /* 完全收起态专项样式 */
+  .win .frame { position: relative; }
+  .scheme .side.collapsed-x {
+    width: 0; padding: 14px 0; border-right-color: transparent;
+  }
+  /* 首签呼吸留白（收起态下标签栏贴左缘时） */
+  .win .tabsbar.breath .tab:first-child { margin-left: 14px; }
+  /* 悬浮抽屉耳朵 */
+  .drawer-ear {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 7px; height: 64px; border-radius: 0 8px 8px 0;
+    background: var(--green); opacity: .5; cursor: pointer;
+    transition: width .22s cubic-bezier(.4, 0, .2, 1), opacity .22s;
+    box-shadow: 2px 2px 10px rgba(10, 40, 20, .22);
+  }
+  .drawer-ear:hover { width: 20px; opacity: 1; }
+  .drawer-ear::after {
+    content: "»"; position: absolute; inset: 0; display: grid; place-items: center;
+    color: #fff; font-size: 11px; font-weight: 800; opacity: 0; transition: opacity .2s;
+  }
+  .drawer-ear:hover::after { opacity: 1; }
+  /* γ 图标 rail 形态（用 collapsed 特化：48px 图标轨） */
+  .scheme .side.rail { width: 48px; padding: 12px 8px; }
+  .scheme .side.rail .search { justify-content: center; padding: 0; }
+  .scheme .side.rail .search span:last-child { display: none; }
+  .scheme .side.rail .dot-row { justify-content: center; }
+  .scheme .side.rail .dot-row span:last-child { display: none; }
+</style>
+
+<script>
+  // 完全收起态专项：α(cx 纯净通栏) / cb(悬浮抽屉耳朵) / cg(图标 Rail)
+  (function () {
+    const collapsed = { cx: false, cb: false, cg: false };
+
+    const apply = (p) => {
+      const side = document.getElementById(`${p}-side`);
+      if (!side) return;
+      const win = side.closest('.win');
+      const tabsbar = win.querySelector('.tabsbar');
+      const ear = document.getElementById('cb-ear');
+      const isCollapsed = collapsed[p];
+      if (p === 'cg') {
+        side.classList.toggle('rail', isCollapsed);
+      } else {
+        side.classList.toggle('collapsed-x', isCollapsed);
+      }
+      if (tabsbar) tabsbar.classList.toggle('breath', isCollapsed);
+      if (p === 'cb' && ear) ear.style.display = isCollapsed ? 'block' : 'none';
+      document.querySelectorAll(`.demo-btn[data-p="${p}"]`).forEach((b) => {
+        b.textContent = isCollapsed ? '展开侧栏' : '完全收起';
+      });
+    };
+
+    document.querySelectorAll('.demo-btn[data-p="cx"],.demo-btn[data-p="cb"],.demo-btn[data-p="cg"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const p = btn.dataset.p;
+        collapsed[p] = !collapsed[p];
+        apply(p);
+      });
+    });
+
+    // 抽屉耳朵：点击直接展开
+    const ear = document.getElementById('cb-ear');
+    if (ear) {
+      ear.addEventListener('click', () => {
+        collapsed.cb = false;
+        apply('cb');
+      });
+    }
+  })();
+</script>
+
+<script>
+  // 主题切换
+  const btnLight = document.getElementById('btnLight');
+  const btnDark = document.getElementById('btnDark');
+  const setTheme = (dark) => {
+    document.documentElement.classList.toggle('dark', dark);
+    btnDark.classList.toggle('on', dark);
+    btnLight.classList.toggle('on', !dark);
+  };
+  btnLight.addEventListener('click', () => setTheme(false));
+  btnDark.addEventListener('click', () => setTheme(true));
+
+  // 各方案收展演示
+  document.querySelectorAll('.demo-btn').forEach((btn) => {
+    const p = btn.dataset.p;
+    const side = document.getElementById(`${p}-side`);
+    if (!side) return;
+    btn.addEventListener('click', () => {
+      const collapsed = side.classList.toggle('collapsed');
+      btn.textContent = collapsed ? '展开侧栏' : '收起侧栏';
+    });
+  });
+</script>
+</body>
+</html>

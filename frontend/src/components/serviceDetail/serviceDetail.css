@@ -6,12 +6,29 @@
      否则 content-box 下总宽 100%+44px，右缘被视口裁掉 22px。 */
   box-sizing: border-box;
   width: 100%;
-  min-height: 100%;
-  overflow-y: auto;
-  padding: 16px 22px 44px;
+  height: 100%;
+  /* 固定头布局：root 不滚动，Hero 与页签行钉住，仅 dtl-body 内容滚动 */
+  overflow: hidden;
+  padding: 16px 22px 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.dtl-hero {
+  flex: 0 0 auto;
+}
+
+.dtl-tabs {
+  flex: 0 0 auto;
+}
+
+/* 页签下方内容区：独立滚动（尾部留白随内容滚动，到底不顶死） */
+.dtl-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 28px;
 }
 
 /* ── Hero ── */
@@ -272,16 +289,16 @@
 }
 /* 日志/事件页签：dtl-body 弹性填满剩余视口，输出框随之自适应——
    全屏时填满不留白，小窗口时也不会被推到视口下边界外。 */
-.dtl-root:has(.dtl-body-fill) {
-  /* 填充模式下底部 44px 滚动留白没有意义，会顶出一条空隙 */
-  padding-bottom: 16px;
-}
+/* root 的 padding-bottom 已统一为 16px（滚动移入 dtl-body 后 root 不再需要
+   按页签模式区分底部留白），原 :has(.dtl-body-fill) 覆盖规则随之移除。 */
 .dtl-body.dtl-body-fill {
   flex: 1;
   min-height: 220px;
   display: flex;
   flex-direction: column;
+  /* fill 页签（日志/事件）内部自滚动：关掉普通页签的 body 滚动与尾部留白 */
   overflow: hidden;
+  padding-bottom: 0;
 }
 .dtl-body.dtl-body-fill .dtl-pane {
   flex: 1;

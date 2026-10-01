@@ -12,30 +12,11 @@ import {
 const translate = (key: string) =>
   key === 'connection_modal.db_icon_label.custom' ? 'T:custom' : key;
 
+// 数据库品牌图标资产已在 f658073 清理（35 个删除，资产目录仅存 java/mysql/redis/rustfs）；
+// 此处只保留现存资产的用例。数据库品牌 SVG 组件大清单随数据库专项一并退役。
 const BRAND_ICON_CASES: Array<[string, string, string]> = [
-  ['elasticsearch', 'Elasticsearch', 'elasticsearch.svg'],
-  ['oceanbase', 'OceanBase', 'oceanbase.png'],
-  ['oracle', 'Oracle', 'oracle.ico'],
-  ['starrocks', 'StarRocks', 'starrocks.png'],
-  ['kingbase', 'Kingbase', 'kingbase.ico'],
-  ['dameng', 'Dameng', 'dameng.png'],
-  ['vastbase', 'VastBase', 'vastbase.svg'],
-  ['opengauss', 'OpenGauss', 'opengauss.ico'],
-  ['gaussdb', 'GaussDB', 'gaussdb.ico'],
-  ['goldendb', 'GoldenDB', 'goldendb.ico'],
-  ['highgo', 'HighGo', 'highgo.ico'],
-  ['iris', 'InterSystems IRIS', 'iris.png'],
-  ['cache', 'InterSystems Caché', 'iris.png'],
-  ['tdengine', 'TDengine', 'tdengine.ico'],
-  ['iotdb', 'Apache IoTDB', 'iotdb.svg'],
-  ['rocketmq', 'RocketMQ', 'rocketmq.png'],
-  ['mqtt', 'MQTT', 'mqtt.svg'],
-  ['kafka', 'Kafka', 'kafka.png'],
-  ['rabbitmq', 'RabbitMQ', 'rabbitmq.svg'],
-  ['nacos', 'Nacos', 'nacos.svg'],
-  ['chroma', 'Chroma', 'chroma.svg'],
-  ['qdrant', 'Qdrant', 'qdrant.svg'],
-  ['milvus', 'Milvus', 'milvus.svg'],
+  ['mysql', 'MySQL', 'mysql.svg'],
+  ['redis', 'Redis', 'redis.svg'],
   ['jvm', 'JVM', 'java.svg'],
 ];
 

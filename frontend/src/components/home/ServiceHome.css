@@ -68,15 +68,41 @@
   gap: 7px;
   padding: 0 11px;
   color: var(--gn-fg-5);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+/* 聚焦样式对齐服务详情输入框：主题色描边 + 柔光光晕 */
+.h-search:focus-within {
+  border-color: var(--gn-accent);
+  box-shadow: 0 0 0 3px var(--gn-accent-soft);
 }
 .h-search input {
   flex: 1;
+  min-width: 0;
   border: 0;
   outline: 0;
   background: transparent;
   font: inherit;
   font-size: 12.5px;
   color: var(--gn-fg-1);
+}
+/* 有输入值时显示的清除按钮（小圆 ×，悬停加深） */
+.h-search-clear {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gn-fg-5);
+  color: var(--gn-bg-panel);
+  cursor: pointer;
+  opacity: 0.75;
+}
+.h-search-clear:hover {
+  opacity: 1;
 }
 .h-btn {
   height: 34px;

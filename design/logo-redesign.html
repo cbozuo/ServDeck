@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ServDeck · LOGO 重设计提案</title>
+<style>
+  :root {
+    --bg: #f4f6f8; --panel: #ffffff; --ink: #1a2230; --muted: #6b7686;
+    --line: #e4e8ee; --green: #16a34a; --green-2: #15803d; --code: #d7fce3;
+  }
+  html.dark {
+    --bg: #10141b; --panel: #171d27; --ink: #e8edf4; --muted: #8b95a5;
+    --line: #263041; --code: #14311f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.7 "Segoe UI", "Microsoft YaHei", sans-serif;
+    padding: 40px clamp(24px, 6vw, 96px) 80px;
+    transition: background .2s, color .2s;
+  }
+  header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  h1 { font-size: 26px; font-weight: 800; letter-spacing: .01em; }
+  .switch { margin-left: auto; display: flex; gap: 8px; }
+  .switch button {
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    border-radius: 8px; padding: 6px 16px; cursor: pointer; font-size: 13px;
+  }
+  .switch button.on { border-color: var(--green); color: var(--green); font-weight: 700; }
+  .lead { color: var(--muted); margin-bottom: 28px; font-size: 13px; }
+  .lead b { color: var(--ink); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 24px; display: flex; flex-direction: column; gap: 18px;
+  }
+  .card h2 { font-size: 16px; font-weight: 800; display: flex; align-items: baseline; gap: 10px; }
+  .card h2 em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--green);
+    background: var(--code); border-radius: 99px; padding: 2px 10px; letter-spacing: .06em; }
+  .desc { font-size: 12.5px; color: var(--muted); margin-top: -10px; }
+
+  .stage { display: flex; gap: 20px; align-items: center; }
+  .big {
+    width: 132px; height: 132px; flex: 0 0 auto; border-radius: 22px;
+    display: grid; place-items: center;
+    background: repeating-conic-gradient(var(--line) 0% 25%, transparent 0% 50%) 50% / 16px 16px;
+  }
+  .big svg { width: 128px; height: 128px; filter: drop-shadow(0 10px 22px rgba(15, 40, 24, .18)); }
+  .sizes { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+  .sizes .row { display: flex; align-items: flex-end; gap: 14px; }
+  .sizes figure { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .sizes figcaption { font-size: 10px; color: var(--muted); }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--bg);
+  }
+
+  /* 标题栏 mockup（浅 / 深） */
+  .titlebars { display: flex; flex-direction: column; gap: 10px; }
+  .tb {
+    display: flex; align-items: center; gap: 10px; height: 40px;
+    border-radius: 10px 10px 0 0; padding: 0 12px; border: 1px solid var(--line);
+  }
+  .tb.light { background: #f8fafb; }
+  .tb.dark  { background: #141a23; }
+  .tb .name { font-size: 12.5px; font-weight: 700; }
+  .tb.light .name { color: #2a3442; }
+  .tb.dark  .name { color: #dfe6ee; }
+  .tb .menu { font-size: 11px; }
+  .tb.light .menu { color: #7c8797; }
+  .tb.dark  .menu { color: #7d8latent794; }
+  .tb .menu { color: #7c8797; }
+  .tb.dark .menu { color: #7d8898; }
+  .tb .win { margin-left: auto; display: flex; gap: 14px; color: #9aa5b3; font-size: 11px; }
+  .note {
+    font-size: 11.5px; color: var(--muted); border-top: 1px dashed var(--line);
+    padding-top: 12px; margin-top: auto;
+  }
+  .statusbar {
+    margin-top: 34px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 16px; padding: 22px 24px;
+  }
+  .statusbar h3 { font-size: 14px; margin-bottom: 4px; }
+  .statusbar p { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+  .pair { display: flex; gap: 40px; flex-wrap: wrap; align-items: flex-end; }
+  .pair figure { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .pair figcaption { font-size: 10.5px; color: var(--muted); }
+  .legacy { width: 72px; height: 72px; border-radius: 12px; overflow: hidden; }
+  .legacy img { width: 100%; height: 100%; object-fit: cover; }
+  .arrow { font-size: 22px; color: var(--muted); align-self: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ServDeck · LOGO 重设计提案</h1>
+  <div class="switch">
+    <button id="btnLight" class="on">浅色主题</button>
+    <button id="btnDark">深色主题</button>
+  </div>
+</header>
+<p class="lead">
+  现有 LOGO 为位图来源（512px 原图内嵌），在标题栏 16px 场景下发虚、且与界面的矢量视觉语言不一致。
+  以下 4 个方案均为<b>手写矢量 SVG</b>：任意尺寸锐利、深浅主题自动适配、可直接用于标题栏 / 托盘 / 关于页 / 安装包图标。
+  右上角可切换主题预览。
+</p>
+
+<div class="grid">
+
+  <!-- ═══════════ 方案 A ═══════════ -->
+  <section class="card">
+    <h2>A · 层叠甲板 <em>DECK · 推荐</em></h2>
+    <p class="desc">ServDeck = 服务甲板。三层错落甲板象征纳管的服务层层在控，顶层滑块即当前运行状态点。与「总览卡片」的横向圆条语言同源，品牌感与界面感统一。</p>
+    <div class="stage">
+      <div class="big">
+        <svg viewBox="0 0 64 64" aria-label="Deck logo">
+          <defs>
+            <linearGradient id="aG" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#2fbf63"/><stop offset="1" stop-color="#15803d"/>
+            </linearGradient>
+          </defs>
+          <rect x="4" y="4" width="56" height="56" rx="15" fill="url(#aG)"/>
+          <rect x="4" y="4" width="56" height="28" rx="14" fill="#ffffff" opacity=".10"/>
+          <rect x="16" y="39" width="32" height="6.5" rx="3.25" fill="#ffffff" opacity=".52"/>
+          <rect x="16" y="28" width="32" height="6.5" rx="3.25" fill="#ffffff" opacity=".74"/>
+          <rect x="16" y="17" width="32" height="6.5" rx="3.25" fill="#ffffff"/>
+          <circle cx="43" cy="20.25" r="2.6" fill="#86efac"/>
+        </svg>
+      </div>
+      <div class="sizes">
+        <div class="row">
+          <figure><svg viewBox="0 0 64 64" width="40" height="40"><use href="#noop"/><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#aG)"/><rect x="16" y="39" width="32" height="6.5" rx="3.25" fill="#fff" opacity=".52"/><rect x="16" y="28" width="32" height="6.5" rx="3.25" fill="#fff" opacity=".74"/><rect x="16" y="17" width="32" height="6.5" rx="3.25" fill="#fff"/><circle cx="43" cy="20.25" r="2.6" fill="#86efac"/></svg><figcaption>40px</figcaption></figure>
+          <figure><svg viewBox="0 0 64 64" width="28" height="28"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#aG)"/><rect x="16" y="39" width="32" height="6.5" rx="3.25" fill="#fff" opacity=".52"/><rect x="16" y="28" width="32" height="6.5" rx="3.25" fill="#fff" opacity=".74"/><rect x="16" y="17" width="32" height="6.5" rx="3.25" fill="#fff"/><circle cx="43" cy="20.25" r="2.6" fill="#86efac"/></svg><figcaption>28px</figcaption></figure>
+          <figure><svg viewBox="0 0 64 64" width="16" height="16"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#aG)"/><rect x="16" y="28" width="32" height="6.5" rx="3.25" fill="#fff" opacity=".8"/><rect x="16" y="17" width="32" height="6.5" rx="3.25" fill="#fff"/></svg><figcaption>16px 标题栏</figcaption></figure>
+        </div>
+        <div class="chip"><svg viewBox="0 0 64 64" width="18" height="18"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#aG)"/><rect x="16" y="28" width="32" height="6.5" rx="3.25" fill="#fff" opacity=".8"/><rect x="16" y="17" width="32" height="6.5" rx="3.25" fill="#fff"/></svg><span style="font-size:12px;font-weight:700">ServDeck 2026.9</span></div>
+      </div>
+    </div>
+    <div class="titlebars">
+      <div class="tb light">
+        <svg viewBox="0 0 64 64" width="17" height="17"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#aG)"/><rect x="16" y="28" width="32" height="6.5" rx="3.25" fill="#fff" opacity=".8"/><rect x="16" y="17" width="32" height="6.5" rx="3.25" fill="#fff"/></svg>
+        <span class="name">ServDeck</span><span class="menu">服务 · 设置 · 帮助</span>
+        <span class="win"><span>—</span><span>▢</span><span>✕</span></span>
+      </div>
+      <div class="tb dark">
+        <svg viewBox="0 0 64 64" width="17" height="17"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#aG)"/><rect x="16" y="28" width="32" height="6.5" rx="3.25" fill="#fff" opacity=".8"/><rect x="16" y="17" width="32" height="6.5" rx="3.25" fill="#fff"/></svg>
+        <span class="name">ServDeck</span><span class="menu">服务 · 设置 · 帮助</span>
+        <span class="win"><span>—</span><span>▢</span><span>✕</span></span>
+      </div>
+    </div>
+    <p class="note">渐变绿底 + 白色甲板层，16px 下仍有可辨识的三层节奏；状态点暗合「服务运行指示」。</p>
+  </section>
+
+  <!-- ═══════════ 方案 B ═══════════ -->
+  <section class="card">
+    <h2>B · S 势能 <em>MONOGRAM</em></h2>
+    <p class="desc">ServDeck 的 S 字 monogram：一笔圆角 S 由两段圆弧咬合，末端收一枚节点圆点（服务节点）。深色底板让绿色 S 极为醒目，高级感最强，最像独立品牌。</p>
+    <div class="stage">
+      <div class="big">
+        <svg viewBox="0 0 64 64">
+          <defs>
+            <linearGradient id="bG" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#4ade80"/><stop offset="1" stop-color="#059669"/>
+            </linearGradient>
+          </defs>
+          <rect x="4" y="4" width="56" height="56" rx="15" fill="#0d1b2a"/>
+          <rect x="4" y="4" width="56" height="28" rx="14" fill="#ffffff" opacity=".05"/>
+          <path d="M41 21.5 H28.5 a6.5 6.5 0 0 0 0 13 h7 a6.5 6.5 0 0 1 0 13 H23"
+                fill="none" stroke="url(#bG)" stroke-width="7" stroke-linecap="round"/>
+          <circle cx="41" cy="21.5" r="3.2" fill="#4ade80"/>
+        </svg>
+      </div>
+      <div class="sizes">
+        <div class="row">
+          <figure><svg viewBox="0 0 64 64" width="40" height="40"><rect x="4" y="4" width="56" height="56" rx="15" fill="#0d1b2a"/><path d="M41 21.5 H28.5 a6.5 6.5 0 0 0 0 13 h7 a6.5 6.5 0 0 1 0 13 H23" fill="none" stroke="url(#bG)" stroke-width="7" stroke-linecap="round"/><circle cx="41" cy="21.5" r="3.2" fill="#4ade80"/></svg><figcaption>40px</figcaption></figure>
+          <figure><svg viewBox="0 0 64 64" width="28" height="28"><rect x="4" y="4" width="56" height="56" rx="15" fill="#0d1b2a"/><path d="M41 21.5 H28.5 a6.5 6.5 0 0 0 0 13 h7 a6.5 6.5 0 0 1 0 13 H23" fill="none" stroke="url(#bG)" stroke-width="7" stroke-linecap="round"/></svg><figcaption>28px</figcaption></figure>
+          <figure><svg viewBox="0 0 64 64" width="16" height="16"><rect x="4" y="4" width="56" height="56" rx="15" fill="#0d1b2a"/><path d="M41 21.5 H28.5 a6.5 6.5 0 0 0 0 13 h7 a6.5 6.5 0 0 1 0 13 H23" fill="none" stroke="#4ade80" stroke-width="8" stroke-linecap="round"/></svg><figcaption>16px 标题栏</figcaption></figure>
+        </div>
+        <div class="chip"><svg viewBox="0 0 64 64" width="18" height="18"><rect x="4" y="4" width="56" height="56" rx="15" fill="#0d1b2a"/><path d="M41 21.5 H28.5 a6.5 6.5 0 0 0 0 13 h7 a6.5 6.5 0 0 1 0 13 H23" fill="none" stroke="url(#bG)" stroke-width="7" stroke-linecap="round"/></svg><span style="font-size:12px;font-weight:700">ServDeck 2026.9</span></div>
+      </div>
+    </div>
+    <div class="titlebars">
+      <div class="tb light">
+        <svg viewBox="0 0 64 64" width="17" height="17"><rect x="4" y="4" width="56" height="56" rx="15" fill="#0d1b2a"/><path d="M41 21.5 H28.5 a6.5 6.5 0 0 0 0 13 h7 a6.5 6.5 0 0 1 0 13 H23" fill="none" stroke="#4ade80" stroke-width="8" stroke-linecap="round"/></svg>
+        <span class="name">ServDeck</span><span class="menu">服务 · 设置 · 帮助</span>
+        <span class="win"><span>—</span><span>▢</span><span>✕</span></span>
+      </div>
+      <div class="tb dark">
+        <svg viewBox="0 0 64 64" width="17" height="17"><rect x="4" y="4" width="56" height="56" rx="15" fill="#0d1b2a"/><path d="M41 21.5 H28.5 a6.5 6.5 0 0 0 0 13 h7 a6.5 6.5 0 0 1 0 13 H23" fill="none" stroke="#4ade80" stroke-width="8" stroke-linecap="round"/></svg>
+        <span class="name">ServDeck</span><span class="menu">服务 · 设置 · 帮助</span>
+        <span class="win"><span>—</span><span>▢</span><span>✕</span></span>
+      </div>
+    </div>
+    <p class="note">深底板在浅色标题栏里形成一枚「墨点」锚点，识别度最高；深色主题下与标题栏融为一体。</p>
+  </section>
+
+  <!-- ═══════════ 方案 C ═══════════ -->
+  <section class="card">
+    <h2>C · 脉冲监护 <em>PULSE</em></h2>
+    <p class="desc">服务健康监控的直白隐喻：绿底上一道白色脉冲扫过，波峰处嵌状态点。传达「实时监护、异常即知」，与资源趋势图的折线语言呼应。</p>
+    <div class="stage">
+      <div class="big">
+        <svg viewBox="0 0 64 64">
+          <defs>
+            <linearGradient id="cG" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#2fbf63"/><stop offset="1" stop-color="#166534"/>
+            </linearGradient>
+          </defs>
+          <rect x="4" y="4" width="56" height="56" rx="15" fill="url(#cG)"/>
+          <rect x="4" y="4" width="56" height="28" rx="14" fill="#ffffff" opacity=".10"/>
+          <path d="M13 33 h9 l4.5-10 6.5 19 5-14 3.5 5 h10"
+                fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".94"/>
+          <circle cx="33" cy="42" r="3" fill="#bbf7d0" stroke="#ffffff" stroke-width="1.6"/>
+        </svg>
+      </div>
+      <div class="sizes">
+        <div class="row">
+          <figure><svg viewBox="0 0 64 64" width="40" height="40"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#cG)"/><path d="M13 33 h9 l4.5-10 6.5 19 5-14 3.5 5 h10" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".94"/><circle cx="33" cy="42" r="3" fill="#bbf7d0" stroke="#fff" stroke-width="1.6"/></svg><figcaption>40px</figcaption></figure>
+          <figure><svg viewBox="0 0 64 64" width="28" height="28"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#cG)"/><path d="M13 33 h9 l4.5-10 6.5 19 5-14 3.5 5 h10" fill="none" stroke="#fff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/></svg><figcaption>28px</figcaption></figure>
+          <figure><svg viewBox="0 0 64 64" width="16" height="16"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#cG)"/><path d="M13 35 h9 l4.5-10 6.5 17 5-13 3.5 6 h10" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><figcaption>16px 标题栏</figcaption></figure>
+        </div>
+        <div class="chip"><svg viewBox="0 0 64 64" width="18" height="18"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#cG)"/><path d="M13 33 h9 l4.5-10 6.5 19 5-14 3.5 5 h10" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font-size:12px;font-weight:700">ServDeck 2026.9</span></div>
+      </div>
+    </div>
+    <div class="titlebars">
+      <div class="tb light">
+        <svg viewBox="0 0 64 64" width="17" height="17"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#cG)"/><path d="M13 35 h9 l4.5-10 6.5 17 5-13 3.5 6 h10" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="name">ServDeck</span><span class="menu">服务 · 设置 · 帮助</span>
+        <span class="win"><span>—</span><span>▢</span><span>✕</span></span>
+      </div>
+      <div class="tb dark">
+        <svg viewBox="0 0 64 64" width="17" height="17"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#cG)"/><path d="M13 35 h9 l4.5-10 6.5 17 5-13 3.5 6 h10" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="name">ServDeck</span><span class="menu">服务 · 设置 · 帮助</span>
+        <span class="win"><span>—</span><span>▢</span><span>✕</span></span>
+      </div>
+    </div>
+    <p class="note">16px 下脉冲简化为折线仍清晰可读；「监护」语义让用户一眼理解产品职能。</p>
+  </section>
+
+  <!-- ═══════════ 方案 D ═══════════ -->
+  <section class="card">
+    <h2>D · 服务堆栈 <em>STACK</em></h2>
+    <p class="desc">两台错位层叠的服务器节点：每台一块圆角横板 + 运行指示灯，直指「纳管一批服务」的核心场景。语义最直白，新旧用户零学习成本。</p>
+    <div class="stage">
+      <div class="big">
+        <svg viewBox="0 0 64 64">
+          <defs>
+            <linearGradient id="dG" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#31c463"/><stop offset="1" stop-color="#146c43"/>
+            </linearGradient>
+          </defs>
+          <rect x="4" y="4" width="56" height="56" rx="15" fill="url(#dG)"/>
+          <rect x="4" y="4" width="56" height="28" rx="14" fill="#ffffff" opacity=".10"/>
+          <rect x="14" y="14" width="36" height="15" rx="6.5" fill="#ffffff" opacity=".96"/>
+          <rect x="14" y="35" width="36" height="15" rx="6.5" fill="#ffffff" opacity=".66"/>
+          <circle cx="21" cy="21.5" r="2.4" fill="#16a34a"/>
+          <circle cx="21" cy="42.5" r="2.4" fill="#0d3d22" opacity=".55"/>
+          <rect x="27" y="20.4" width="17" height="2.4" rx="1.2" fill="#c7ecd2"/>
+          <rect x="27" y="41.4" width="17" height="2.4" rx="1.2" fill="#e4f5e9" opacity=".8"/>
+        </svg>
+      </div>
+      <div class="sizes">
+        <div class="row">
+          <figure><svg viewBox="0 0 64 64" width="40" height="40"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#dG)"/><rect x="14" y="14" width="36" height="15" rx="6.5" fill="#fff" opacity=".96"/><rect x="14" y="35" width="36" height="15" rx="6.5" fill="#fff" opacity=".66"/><circle cx="21" cy="21.5" r="2.4" fill="#16a34a"/><circle cx="21" cy="42.5" r="2.4" fill="#0d3d22" opacity=".55"/></svg><figcaption>40px</figcaption></figure>
+          <figure><svg viewBox="0 0 64 64" width="28" height="28"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#dG)"/><rect x="14" y="14" width="36" height="15" rx="6.5" fill="#fff" opacity=".96"/><rect x="14" y="35" width="36" height="15" rx="6.5" fill="#fff" opacity=".66"/></svg><figcaption>28px</figcaption></figure>
+          <figure><svg viewBox="0 0 64 64" width="16" height="16"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#dG)"/><rect x="13" y="15" width="38" height="14" rx="6" fill="#fff"/><rect x="13" y="35" width="38" height="14" rx="6" fill="#fff" opacity=".62"/></svg><figcaption>16px 标题栏</figcaption></figure>
+        </div>
+        <div class="chip"><svg viewBox="0 0 64 64" width="18" height="18"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#dG)"/><rect x="14" y="14" width="36" height="15" rx="6.5" fill="#fff" opacity=".96"/><rect x="14" y="35" width="36" height="15" rx="6.5" fill="#fff" opacity=".66"/></svg><span style="font-size:12px;font-weight:700">ServDeck 2026.9</span></div>
+      </div>
+    </div>
+    <div class="titlebars">
+      <div class="tb light">
+        <svg viewBox="0 0 64 64" width="17" height="17"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#dG)"/><rect x="13" y="15" width="38" height="14" rx="6" fill="#fff"/><rect x="13" y="35" width="38" height="14" rx="6" fill="#fff" opacity=".62"/></svg>
+        <span class="name">ServDeck</span><span class="menu">服务 · 设置 · 帮助</span>
+        <span class="win"><span>—</span><span>▢</span><span>✕</span></span>
+      </div>
+      <div class="tb dark">
+        <svg viewBox="0 0 64 64" width="17" height="17"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#dG)"/><rect x="13" y="15" width="38" height="14" rx="6" fill="#fff"/><rect x="13" y="35" width="38" height="14" rx="6" fill="#fff" opacity=".62"/></svg>
+        <span class="name">ServDeck</span><span class="menu">服务 · 设置 · 帮助</span>
+        <span class="win"><span>—</span><span>▢</span><span>✕</span></span>
+      </div>
+    </div>
+    <p class="note">双板错位 + 状态点在 40px 以上细节丰富；16px 自动收敛为双横条，依然表达「堆栈」。</p>
+  </section>
+</div>
+
+<!-- ═══ 现状对比 ═══ -->
+<div class="statusbar">
+  <h3>与现状对比</h3>
+  <p>左：现用位图 LOGO（512px 位图内嵌，16px 标题栏下边缘模糊发虚）；右：任选新方案后的矢量渲染。矢量化后所有尺寸锐利、深浅主题自动适配。</p>
+  <div class="pair">
+    <figure>
+      <div class="legacy"><img src="../frontend/public/brand-fallback.svg" alt="现状位图 LOGO"></div>
+      <figcaption>现状（位图）</figcaption>
+    </figure>
+    <div class="arrow">→</div>
+    <figure>
+      <svg viewBox="0 0 64 64" width="72" height="72"><rect x="4" y="4" width="56" height="56" rx="15" fill="url(#aG)"/><rect x="16" y="39" width="32" height="6.5" rx="3.25" fill="#fff" opacity=".52"/><rect x="16" y="28" width="32" height="6.5" rx="3.25" fill="#fff" opacity=".74"/><rect x="16" y="17" width="32" height="6.5" rx="3.25" fill="#fff"/><circle cx="43" cy="20.25" r="2.6" fill="#86efac"/></svg>
+      <figcaption>新方案示例（A · 矢量）</figcaption>
+    </figure>
+  </div>
+</div>
+
+<script>
+  const btnLight = document.getElementById('btnLight');
+  const btnDark = document.getElementById('btnDark');
+  const setTheme = (dark) => {
+    document.documentElement.classList.toggle('dark', dark);
+    btnDark.classList.toggle('on', dark);
+    btnLight.classList.toggle('on', !dark);
+  };
+  btnLight.addEventListener('click', () => setTheme(false));
+  btnDark.addEventListener('click', () => setTheme(true));
+</script>
+</body>
+</html>

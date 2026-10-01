@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CaretRightFilled,
+  CloseOutlined,
   LoadingOutlined,
   MoreOutlined,
   PlusOutlined,
@@ -214,6 +215,16 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService, onMore }
               placeholder={t('home.search.placeholder')}
               onChange={(event) => setSearch(event.target.value)}
             />
+            {search ? (
+              <button
+                type="button"
+                className="h-search-clear"
+                aria-label={t('service.tree.filter.reset')}
+                onClick={() => setSearch('')}
+              >
+                <CloseOutlined style={{ fontSize: 10 }} />
+              </button>
+            ) : null}
           </div>
           <button className="h-btn h-btn-ghost" onClick={refreshAll}>
             <ReloadOutlined style={{ fontSize: 13 }} />

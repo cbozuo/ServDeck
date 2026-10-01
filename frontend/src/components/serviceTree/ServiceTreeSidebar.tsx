@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AppstoreOutlined, FolderOpenOutlined, FolderOutlined, MenuUnfoldOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, FolderOpenOutlined, FolderOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button, Empty, Input, Modal, Tooltip, Tree } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import type { InputRef } from 'antd';
@@ -24,13 +24,12 @@ import {
 import { ServiceTreeContextMenu } from './ServiceTreeContextMenu';
 import { ManageServiceGroupsModal } from './ManageServiceGroupsModal';
 import { ServiceTreeEngineBar } from './ServiceTreeEngineBar';
+import { SampleServiceMetrics } from '../../../wailsjs/go/app/App';
+import { isPendingState } from '../home/homeEvents';
 import './serviceTreeSidebar.css';
 
 export interface ServiceTreeSidebarProps {
   onAddService: () => void;
-  onExpandSidebar?: () => void;
-  expandSidebarLabel?: string;
-  expandSidebarButtonRef?: React.Ref<HTMLButtonElement>;
 }
 
 type ContextMenuState = {
@@ -39,8 +38,29 @@ type ContextMenuState = {
   target: ServiceTreeMenuTarget;
 };
 
-const folderIcon = (
-  <span className="gn-v2-tree-folder-icon" data-sidebar-tree-folder-icon="true">
+/** 树行尾状态点的样式类与提示文案：形状/颜色/动画与详情页状态徽标（dtl-badge）一致——
+ *  采样缺失即 SCM 无此服务（未注册，橙点）。 */
+const resolveServiceStateVisual = (state?: string): { cls: string; titleKey: string } => {
+  if (!state) return { cls: 'unreg', titleKey: 'detail.badge.unregistered' };
+  if (state === 'Running') return { cls: 'run', titleKey: 'home.state.Running' };
+  if (isPendingState(state)) return { cls: 'pend', titleKey: `home.state.${state}` };
+  return { cls: 'stop', titleKey: 'home.state.Stopped' };
+};
+
+/** 分组行 folder 图标：点击切换展开/收起并整行选中（switcher 箭头已隐身，文件夹即交互主体）；
+ *  开合形态由行级 switcher-open/close 状态类经 CSS 切换双图标。 */
+const folderIconFor = (
+  groupKey: string,
+  onFolderActivate: (key: string) => void,
+): React.ReactNode => (
+  <span
+    className="gn-v2-tree-folder-icon"
+    data-sidebar-tree-folder-icon="true"
+    onClick={(event) => {
+      event.stopPropagation();
+      onFolderActivate(groupKey);
+    }}
+  >
     {/* 收起=闭合文件夹、展开=打开文件夹：两个都渲染，由 switcher 状态类切显隐 */}
     <FolderOutlined className="gn-folder-state-closed" />
     <FolderOpenOutlined className="gn-folder-state-open" />
@@ -68,9 +88,6 @@ const serviceIconOf = (serviceType: string, customIcon?: string): React.ReactNod
  */
 export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
   onAddService,
-  onExpandSidebar,
-  expandSidebarLabel,
-  expandSidebarButtonRef,
 }) => {
   const { t } = useI18n();
   const services = useServiceRegistryStore((state) => state.services);
@@ -83,6 +100,13 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
   const [filter, setFilter] = useState('');
   const [selectedKey, setSelectedKey] = useState<string>('');
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
+  // 文件夹图标单击 = 整行选中 + 切换展开/收起（与点行主体一致的选中反馈）
+  const handleFolderActivate = useCallback((key: string) => {
+    setSelectedKey(key);
+    setExpandedKeys((prev) => (
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
+    ));
+  }, []);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [isManageGroupsOpen, setIsManageGroupsOpen] = useState(false);
   const [renamingGroup, setRenamingGroup] = useState<{ id: string; name: string } | null>(null);
@@ -93,6 +117,35 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
 
   const tree = useMemo(() => buildServiceTree(services, groups, filter), [services, groups, filter]);
   const hasAnyService = services.length > 0;
+
+  const serviceStates = useServiceRegistryStore((state) => state.serviceStates);
+  const setServiceStates = useServiceRegistryStore((state) => state.setServiceStates);
+
+  // 服务运行状态轮询：结果写全局 store 供树行尾状态点消费；
+  // 点色语义与详情页状态徽标一致（Running=主题绿 / pending=橙 / 其余=灰）。
+  useEffect(() => {
+    if (services.length === 0) return;
+    let cancelled = false;
+    const sample = async () => {
+      try {
+        const result = await SampleServiceMetrics(services.map((item) => item.name));
+        if (cancelled || !result.success) return;
+        const states: Record<string, string> = {};
+        for (const sampleEntry of ((result.data?.services ?? []) as Array<{ name: string; state: string }>)) {
+          states[sampleEntry.name] = sampleEntry.state;
+        }
+        setServiceStates(states);
+      } catch {
+        // 采样失败保留上轮状态
+      }
+    };
+    void sample();
+    const timer = window.setInterval(sample, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [services, setServiceStates]);
 
   // 新建的分组自动展开；搜索时全部展开以便直接看到命中服务。
   useEffect(() => {
@@ -216,14 +269,14 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
     const groupNodes: DataNode[] = tree.groups.map((groupNode) => ({
       key: groupNode.key,
       title: groupNode.group.name,
-      icon: folderIcon,
+      icon: folderIconFor(groupNode.key, handleFolderActivate),
       nodeRef: { kind: 'group', group: groupNode.group },
       'data-sidebar-node-key': groupNode.key,
       children: groupNode.services.map(toServiceDataNode),
     } as DataNode));
     const ungroupedNodes: DataNode[] = tree.ungrouped.map(toServiceDataNode);
     return [...groupNodes, ...ungroupedNodes];
-  }, [tree]);
+  }, [handleFolderActivate, tree]);
 
   const handleContextMenu = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (event.defaultPrevented) return;
@@ -279,7 +332,7 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
     ? (
       <div className="gst-empty" data-service-tree-empty="true">
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('service.tree.empty.title')} />
-        <Button type="primary" icon={<PlusOutlined />} onClick={onAddService}>
+        <Button type="primary" data-service-tree-add-action="true" icon={<PlusOutlined />} onClick={onAddService}>
           {t('service.tree.add_service')}
         </Button>
         <div className="gst-empty-hint">{t('service.tree.empty.hint')}</div>
@@ -296,57 +349,8 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
   return (
     <div className="gn-v2-sidebar-redesign" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-      <aside
-        className="gn-v2-connection-rail"
-        data-sidebar-fixed-rail="true"
-        aria-label={t('service.tree.rail.label')}
-      >
-        <div className="gn-v2-rail-items">
-          <div className="gn-v2-rail-primary-actions" aria-label={t('service.tree.rail.label')}>
-            {onExpandSidebar && expandSidebarLabel && (
-              <div className="gn-v2-rail-sidebar-toggle-slot">
-                <Tooltip title={expandSidebarLabel} placement="right" mouseEnterDelay={0.35}>
-                  <button
-                    ref={expandSidebarButtonRef}
-                    type="button"
-                    className="gn-v2-rail-tool gn-v2-rail-sidebar-toggle"
-                    data-sidebar-collapse-trigger="true"
-                    data-sidebar-toggle-placement="fixed-rail"
-                    aria-label={expandSidebarLabel}
-                    aria-controls="gonavi-sidebar-tree-panel"
-                    onClick={onExpandSidebar}
-                  >
-                    <MenuUnfoldOutlined />
-                  </button>
-                </Tooltip>
-              </div>
-            )}
-            <Tooltip title={t('service.tree.add_service')} placement="right" mouseEnterDelay={0.35}>
-              <button
-                type="button"
-                className="gn-v2-rail-tool"
-                data-service-tree-add-action="true"
-                aria-label={t('service.tree.add_service')}
-                onClick={onAddService}
-              >
-                <PlusOutlined />
-              </button>
-            </Tooltip>
-            <Tooltip title={t('service.tree.groups.manage')} placement="right" mouseEnterDelay={0.35}>
-              <button
-                type="button"
-                className="gn-v2-rail-tool"
-                data-service-tree-manage-groups="true"
-                aria-label={t('service.tree.groups.manage')}
-                onClick={() => setIsManageGroupsOpen(true)}
-              >
-                <FolderOpenOutlined />
-              </button>
-            </Tooltip>
-          </div>
-        </div>
-      </aside>
-
+      {/* 收起态为纯净模式：侧栏整体滑出（宽度 0），不渲染 fixed-rail 功能图标；
+          展开入口 = 标题栏「折叠左侧树」按钮，「添加服务/管理分组」在展开态工具行。 */}
       <div
         id="gonavi-sidebar-tree-panel"
         className="gn-v2-object-explorer"
@@ -368,17 +372,6 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
               prefix={<SearchOutlined />}
               allowClear
             />
-            <Tooltip title={t('service.tree.filter.reset')}>
-              <button
-                type="button"
-                className="gn-v2-explorer-filter-action"
-                aria-label={t('service.tree.filter.reset')}
-                disabled={!filter}
-                onClick={() => setFilter('')}
-              >
-                <ReloadOutlined />
-              </button>
-            </Tooltip>
           </div>
         </div>
 
@@ -419,17 +412,24 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
                     return (
                       <span className="gn-v2-tree-title gst-node-title" data-service-tree-group-title="true">
                         <span className="gst-node-name">{target.group.name}</span>
+                        {/* 方案 2：计数轻量化为右对齐纯数字（原「N 个服务」胶囊） */}
                         <span className="gst-node-count">
-                          {t('service.tree.groups.count', { count: services.filter((item) => item.groupId === target.group.id).length })}
+                          {services.filter((item) => item.groupId === target.group.id).length}
                         </span>
                       </span>
                     );
                   }
+                  const visual = resolveServiceStateVisual(serviceStates[target.service.name]);
                   return (
                     <span className="gn-v2-tree-title gst-node-title" data-service-tree-service-title="true">
                       <span className="gst-node-name">
                         {target.service.displayName?.trim() || target.service.name}
                       </span>
+                      <i
+                        className={`gst-state-dot ${visual.cls}`}
+                        title={t(visual.titleKey)}
+                        data-service-tree-state={serviceStates[target.service.name] ?? 'Stopped'}
+                      />
                     </span>
                   );
                 }}

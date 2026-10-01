@@ -2758,29 +2758,10 @@ body[data-ui-version="v2"] .gn-v2-explorer-filter-row .ant-input-affix-wrapper {
   min-width: 0;
 }
 
-body[data-ui-version="v2"] .gn-v2-explorer-filter-action {
-  width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0.5px solid var(--gn-br-2);
-  border-radius: 7px;
-  background: var(--gn-bg-panel-2);
-  color: var(--gn-fg-4);
-  cursor: pointer;
-}
-
-body[data-ui-version="v2"] .gn-v2-explorer-filter-action:hover:not(:disabled) {
-  border-color: var(--gn-accent);
-  background: var(--gn-bg-hover);
-  color: var(--gn-fg-2);
-}
-
-body[data-ui-version="v2"] .gn-v2-explorer-filter-action:disabled {
-  opacity: 0.42;
-  cursor: not-allowed;
+/* 聚焦样式对齐服务详情输入框：主题色描边 + 柔光光晕（替代 antd 默认蓝色聚焦态） */
+body[data-ui-version="v2"] .gn-v2-explorer-search .ant-input-affix-wrapper:focus-within {
+  border-color: var(--gn-accent) !important;
+  box-shadow: 0 0 0 3px var(--gn-accent-soft) !important;
 }
 
 body[data-ui-version="v2"] .gn-v2-command-backdrop {
@@ -3402,8 +3383,7 @@ body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode:has(.gn
 body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode:has(.gn-v2-tree-title.is-connection-group) .ant-tree-iconEle,
 body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode:has(.gn-v2-tree-title[data-node-type="all-saved-queries"]) .ant-tree-iconEle,
 body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode:has(.gn-v2-tree-title[data-node-type="external-sql-root"]) .ant-tree-iconEle,
-body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode:has(.gn-v2-tree-title[data-node-type="saved-query-group"]) .ant-tree-iconEle,
-body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode:has(.gn-v2-tree-folder-icon) .ant-tree-iconEle {
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode:has(.gn-v2-tree-title[data-node-type="saved-query-group"]) .ant-tree-iconEle {
   width: 20px !important;
   min-width: 20px !important;
   height: 20px !important;
@@ -3443,32 +3423,114 @@ body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-iconEle .anticon
   color: var(--gn-fg-4);
 }
 
+/* 服务树行尾状态点：形状/颜色/动画与详情页状态徽标（dtl-badge）一致——
+   运行中=主题绿点（pulse 呼吸）、启动停止中=橙点、已停止=灰点、未注册=橙点 */
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gst-node-title[data-service-tree-group-title] .gst-node-name {
+  font-weight: 700;
+}
+/* 分组计数/服务状态点贴行右缘：内容区撑满行宽（原先 max-content 宽随内容收缩，
+   右对齐永远差几像素），行尾元素 margin-left:auto 自然贴右；
+   与根行「全部服务」计数的对齐由根行 padding-right 校准（见 serviceTreeSidebar.css）。 */
+/* ⚠️ 本项目构建产物虽保留 :has 文本，但 WebView2 实测不应用复杂 :has 规则
+   （beacon computed 实测 2026-10-01）——树行右贴一律用 rc-tree 的确定性功能类：
+   组行 wrapper 恒有 -open/-close（可展开），服务行为 treenode-leaf。 */
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-node-content-wrapper-open,
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-node-content-wrapper-close,
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode-leaf > .ant-tree-node-content-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+  /* 关键：content-wrapper 默认非 flex，margin-left:auto 不产生推挤（历轮右对齐失效的根因） */
+  display: flex !important;
+  align-items: center !important;
+}
+/* 撑满链的中间层：.ant-tree-title 也随内容收缩，必须一起撑满，
+   否则 margin-left:auto 在这一层又断掉 */
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-node-content-wrapper-open .ant-tree-title,
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-node-content-wrapper-close .ant-tree-title,
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode-leaf > .ant-tree-node-content-wrapper .ant-tree-title {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+/* 计数/状态点绝对定位贴 wrapper 右缘（wrapper 已撑满且 relative——
+   margin:auto 方案在 title 中间层断链，绝对定位绕过整条内容链）；
+   长名行由 wrapper 的 padding-right 槽位防重叠。 */
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-node-content-wrapper-open,
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-node-content-wrapper-close,
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode-leaf > .ant-tree-node-content-wrapper {
+  position: relative !important;
+  /* 右侧槽位：绝对定位的计数/状态点不占布局流，长名在此省略不与其重叠 */
+  padding-right: 26px !important;
+}
+/* right:-4px 实测校准：wrapper 右缘 238 + 4 = 242 = 根行「全部服务」计数右缘
+   （beacon 实测 2026-10-01，右缘差来自 treenode 的 6px padding） */
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gst-node-count,
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gst-state-dot {
+  position: absolute !important;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0 !important;
+}
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gst-state-dot {
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gst-state-dot.run {
+  background: var(--gn-accent);
+  animation: gn-state-pulse 2.4s ease-in-out infinite;
+}
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gst-state-dot.stop {
+  background: var(--gn-fg-5, var(--gn-fg-4));
+}
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gst-state-dot.pend,
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gst-state-dot.unreg {
+  background: var(--gn-warn);
+}
+@keyframes gn-state-pulse {
+  50% { opacity: 0.45; }
+}
+
+/* IDEA 风：分组展开指示用文件夹图标承担，switcher 箭头隐身（保留点击热区） */
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-switcher:not(.ant-tree-switcher-noop) {
+  color: transparent !important;
+}
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-switcher:not(.ant-tree-switcher-noop):hover {
+  color: transparent !important;
+}
+
+/* 分组 folder 图标：点击展开/收起；收起显示闭合文件夹、展开显示打开文件夹（行级状态类切换） */
 body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gn-v2-tree-folder-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 20px;
+  flex: 0 0 18px;
+  border-radius: 5px;
+  /* 真实文件夹色（金褐，与 IDEA 一致） */
+  color: #d48806;
+  cursor: pointer;
 }
-
+body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gn-v2-tree-folder-icon:hover {
+  background: var(--gn-hover, var(--gn-bg-hover));
+  color: #e8a33d;
+}
 body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gn-v2-tree-folder-icon .anticon-folder,
 body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gn-v2-tree-folder-icon .anticon-folder-open {
-  color: #d48806;
-  font-size: 17px;
+  font-size: 14px;
   line-height: 1;
 }
-
-/* 文件夹分组:收起显示闭合文件夹,展开显示打开文件夹。
-   节点同时渲染两个图标,由 antd Tree 的 switcher 状态类切换显隐。 */
 body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .gn-v2-tree-folder-icon .gn-folder-state-open {
   display: none;
 }
-
 body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode-switcher-open .gn-v2-tree-folder-icon .gn-folder-state-closed {
   display: none;
 }
-
 body[data-ui-version="v2"] .gn-v2-explorer-tree-shell .ant-tree-treenode-switcher-open .gn-v2-tree-folder-icon .gn-folder-state-open {
   display: inline-flex;
 }
@@ -4646,8 +4708,8 @@ body[data-ui-version="v2"] .gn-v2-main-tabs > .ant-tabs-nav {
   height: 36px;
   flex: 0 0 36px;
   background: var(--gn-bg-panel-2);
-  /* 收起侧栏/窄窗口时首尾页签的圆角不再贴死窗口边缘被裁 */
-  padding: 0 12px;
+  /* IDEA 风：页签贴满标签栏，首签直接贴左侧面板（不再留 12px 空隙） */
+  padding: 0;
 }
 
 body[data-ui-version="v2"] .gn-v2-main-tabs-double > .ant-tabs-nav {
@@ -4672,11 +4734,18 @@ body[data-ui-version="v2"] .gn-v2-main-tabs .ant-tabs-tab {
   height: 36px;
   margin: 0 !important;
   padding: 0 !important;
-  border-radius: 8px !important;
+  /* IDEA 风：直角长方形页签 */
+  border-radius: 0 !important;
 }
 
 body[data-ui-version="v2"] .gn-v2-main-tabs .ant-tabs-tab.ant-tabs-tab-active {
-  box-shadow: inset 0 2px 0 var(--gn-accent) !important;
+  /* IDEA 风：主题高亮条置于页签底边 */
+  box-shadow: inset 0 -2px 0 var(--gn-accent) !important;
+}
+
+/* IDEA 风：悬停页签浅灰底（非激活态），与 nav 背景形成层次 */
+body[data-ui-version="v2"] .gn-v2-main-tabs .ant-tabs-tab:not(.ant-tabs-tab-active):hover {
+  background: var(--gn-bg-hover) !important;
 }
 
 body[data-ui-version="v2"] .gn-v2-main-tabs .ant-tabs-tab.ant-tabs-tab-active::after {

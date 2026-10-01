@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const storeState = vi.hoisted(() => ({
   services: [] as Array<Record<string, unknown>>,
   groups: [] as Array<Record<string, unknown>>,
+  serviceStates: {} as Record<string, string>,
   removeService: vi.fn(),
   moveServiceToGroup: vi.fn(),
   removeGroup: vi.fn(),
@@ -117,9 +118,10 @@ describe('ServiceTreeSidebar', () => {
     expect(findAllByProp(renderer.root, 'data-service-tree-empty')).toHaveLength(1);
 
     const addButtons = findAllByProp(renderer.root, 'data-service-tree-add-action');
-    expect(addButtons).toHaveLength(1);
+    // antd Button 会把 data-* 透传给原生 button，组件与 DOM 节点各匹配一次
+    expect(addButtons.length).toBeGreaterThan(0);
     await act(async () => {
-      addButtons[0].props.onClick();
+      addButtons[addButtons.length - 1].props.onClick();
     });
     expect(onAddService).toHaveBeenCalledTimes(1);
   });

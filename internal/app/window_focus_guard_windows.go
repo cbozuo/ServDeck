@@ -61,14 +61,7 @@ func suspendWailsWebViewFocus(ctx context.Context) (func() error, error) {
 }
 
 func resolveWailsWindowInvoke(mainWindowValue reflect.Value) (reflect.Value, error) {
-	invoke := mainWindowValue.MethodByName("Invoke")
-	if !invoke.IsValid() {
-		return reflect.Value{}, fmt.Errorf("mainWindow.Invoke method not found (wails version may have changed)")
-	}
-	if invoke.Type().NumIn() != 1 || invoke.Type().In(0).Kind() != reflect.Func || invoke.Type().In(0).NumIn() != 0 || invoke.Type().In(0).NumOut() != 0 || invoke.Type().NumOut() != 0 {
-		return reflect.Value{}, fmt.Errorf("mainWindow.Invoke signature changed: expected func(func()), got %v", invoke.Type())
-	}
-	return invoke, nil
+	return resolveMainWindowInvoke(mainWindowValue)
 }
 
 func resolveWailsFocusHandlerField(mainWindowValue reflect.Value) (reflect.Value, error) {

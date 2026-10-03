@@ -587,6 +587,28 @@ func (a *App) RefreshWebViewBounds() (result connection.QueryResult) {
 	return connection.QueryResult{Success: true, Message: "WebView2 bounds refreshed"}
 }
 
+// SetMainWindowBackgroundColour 按主题切换主窗口类的背景刷（WM_ERASEBKGND 填充色）。
+// 拖拽缩放时 ResizeDebounce 推迟 PutBounds，新暴露区域由该刷填充——
+// 颜色与应用底色一致才能避免白块闪烁；暗色主题需换深色刷。
+func (a *App) SetMainWindowBackgroundColour(dark bool) (result connection.QueryResult) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			logger.Errorf("切换主窗口背景刷失败：%v", recovered)
+			result = connection.QueryResult{
+				Success: false,
+				Message: fmt.Sprintf("failed to set window background colour: %v", recovered),
+			}
+		}
+	}()
+	if a == nil || a.ctx == nil {
+		return connection.QueryResult{Success: false, Message: "application context is unavailable"}
+	}
+	if err := setMainWindowBackgroundBrush(a.ctx, dark); err != nil {
+		return connection.QueryResult{Success: false, Message: err.Error()}
+	}
+	return connection.QueryResult{Success: true, Message: "window background colour updated"}
+}
+
 // LogWindowDiagnostic 记录前端采集到的窗口诊断信息，便于排查 macOS 原生全屏异常。
 func (a *App) LogWindowDiagnostic(stage string, payload string) {
 	stage = strings.TrimSpace(stage)

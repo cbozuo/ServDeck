@@ -250,6 +250,8 @@ import {
   type CloseShortcutScope,
 } from './utils/closeTabShortcut';
 import {
+  installWindowMaximizedFastMarker,
+  installWindowResizeActivityMarker,
   installNativeWindowActivityScheduler,
   resolveTitleBarToggleIconKey,
   resolveWindowsScaleCheckDelayMs,
@@ -2505,6 +2507,18 @@ function App() {
               visibilitychange: handleVisibilityChange,
           },
       });
+      // 拖拽缩放防闪标记：挂 data-window-resizing 供 CSS 做不透明兜底与禁过渡（App.css）。
+      // 不做 RefreshWebViewBounds 追帧——wails 内建 Resize 已在 WM_SIZE 同步执行，
+      // 追帧是冗余的第二次 PutBounds，与内建调用竞争反而加重抖动。
+      const cleanupWindowResizeFollow = installWindowResizeActivityMarker({
+          windowTarget: window,
+          documentTarget: document,
+      });
+      // 最大化快速标记：圆角/裁剪与窗口几何同帧切换，消除边缘形态二次变化（App.css）。
+      const cleanupWindowMaximizedFollow = installWindowMaximizedFastMarker({
+          windowTarget: window,
+          documentTarget: document,
+      });
 
       return () => {
           cancelled = true;
@@ -2522,6 +2536,8 @@ function App() {
               window.clearTimeout(timer);
           }
           cleanupWindowActivityScheduler();
+          cleanupWindowResizeFollow();
+          cleanupWindowMaximizedFollow();
       };
   }, []);
 

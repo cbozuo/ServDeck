@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+
+	"GoNavi-Wails/internal/logger"
 )
 
 const refreshWebViewBoundsInvokeTimeout = 2 * time.Second
@@ -14,6 +16,12 @@ const refreshWebViewBoundsInvokeTimeout = 2 * time.Second
 // refreshWebViewBounds forces WebView2's controller bounds to match the current
 // native client rect. Wails normally does this from WM_SIZE, but a late startup
 // maximise can expose WS_MAXIMIZE before that resize reaches the WebView surface.
+//
+// chromium.Resize() 是一次真实的 put_Bounds，会让 Chromium 把整个视口重新光栅。
+// wails 内建 WM_SIZE 已经做过同样的事，所以这里**必须先比对边界**：
+// 只有 WebView2 窗口与原生客户区确实不一致时才追这一帧。
+// 无条件追帧 = 每次都多一次全页重排，叠加前端 resize 自激（见
+// frontend/src/utils/windowsWindowScaleRepair.ts 的 notifyResize）就是肉眼可见的闪烁。
 func refreshWebViewBounds(ctx context.Context) (err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -37,6 +45,17 @@ func refreshWebViewBounds(ctx context.Context) (err error) {
 		return err
 	}
 
+	// 幂等闸门：边界已一致时直接返回，不产生第二次 put_Bounds。
+	alreadySynced, probeOK := webViewBoundsAlreadySynced(mainWindowValue, chromiumValue)
+	switch {
+	case probeOK && alreadySynced:
+		// 正常稳态：wails 内建 WM_SIZE 已经追过帧，这里不再重复 PutBounds。
+		return nil
+	case !probeOK:
+		// 探测失败退化为无条件追帧，保持与旧行为一致，不因探测失败而漏修。
+		logger.Warnf("WebView2 边界一致性探测失败，退化为无条件追帧")
+	}
+
 	resize := chromiumValue.MethodByName("Resize")
 	if !resize.IsValid() {
 		return fmt.Errorf("Resize method not found on chromium (go-webview2 version may have changed)")
@@ -45,12 +64,9 @@ func refreshWebViewBounds(ctx context.Context) (err error) {
 		return fmt.Errorf("Resize signature changed: expected func(), got %v", resize.Type())
 	}
 
-	invoke := mainWindowValue.MethodByName("Invoke")
-	if !invoke.IsValid() {
-		return fmt.Errorf("mainWindow.Invoke method not found (wails version may have changed)")
-	}
-	if invoke.Type().NumIn() != 1 || invoke.Type().In(0).Kind() != reflect.Func || invoke.Type().In(0).NumIn() != 0 || invoke.Type().In(0).NumOut() != 0 || invoke.Type().NumOut() != 0 {
-		return fmt.Errorf("mainWindow.Invoke signature changed: expected func(func()), got %v", invoke.Type())
+	invoke, err := resolveMainWindowInvoke(mainWindowValue)
+	if err != nil {
+		return err
 	}
 
 	done := make(chan error, 1)

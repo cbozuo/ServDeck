@@ -158,6 +158,16 @@ func main() {
 	}
 	bindings := collectWailsBindings(application, nativeWindowManager)
 	lowMemoryMode := isLowMemoryMode()
+	if isWindowsDesktop {
+		// WebView2 的 DefaultBackgroundColor 在 wails 通过 COM 设置之前一直是默认白：
+		// 启动首帧与 put_Bounds 扩大后渲染器产出新帧前的空窗都由它填充，
+		// 与内容底色的色差表现为"整页刷新/抖一下"。微软文档推荐用该环境变量
+		// 在环境创建前一次性设定（8 位 ARGB，前两位 alpha）；运行期主题切换
+		// 由 internal/app 的反射路径同步 chromium.SetBackgroundColour。
+		if err := os.Setenv("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "FFF6F6F4"); err != nil {
+			logger.Warnf("设置 WebView2 默认背景色失败：%v", err)
+		}
+	}
 	backgroundColour, windowsOptions := resolveWindowVisualOptions(runtime.GOOS, lowMemoryMode)
 	windowsOptions.WebviewUserDataPath = resolveWindowsWebviewUserDataPath()
 	windowChrome := resolveMainWindowChrome(runtime.GOOS)
@@ -237,6 +247,17 @@ func main() {
 				})
 			}
 			if isWindowsDesktop {
+				// frameless 窗口的 DWM 最大化/还原动画会拿旧表面缩放过渡，
+				// 与 WebView2 已重排的新内容叠加成整页闪烁，禁用后几何瞬变内容同帧跟随。
+				//
+				// 系统过渡动画保持启用（不调用 DisableMainWindowTransitions）：
+				// DWM 缩放动画为窗口几何变化提供 ~200ms 连续过渡，把 WebView2
+				// 重排滞后（66-200ms）藏进动画期间；配合 ResizeDebounceMS=220
+				// 把 put_Bounds 推迟到动画结束后，重排期间窗口显示的是 DWM 缩放
+				// 的旧内容（连续、无叠影），动画结束重排完成切到新布局——与
+				// Chrome/Edge 原生最大化的观感一致。此前禁用动画 + 0ms 防抖的
+				// 组合会让重排与几何瞬变同帧竞争，旧帧/新帧/底色在 2-3 帧内
+				// 交替（60fps 慢放录屏实锤的重影闪烁）。
 				if err := app.MigrateLegacyApplicationShortcuts(application); err != nil {
 					logger.Warnf("迁移 Windows 应用快捷方式失败：%v", err)
 				}
@@ -380,16 +401,23 @@ func resolveMainWindowChrome(goos string) mainWindowChromeOptions {
 func resolveWindowVisualOptions(goos string, lowMemoryMode bool) (*options.RGBA, *windows.Options) {
 	// A visible Acrylic surface keeps DWM composing after ServDeck loses focus.
 	// Windows therefore uses an opaque surface by default; macOS keeps its separate native effect path.
+	//
+	// 底色刷用应用主题底色（246,246,244，与 v2-theme --gn-bg-app-opaque 一致）：
+	// frameless 窗口 resize 的极短空窗内新暴露区域由 WM_ERASEBKGND 的类刷填充，
+	// 色值必须与界面底色一致，否则表现为整页色偏闪变。
 	disableTransparency := lowMemoryMode || strings.EqualFold(strings.TrimSpace(goos), "windows")
 	if disableTransparency {
-		return &options.RGBA{R: 255, G: 255, B: 255, A: 255}, &windows.Options{
+		return &options.RGBA{R: 246, G: 246, B: 244, A: 255}, &windows.Options{
 			WebviewIsTransparent:              false,
 			WindowIsTranslucent:               false,
 			BackdropType:                      windows.None,
 			DisableWindowIcon:                 false,
 			DisableFramelessWindowDecorations: false,
-			// resize 时 WebView2 PutBounds 异步追帧导致的闪烁,用防抖降低追帧频率
-			ResizeDebounceMS: 40,
+			// 220ms ≈ DWM 最大化/还原动画时长：put_Bounds 推迟到动画结束后执行，
+			// 动画期间 WebView2 保持旧 bounds（内容随窗口被 DWM 平滑缩放，连续无
+			// 叠影），动画结束重排完成切到真正的新布局。与启用的系统过渡动画配套，
+			// 见 OnStartup 内注释。
+			ResizeDebounceMS: 220,
 			Messages:         resolveWindowsRuntimeMessages(),
 		}
 	}

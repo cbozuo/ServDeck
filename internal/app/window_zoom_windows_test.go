@@ -23,11 +23,18 @@ func (f *fakeChromium) PutZoomFactor(factor float64) {
 
 type fakeWindow struct {
 	invoked atomic.Int32
+	// failNext 让下一次 Invoke 返回 false（PostMessage 派发失败），覆盖 wails 2.16 的 bool 分支。
+	failNext atomic.Bool
 }
 
-func (f *fakeWindow) Invoke(fn func()) {
+// Invoke 必须与 wails v2.16 的真实签名一致：func(f func()) bool。
+// 早期版本返回 0 个值，但 2.16 起多一个 bool。写成无返回值的假实现会让
+// 签名校验测试通过、线上却恒定失败（曾真实发生），因此这里一律带 bool。
+// 语义与 winc.ControlBase.Invoke 一致：true = 已同步执行或 PostMessage 派发成功。
+func (f *fakeWindow) Invoke(fn func()) bool {
 	f.invoked.Add(1)
 	fn()
+	return !f.failNext.Swap(false)
 }
 
 // fakeFrontend 模仿 wails 的 internal/frontend/desktop/windows.Frontend：

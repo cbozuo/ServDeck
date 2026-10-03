@@ -1582,6 +1582,10 @@ export function SetMacNativeWindowControls(arg1) {
   return window['go']['app']['App']['SetMacNativeWindowControls'](arg1);
 }
 
+export function SetMainWindowBackgroundColour(arg1) {
+  return window['go']['app']['App']['SetMainWindowBackgroundColour'](arg1);
+}
+
 export function SetServiceLogRetentionDays(arg1) {
   return window['go']['app']['App']['SetServiceLogRetentionDays'](arg1);
 }

@@ -188,17 +188,22 @@ describe('windowStateUi', () => {
     expect(shouldApplyWindowsScaleFix('restore', false)).toBe(true);
   });
 
-  it('applies the Windows scale fix on cold startup the same way as taskbar restore', () => {
+  it('applies the Windows scale fix on cold startup only when real drift exists', () => {
+    // 冷启动"WebView 只铺一角"会表现为 viewport ratio drift，仍要修；
+    // 无漂移的普通启动不得执行（无条件修复会在窗口显示后 1s/1.9s
+    // 各触发一次 ResetWebViewZoom + PutBounds 的整页 reflow，肉眼即"界面刷新"）。
     expect(shouldApplyWindowsScaleFix('startup', true)).toBe(true);
-    expect(shouldApplyWindowsScaleFix('startup', false)).toBe(true);
-    expect(shouldResetWebViewZoomForScaleFix('startup', false)).toBe(true);
+    expect(shouldApplyWindowsScaleFix('startup', false)).toBe(false);
+    expect(shouldResetWebViewZoomForScaleFix('startup', false)).toBe(false);
+    expect(shouldResetWebViewZoomForScaleFix('startup', true)).toBe(true);
   });
 
-  it('calls the backend WebView2 zoom reset whenever a minimized window is restored', () => {
+  it('calls the backend WebView2 zoom reset on restore only when real drift exists', () => {
     expect(shouldResetWebViewZoomForScaleFix('restore', true)).toBe(true);
-    // 字体模糊/DirectWrite 度量缓存异常不一定表现为 viewport ratio drift，
-    // 因此任务栏恢复场景必须直接走零动画 WebView2 zoom reset。
-    expect(shouldResetWebViewZoomForScaleFix('restore', false)).toBe(true);
+    // 单屏日常恢复（无漂移）不再 zoom 重置：ResetWebViewZoom 是整页 reflow，
+    // 用户感知为恢复后约 1 秒"整个界面刷新"。bounds 刷新仍无条件保留
+    //（shouldApplyWindowsScaleFix 对 restore 无条件放行）。
+    expect(shouldResetWebViewZoomForScaleFix('restore', false)).toBe(false);
     expect(shouldResetWebViewZoomForScaleFix('activation', true)).toBe(false);
     expect(shouldResetWebViewZoomForScaleFix('ratio-change', true)).toBe(true);
   });

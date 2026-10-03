@@ -802,6 +802,8 @@ export function SetLanguage(arg1:string):Promise<void>;
 
 export function SetMacNativeWindowControls(arg1:boolean):Promise<void>;
 
+export function SetMainWindowBackgroundColour(arg1:boolean):Promise<connection.QueryResult>;
+
 export function SetServiceLogRetentionDays(arg1:number):Promise<connection.QueryResult>;
 
 export function SetUpdateChannel(arg1:string):Promise<connection.QueryResult>;

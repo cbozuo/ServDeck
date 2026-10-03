@@ -39,6 +39,10 @@ describe('Windows automatic surface repair', () => {
       const zoomPending = new Promise<void>((resolve) => { releaseZoom = resolve; });
       const zoomEntered = new Promise<void>((resolve) => { zoomStarted = resolve; });
       const options = createOptions();
+      // startup 无漂移不再执行修复、restore 无漂移不再 zoom 重置（都会让
+      // resetZoom 永不进入）；构造漂移（窗口 1440 逻辑宽 vs 视口 1000 →
+      // ratio 1.44）使修复链执行，保留用例的防收缩保护意图。
+      options.readViewport = () => ({ innerWidth: 1000, devicePixelRatio: 1 });
       options.resetZoom = vi.fn(async () => { zoomStarted(); await zoomPending; return true; });
       const repair = repairWindowsWindowScale({ ...options, reason });
       await zoomEntered;
@@ -53,6 +57,8 @@ describe('Windows automatic surface repair', () => {
 
   it('refreshes controller bounds even when zoom reset is unavailable', async () => {
     const options = createOptions();
+    // startup 需要真实漂移才执行（见 shouldApplyWindowsScaleFix 注释）。
+    options.readViewport = () => ({ innerWidth: 1000, devicePixelRatio: 1 });
     options.resetZoom.mockRejectedValue(new Error('backend unavailable'));
     await repairWindowsWindowScale(options);
     expect(options.refreshBounds).toHaveBeenCalledOnce();
@@ -63,6 +69,8 @@ describe('Windows automatic surface repair', () => {
   it('stops after an awaited zoom reset when the effect is disposed', async () => {
     let cancelled = false;
     const options = createOptions();
+    // startup 需要真实漂移才执行（见 shouldApplyWindowsScaleFix 注释）。
+    options.readViewport = () => ({ innerWidth: 1000, devicePixelRatio: 1 });
     options.resetZoom.mockImplementation(async () => { cancelled = true; return true; });
     await repairWindowsWindowScale({ ...options, isCancelled: () => cancelled });
     expect(options.refreshBounds).not.toHaveBeenCalled();
@@ -100,6 +108,35 @@ describe('Windows automatic surface repair', () => {
     await repairWindowsWindowScale(options);
     expect(options.resetZoom).not.toHaveBeenCalled();
     expect(options.refreshBounds).not.toHaveBeenCalled();
+    expect(options.notifyResize).toHaveBeenCalledOnce();
+  });
+
+  // notifyResize 派发的 resize 事件会重新排一轮 bounds 校正与 state 保存。
+  // 无条件派发就是自己喂自己：700ms 节流只能把自激压成 1.4Hz 的持续抖动，
+  // 肉眼仍是连续闪烁。所以只有真的动过 WebView 才允许通知。
+  it.each(['activation', 'ratio-change'] as const)(
+    'does not notify resize on %s when nothing was repaired',
+    async (reason) => {
+      const options = createOptions();
+      await repairWindowsWindowScale({
+        ...options,
+        reason,
+        readViewport: () => ({ innerWidth: 1440, devicePixelRatio: 1.5 }),
+      });
+      expect(options.refreshBounds).not.toHaveBeenCalled();
+      expect(options.notifyResize).not.toHaveBeenCalled();
+    },
+  );
+
+  it('notifies resize after a real bounds refresh so listeners resync once', async () => {
+    const options = createOptions();
+    // 构造漂移（窗口 1440 逻辑宽 vs 视口 1000 → ratio 1.44）迫使修复链执行。
+    await repairWindowsWindowScale({
+      ...options,
+      reason: 'startup',
+      readViewport: () => ({ innerWidth: 1000, devicePixelRatio: 1 }),
+    });
+    expect(options.refreshBounds).toHaveBeenCalledOnce();
     expect(options.notifyResize).toHaveBeenCalledOnce();
   });
 });

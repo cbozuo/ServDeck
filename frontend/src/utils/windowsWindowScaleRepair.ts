@@ -41,6 +41,10 @@ export const repairWindowsWindowScale = async (options: WindowScaleRepairOptions
     }
     await safeWindowRuntimeCall(refreshBounds, false);
     if (isCancelled()) return;
+    // 只有真的动过 WebView 才通知 resize。refreshBounds 现在是幂等的
+    // （边界已贴合时 Go 侧直接返回，不做 put_Bounds），但 notifyResize 派发的
+    // resize 事件会重新排一轮 bounds 校正与 state 保存；无条件派发等于
+    // 自己喂自己，700ms 节流只能压到 1.4Hz 的持续抖动。
+    notifyResize();
   }
-  notifyResize();
 };

@@ -24,6 +24,9 @@ body[data-ui-version="v2"][data-theme="light"] {
   --gn-font-mono: "JetBrains Mono", "Noto Sans Mono CJK SC", "Noto Sans Mono", ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
 
   --gn-bg-app:      rgb(246 246 244 / var(--gn-window-opacity, 1));
+  /* 不透明版底色：窗口 resize 期间 data-window-resizing 强制 html/body 使用，
+     色值必须与 --gn-bg-app 的 RGB 完全一致，否则挂/摘标记时整页出现冷暖色偏闪变。 */
+  --gn-bg-app-opaque: rgb(246 246 244);
   --gn-bg-chrome:   rgb(236 236 234 / var(--gn-window-opacity, 1));
   --gn-bg-chrome-strong: rgb(232 238 235 / var(--gn-window-opacity, 1));
   --gn-bg-titlebar: rgb(250 250 248 / var(--gn-window-opacity, 1));
@@ -82,6 +85,7 @@ body[data-ui-version="v2"][data-theme="dark"] {
   --gn-font-mono: "JetBrains Mono", "Noto Sans Mono CJK SC", "Noto Sans Mono", ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
 
   --gn-bg-app:      rgb(12 14 18 / var(--gn-window-opacity, 1));
+  --gn-bg-app-opaque: rgb(12 14 18);
   --gn-bg-chrome:   rgb(20 23 28 / var(--gn-window-opacity, 1));
   --gn-bg-chrome-strong: rgb(17 22 27 / var(--gn-window-opacity, 1));
   --gn-bg-titlebar: rgb(27 31 39 / var(--gn-window-opacity, 1));

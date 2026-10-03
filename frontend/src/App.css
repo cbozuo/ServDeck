@@ -27,6 +27,28 @@ html[data-gonavi-windows="true"] body[data-theme="dark"] #root {
   background-color: var(--gn-bg-app, #14161a) !important;
 }
 
+/* 拖拽缩放窗口期间（windowStateUi 把 data-window-resizing 同时挂 html/body，
+   静默 160ms 后移除；不用 :has——WebView2 对复杂 :has 不可靠）：
+   布局关键容器禁过渡——尺寸过渡在逐帧 resize 下呈现为抖动/拖影。
+
+   这里【不要】再挂"强制不透明底色"的规则。Windows 的 WINDOWS_OPACITY_FACTOR=0.70
+   会让 --gn-bg-app 带 alpha，挂标记强制 opaque、静默后摘掉，等于整页底色来回切
+   一次——这本身就是一次色闪。新暴露区域应由原生侧解决：主窗口类背景刷与 WebView2
+   DefaultBackgroundColor 都设为应用底色（internal/app/window_background_windows.go），
+   颜色与 --gn-bg-app 的 RGB 一致，不可见也就无需 CSS 兜底。 */
+body[data-window-resizing='true'] .ant-layout,
+body[data-window-resizing='true'] .ant-layout-sider,
+body[data-window-resizing='true'] .ant-layout-content,
+body[data-window-resizing='true'] .ant-layout-sider .ant-layout-sider-children {
+  transition: none !important;
+}
+
+/* 注意：不要在这里用 data-window-maximized 覆盖 --gonavi-border-radius。
+   包裹整个应用的根容器（.gn-v2-app-root）同时带 clip-path: inset(0 round …) 与
+   backdrop-filter，圆角变量一变就要为整页重建裁剪层与 backdrop root、强制全页
+   重新光栅——肉眼即"整页闪一下"。最大化时圆角本就落在屏幕外（frameless 最大化
+   向外扩 SM_CXSIZEFRAME+SM_CXPADDEDBORDER），保持常量即可，视觉无损。 */
+
 /* Native detached WebViews use the same transparent window composition as the
    main macOS surface. Paint the resolved app token behind any child content so
    loading gaps and transparent component pixels never fall back to white. */

@@ -8290,7 +8290,7 @@
   "detail.badge.unregistered": "未註冊",
   "detail.rule.notInstalled": "服務未註冊到系統服務（SCM）",
   "detail.deploy.unregTitle": "未註冊",
-  "detail.deploy.unregBody": "該服務目前不在系統服務（SCM）中——可能已被解除安裝或註冊失敗。部署參數仍保留，確認無誤後點擊下方「註冊」重新裝入。",
+  "detail.deploy.unregBody": "該服務目前不在系統服務（SCM）中——可能已被解除安裝或註冊失敗。部署參數仍保留，確認無誤後點擊右上角「註冊」重新裝入。",
   "detail.deploy.registerNow": "立即註冊",
   "detail.deploy.managedBody": "修改參數後回到頂部執行重新註冊即可生效：停止 → 解除安裝 → 註冊 → 啟動。",
   "detail.deploy.adoptedTitle": "納管資訊 · 新增服務時錄入",

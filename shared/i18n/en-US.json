@@ -8290,7 +8290,7 @@
   "detail.badge.unregistered": "Unregistered",
   "detail.rule.notInstalled": "Service is not registered with the SCM",
   "detail.deploy.unregTitle": "Not registered",
-  "detail.deploy.unregBody": "This service is not present in the SCM right now — it may have been uninstalled or the registration failed. Deploy parameters are kept; review them and click \"Register\" below to install again.",
+  "detail.deploy.unregBody": "This service is not in the system services (SCM) right now — it may have been uninstalled or the registration failed. Deploy parameters are preserved; once confirmed, click Register at the top right to reinstall.",
   "detail.deploy.registerNow": "Register now",
   "detail.deploy.managedBody": "After changing parameters, click Re-register at the top to apply: stop → uninstall → register → start.",
   "detail.deploy.adoptedTitle": "Managed info · captured at registration",

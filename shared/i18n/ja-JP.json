@@ -8290,7 +8290,7 @@
   "detail.badge.unregistered": "未登録",
   "detail.rule.notInstalled": "サービスがSCMに登録されていません",
   "detail.deploy.unregTitle": "未登録",
-  "detail.deploy.unregBody": "このサービスは現在SCMに存在しません——アンインストールされたか、登録に失敗した可能性があります。デプロイパラメータは保持されているため、確認して下の「登録」で再度インストールしてください。",
+  "detail.deploy.unregBody": "このサービスは現在システムサービス（SCM）に存在しません——アンインストールされたか、登録に失敗した可能性があります。デプロイパラメータは保持されています。確認のうえ、右上の「登録」をクリックして再インストールしてください。",
   "detail.deploy.registerNow": "今すぐ登録",
   "detail.deploy.managedBody": "パラメータ変更後、上部の再登録を実行すると反映されます：停止 → アンインストール → 登録 → 開始。",
   "detail.deploy.adoptedTitle": "管理情報 · 登録時に記録",

@@ -8290,7 +8290,7 @@
   "detail.badge.unregistered": "Nicht registriert",
   "detail.rule.notInstalled": "Dienst ist nicht im SCM registriert",
   "detail.deploy.unregTitle": "Nicht registriert",
-  "detail.deploy.unregBody": "Dieser Dienst ist derzeit nicht im SCM vorhanden — er wurde möglicherweise deinstalliert oder die Registrierung ist fehlgeschlagen. Die Bereitstellungsparameter bleiben erhalten; prüfen Sie sie und klicken Sie unten auf „Registrieren“, um ihn erneut zu installieren.",
+  "detail.deploy.unregBody": "Dieser Dienst ist derzeit nicht in den Systemdiensten (SCM) vorhanden — möglicherweise wurde er deinstalliert oder die Registrierung ist fehlgeschlagen. Die Bereitstellungsparameter bleiben erhalten; nach der Prüfung oben rechts auf „Registrieren“ klicken, um ihn neu zu installieren.",
   "detail.deploy.registerNow": "Jetzt registrieren",
   "detail.deploy.managedBody": "Nach Parameteränderungen oben „Neu registrieren“ ausführen: stoppen → deinstallieren → registrieren → starten.",
   "detail.deploy.adoptedTitle": "Verwaltete Infos · bei Aufnahme erfasst",

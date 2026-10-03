@@ -8290,7 +8290,7 @@
   "detail.badge.unregistered": "未注册",
   "detail.rule.notInstalled": "服务未注册到系统服务（SCM）",
   "detail.deploy.unregTitle": "未注册",
-  "detail.deploy.unregBody": "该服务当前不在系统服务（SCM）中——可能已被卸载或注册失败。部署参数仍保留，确认无误后点击下方「注册」重新装入。",
+  "detail.deploy.unregBody": "该服务当前不在系统服务（SCM）中——可能已被卸载或注册失败。部署参数仍保留，确认无误后点击右上角「注册」重新装入。",
   "detail.deploy.registerNow": "立即注册",
   "detail.deploy.managedBody": "修改参数后回到顶部执行重新注册即可生效：停止 → 卸载 → 注册 → 启动。",
   "detail.deploy.adoptedTitle": "纳管信息 · 添加服务时录入",

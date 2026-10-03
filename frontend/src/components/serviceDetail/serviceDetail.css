@@ -7,28 +7,35 @@
   box-sizing: border-box;
   width: 100%;
   height: 100%;
-  /* 固定头布局：root 不滚动，Hero 与页签行钉住，仅 dtl-body 内容滚动 */
+  /* 固定头布局：root 不滚动，Hero 与页签行钉住，仅 dtl-body 内容滚动。
+     gap 归零：Hero 间距自持（margin-bottom），dtl-body 顶贴页签横线——
+     滚动条上缘即横线位置。 */
   overflow: hidden;
   padding: 16px 22px 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
 }
 
 .dtl-hero {
   flex: 0 0 auto;
+  margin-bottom: 14px;
 }
 
 .dtl-tabs {
   flex: 0 0 auto;
 }
 
-/* 页签下方内容区：独立滚动（尾部留白随内容滚动，到底不顶死） */
+/* 页签下方内容区：独立滚动，上缘贴页签横线；
+   overflow-x 强制 hidden——overflow-y:auto 会把 overflow-x 连锁成 auto，
+   页内超宽元素（长路径/滑块行）可把内容横向滚出，面板左缘与阴影被裁
+   （表现为「左边框线条缺失」）；右侧 10px 让位滚动条。 */
 .dtl-body {
+  box-sizing: border-box;
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding-bottom: 28px;
+  overflow-x: hidden;
+  padding: 12px 10px 28px 0;
 }
 
 /* ── Hero ── */
@@ -296,9 +303,10 @@
   min-height: 220px;
   display: flex;
   flex-direction: column;
-  /* fill 页签（日志/事件）内部自滚动：关掉普通页签的 body 滚动与尾部留白 */
+  /* fill 页签（日志/事件）内部自滚动：关掉普通页签的 body 滚动，
+     并重置基础 padding（顶贴横线、右侧不留白，输出框撑满） */
   overflow: hidden;
-  padding-bottom: 0;
+  padding: 0;
 }
 .dtl-body.dtl-body-fill .dtl-pane {
   flex: 1;
@@ -345,9 +353,15 @@
 }
 .dtl-panel {
   background: var(--gn-bg-panel);
+  border: 1px solid var(--gn-br-1);
   border-radius: 11px;
-  box-shadow: var(--gn-shadow-card);
+  /* 只留柔和投影：--gn-shadow-card 自带 0.5px 外扩 ring，与 border 叠加成
+     「三边粗一边细」（ring 左缘被 overflow 裁掉），边框线由 border 统一承担 */
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
   padding: 14px 16px;
+}
+body[data-theme='dark'] .dtl-panel {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 .dtl-panel-head {
   display: flex;
@@ -517,11 +531,13 @@
 }
 .dtl-inst-card.ok {
   background: color-mix(in srgb, var(--gn-accent) 8%, var(--gn-bg-panel));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-accent) 30%, transparent);
+  /* ring 改 border：外扩 box-shadow 会被 dtl-body 的 overflow-x:hidden 裁掉左缘
+     （卡片贴容器左缘），表现为「左边竖线缺失」；border 占布局不被裁 */
+  border: 1px solid color-mix(in srgb, var(--gn-accent) 30%, transparent);
 }
 .dtl-inst-card.unreg {
   background: color-mix(in srgb, var(--gn-warn) 8%, var(--gn-bg-panel));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gn-warn) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gn-warn) 30%, transparent);
 }
 .dtl-inst-card.unreg .dtl-inst-ico {
   color: var(--gn-warn);

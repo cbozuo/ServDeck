@@ -14,6 +14,7 @@ import {
 } from '../sidebarCoreUtils';
 import { useServiceRegistryStore } from '../../serviceRegistryStore';
 import { useServiceDetailStore } from '../../serviceDetailStore';
+import { useStore } from '../../store';
 import {
   buildServiceTree,
   collectGroupKeys,
@@ -23,6 +24,7 @@ import {
 } from './serviceTreeModel';
 import { ServiceTreeContextMenu } from './ServiceTreeContextMenu';
 import { ManageServiceGroupsModal } from './ManageServiceGroupsModal';
+import { MouseFollowServiceCard, buildServiceHoverRows, useMouseFollowServiceCard } from '../ServiceHoverTooltip';
 import { ServiceTreeEngineBar } from './ServiceTreeEngineBar';
 import { SampleServiceMetrics } from '../../../wailsjs/go/app/App';
 import { isPendingState } from '../home/homeEvents';
@@ -38,13 +40,14 @@ type ContextMenuState = {
   target: ServiceTreeMenuTarget;
 };
 
-/** 树行尾状态点的样式类与提示文案：形状/颜色/动画与详情页状态徽标（dtl-badge）一致——
- *  采样缺失即 SCM 无此服务（未注册，橙点）。 */
-const resolveServiceStateVisual = (state?: string): { cls: string; titleKey: string } => {
-  if (!state) return { cls: 'unreg', titleKey: 'detail.badge.unregistered' };
-  if (state === 'Running') return { cls: 'run', titleKey: 'home.state.Running' };
-  if (isPendingState(state)) return { cls: 'pend', titleKey: `home.state.${state}` };
-  return { cls: 'stop', titleKey: 'home.state.Stopped' };
+/** 树行尾状态点的样式类：形状/颜色/动画与详情页状态徽标（dtl-badge）一致——
+ *  采样缺失即 SCM 无此服务（未注册，橙点）。原原生 title 提示已移除（用户要求
+ *  只保留自定义悬浮信息卡，避免双提示框叠加）。 */
+const resolveServiceStateVisual = (state?: string): { cls: string } => {
+  if (!state) return { cls: 'unreg' };
+  if (state === 'Running') return { cls: 'run' };
+  if (isPendingState(state)) return { cls: 'pend' };
+  return { cls: 'stop' };
 };
 
 /** 分组行 folder 图标：点击切换展开/收起并整行选中（switcher 箭头已隐身，文件夹即交互主体）；
@@ -185,6 +188,29 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
     }
   }, []);
 
+  // 双向联动（tab → 树）：激活 tab 是服务详情时，树选中跟随该服务并展开所在分组；
+  // 切到与服务无关的 tab 时仅清除服务行选中（分组选中不感知 tab）。
+  // 反向（树 → tab）由 handleSelect → serviceDetailStore.open → addTab 同 id 聚焦天然成立。
+  const activeTabId = useStore((state) => state.activeTabId);
+  const workbenchTabs = useStore((state) => state.tabs);
+  const activeServiceName = useMemo(() => {
+    const activeTab = workbenchTabs.find((item) => item.id === activeTabId);
+    return activeTab?.type === 'service-detail' ? String(activeTab.serviceName || '') : '';
+  }, [activeTabId, workbenchTabs]);
+  useEffect(() => {
+    if (!activeServiceName) {
+      setSelectedKey((prev) => (prev.startsWith('service:') ? '' : prev));
+      return;
+    }
+    setSelectedKey(`service:${activeServiceName}`);
+    const groupId = services.find((item) => item.name === activeServiceName)?.groupId;
+    if (groupId) {
+      setExpandedKeys((prev) => (prev.includes(`group:${groupId}`)
+        ? prev
+        : [...prev, `group:${groupId}`]));
+    }
+  }, [activeServiceName, services]);
+
   // 右键菜单：点击外部 / Escape 关闭，并按视口边界修正位置。
   useEffect(() => {
     if (!contextMenu) return;
@@ -258,9 +284,15 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
 
   const treeData = useMemo<DataNode[]>(() => {
     // nodeRef 统一为 ServiceTreeMenuTarget 结构（kind 判别），titleRender 与右键菜单共用。
+    // title 故意用 ReactNode 包一层：rc-tree 只在 title 为 string 时把它写成 DOM 原生
+    // title 属性（悬浮冒黑框，与自定义悬浮卡叠加，用户反馈）；ReactNode 则不会输出。
     const toServiceDataNode = (serviceNode: { key: string; service: { name: string; serviceType: string; displayName?: string; iconDataUrl?: string } }): DataNode => ({
       key: serviceNode.key,
-      title: serviceNode.service.displayName?.trim() || serviceNode.service.name,
+      title: (
+        <span className="gst-node-fallback-title">
+          {serviceNode.service.displayName?.trim() || serviceNode.service.name}
+        </span>
+      ),
       icon: serviceIconOf(serviceNode.service.serviceType, serviceNode.service.iconDataUrl),
       isLeaf: true,
       nodeRef: { kind: 'service', service: serviceNode.service },
@@ -268,7 +300,7 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
     } as DataNode);
     const groupNodes: DataNode[] = tree.groups.map((groupNode) => ({
       key: groupNode.key,
-      title: groupNode.group.name,
+      title: <span className="gst-node-fallback-title">{groupNode.group.name}</span>,
       icon: folderIconFor(groupNode.key, handleFolderActivate),
       nodeRef: { kind: 'group', group: groupNode.group },
       'data-sidebar-node-key': groupNode.key,
@@ -327,6 +359,35 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
       setSelectedKey(rowKey);
     }
   }, []);
+
+  // 服务信息卡（跟随鼠标）：树容器事件委托——行内任意一处（含图标/状态点区）都能触发；
+  // 换行重置 300ms 延迟，离开树区或滚动即隐藏。字段"有值才显示"由 buildServiceHoverRows 过滤。
+  const { enter: enterHoverCard, move: moveHoverCard, hide: hideHoverCard, card: hoverCard } = useMouseFollowServiceCard();
+  const hoverRowKeyRef = useRef('');
+  const handleTreeMouseOver = useCallback((event: React.MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+    const rowKey = (target ? resolveSidebarTreeRowKey(target) : '') ?? '';
+    if (rowKey && rowKey === hoverRowKeyRef.current) return;
+    hoverRowKeyRef.current = rowKey;
+    if (!rowKey.startsWith('service:')) {
+      hideHoverCard();
+      return;
+    }
+    const matched = findServiceTreeTarget(tree, rowKey);
+    if (matched?.kind !== 'service') {
+      hideHoverCard();
+      return;
+    }
+    const serviceGroupName = groups.find((group) => group.id === matched.service.groupId)?.name;
+    enterHoverCard(event.clientX, event.clientY, buildServiceHoverRows(matched.service, serviceGroupName));
+  }, [enterHoverCard, groups, hideHoverCard, tree]);
+  const handleTreeMouseMove = useCallback((event: React.MouseEvent) => {
+    moveHoverCard(event.clientX, event.clientY);
+  }, [moveHoverCard]);
+  const handleTreeHoverReset = useCallback(() => {
+    hoverRowKeyRef.current = '';
+    hideHoverCard();
+  }, [hideHoverCard]);
 
   const emptyState = !hasAnyService
     ? (
@@ -388,6 +449,10 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
           className="sidebar-tree-scroll-shell gn-v2-explorer-tree-shell"
           style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}
           onClickCapture={handleTreeClickCapture}
+          onMouseOver={handleTreeMouseOver}
+          onMouseMove={handleTreeMouseMove}
+          onMouseLeave={handleTreeHoverReset}
+          onScrollCapture={handleTreeHoverReset}
         >
           <div className="sidebar-tree-scroll-content">
             {emptyState}
@@ -406,7 +471,9 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
                 titleRender={(node) => {
                   const target = (node as { nodeRef?: ServiceTreeMenuTarget }).nodeRef;
                   if (!target) {
-                    return <span className="gn-v2-tree-title gst-node-title">{String(node.title)}</span>;
+                    // 防御分支（nodeRef 缺失不会发生）：title 现为 ReactNode，直接渲染。
+                    const fallbackTitle = typeof node.title === 'function' ? '' : node.title;
+                    return <span className="gn-v2-tree-title gst-node-title">{fallbackTitle}</span>;
                   }
                   if (target.kind === 'group') {
                     return (
@@ -427,7 +494,6 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
                       </span>
                       <i
                         className={`gst-state-dot ${visual.cls}`}
-                        title={t(visual.titleKey)}
                         data-service-tree-state={serviceStates[target.service.name] ?? 'Stopped'}
                       />
                     </span>
@@ -441,6 +507,8 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
       </div>
 
       <ServiceTreeEngineBar />
+
+      <MouseFollowServiceCard card={hoverCard} />
 
       {contextMenu && typeof document !== 'undefined' && createPortal(
         <div

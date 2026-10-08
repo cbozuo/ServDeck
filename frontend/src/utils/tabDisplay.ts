@@ -2,6 +2,7 @@ import type { ConnectionConfig, ConnectionTag, SavedConnection, TabData } from '
 import { t as catalogTranslate } from '../i18n/catalog';
 import type { I18nParams } from '../i18n/types';
 import { resolveLocalizedUntitledQueryTitle } from './queryTabTitle';
+import { useServiceRegistryStore } from '../serviceRegistryStore';
 
 export const TAB_DISPLAY_ELEMENT_KEYS = ['object', 'kind', 'connection', 'database', 'schema', 'host', 'group'] as const;
 
@@ -495,7 +496,12 @@ const buildCompactObjectTabTitle = (tab: TabData, translate: TabDisplayTranslate
     return translate('app.settings.title');
   }
   if (tab.type === 'service-detail') {
-    return tab.serviceName || tab.title;
+    // 页签标题显示「显示名称」而非服务标识：优先取注册服务的 displayName，找不到再回落 serviceName/title。
+    const name = tab.serviceName || tab.title;
+    const displayName = useServiceRegistryStore
+      .getState()
+      .services.find((entry) => entry.name === name)?.displayName;
+    return (displayName && displayName.trim()) || name;
   }
   if (tab.type === 'request-diagnostics') {
     return translate('app.tools.entry.request_diagnostics.title');

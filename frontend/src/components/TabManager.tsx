@@ -72,6 +72,8 @@ import { openNativeWorkbenchTabWindow } from '../utils/nativeDetachedWindowHost'
 import { isBackgroundTaskWorkbenchTab, isMainWindowBoundWorkbenchTab } from '../utils/workbenchTabKinds';
 import { ServiceHome } from './home/ServiceHome';
 import { useServiceDetailStore } from '../serviceDetailStore';
+import { useServiceRegistryStore } from '../serviceRegistryStore';
+import { ServiceHoverTooltip } from './ServiceHoverTooltip';
 import { useWorkbenchTabs } from '../hooks/useWorkbenchTabs';
 import { resolveConnectionEnvironmentPresentation } from '../utils/connectionEnvironment';
 import { createSidebarResizeAwareFrameScheduler } from '../utils/sidebarResizeLifecycle';
@@ -507,6 +509,18 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
     </span>
   );
 
+  // 页签悬停信息框（service-detail 才有意义）：复用服务列表同一组件，按字段非空才显，避免大卡片遮挡。
+  // 其余类型沿用既有行为（label 已带 title 语义、右键菜单补充操作）。
+  const serviceEntry = tab.type === 'service-detail'
+    ? useServiceRegistryStore.getState().services.find((entry) => entry.name === (tab.serviceName || tab.title))
+    : undefined;
+  const serviceGroupName = serviceEntry
+    ? useServiceRegistryStore.getState().groups.find((group) => group.id === serviceEntry.groupId)?.name
+    : undefined;
+  const hoverWrappedLabel = serviceEntry
+    ? <ServiceHoverTooltip service={serviceEntry} groupName={serviceGroupName}>{labelNode}</ServiceHoverTooltip>
+    : labelNode;
+
   // 页签悬停不再弹出信息卡（用户反馈纯遮挡），标签本身已带 title 语义由右键菜单补充操作。
   return (
     <Dropdown
@@ -519,7 +533,7 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
         showHeader: false,
       })}
     >
-      {labelNode}
+      {hoverWrappedLabel}
     </Dropdown>
   );
 };

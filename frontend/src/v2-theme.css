@@ -4732,14 +4732,27 @@ body[data-ui-version="v2"] .gn-v2-main-tabs-double .ant-tabs-nav-list {
 }
 
 body[data-ui-version="v2"] .gn-v2-main-tabs .ant-tabs-tab {
-  width: var(--gn-v2-tab-width, 260px);
-  min-width: var(--gn-v2-tab-width, 260px);
+  /* 页签宽度按显示名称长度自适应：短名保底 --gn-v2-tab-min-width、默认拥抱内容(flex 不伸缩)，
+     过长名再用 --gn-v2-tab-width 封顶并省略 */
+  width: auto;
+  min-width: var(--gn-v2-tab-min-width, 96px);
+  flex: 0 0 auto;
   max-width: var(--gn-v2-tab-width, 260px);
   height: 36px;
   margin: 0 !important;
   padding: 0 !important;
   /* IDEA 风：直角长方形页签 */
   border-radius: 0 !important;
+}
+
+/* 单行页签内容水平居中（IDEA 风；double 双行布局维持左对齐不受影响）。
+   main 由 flex:1 改 0 1 auto，content 的 justify-content:center 才能作用于它。 */
+body[data-ui-version="v2"] .gn-v2-main-tabs .gn-v2-tab-label:not(.gn-v2-tab-label-double) .gn-v2-tab-label-content {
+  justify-content: center;
+}
+
+body[data-ui-version="v2"] .gn-v2-main-tabs .gn-v2-tab-label:not(.gn-v2-tab-label-double) .gn-v2-tab-label-main {
+  flex: 0 1 auto;
 }
 
 body[data-ui-version="v2"] .gn-v2-main-tabs .ant-tabs-tab.ant-tabs-tab-active {
@@ -5073,25 +5086,84 @@ body[data-ui-version="v2"] .gn-v2-tab-conn {
   white-space: nowrap;
 }
 
+/* IDEA 行为:关闭钮默认隐藏但保留占位(tab 宽度不跳),悬浮页签才露出;
+   悬浮关闭钮本身时符号走主题色。2026-10-08 用户参照 IDEA 定稿。 */
 body[data-ui-version="v2"] .gn-v2-tab-close {
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
   border: none;
-  border-radius: 4px;
+  border-radius: 50%;
   background: transparent;
   color: var(--gn-fg-4);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  opacity: 0.7;
+  opacity: 0;
+  transition: opacity 120ms ease, background-color 140ms ease, color 140ms ease;
 }
 
-body[data-ui-version="v2"] .gn-v2-tab-close:hover {
+body[data-ui-version="v2"] .tab-dnd-node:hover .gn-v2-tab-close,
+body[data-ui-version="v2"] .tab-dnd-node:focus-within .gn-v2-tab-close {
+  opacity: 0.75;
+}
+
+/* 选择器与上面的显隐规则同级(TabManager 里关闭钮恒在 .tab-dnd-node 内),
+   否则页签 hover 的 0.75 会压住按钮自身的 hover 态 */
+/* 悬浮关闭钮本身:IDEA 同款——主题色圆形底 + 白色叉。
+   形状恒为圆形(基准态已定 border-radius:50%),此处只换底色/字色,
+   故移出时不再有"圆形塌成方形"的过渡断层。 */
+body[data-ui-version="v2"] .tab-dnd-node .gn-v2-tab-close:hover {
   opacity: 1;
-  background: var(--gn-bg-active);
+  background: var(--gn-accent);
+  color: #fff;
+}
+
+/* 服务悬浮信息卡（服务列表整行委托 / service-detail 页签共用）：
+   fixed 定位跟随鼠标（left/top 由 JS 按视口边界算好写入），pointer-events:none 不挡下方交互；
+   字段行由组件按"有值才显示"过滤，这里只管排版。 */
+body[data-ui-version="v2"] .gn-service-hover-card {
+  position: fixed;
+  box-sizing: border-box;
+  max-width: 320px;
+  padding: 9px 14px;
+  border-radius: 6px;
+  background: var(--gn-bg-elevated, var(--gn-bg-1, #fff));
+  border: 1px solid var(--gn-border-1, rgba(0, 0, 0, 0.12));
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
+  pointer-events: none;
+}
+
+body[data-ui-version="v2"] .gn-service-hover-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+body[data-ui-version="v2"] .gn-service-hover-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  line-height: 1.45;
+}
+
+/* 标签定宽 4em（四字标签统一命名后恰好逐行等宽）+ 右对齐：右缘贴齐同一条线，
+   与值列的间隙逐行完全一致，形成整齐栅格（左对齐时字数差异会显得不对齐，用户反馈） */
+body[data-ui-version="v2"] .gn-service-hover-label {
+  flex: 0 0 4em;
+  text-align: right;
+  color: var(--gn-fg-4);
+  font-size: calc(11px * var(--gn-ui-scale, 1));
+}
+
+body[data-ui-version="v2"] .gn-service-hover-value {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--gn-fg-1);
+  font-size: calc(12px * var(--gn-ui-scale, 1));
+  font-weight: 600;
+  word-break: break-all;
 }
 
 body[data-ui-version="v2"] .gn-v2-tab-context-menu-popup .ant-dropdown-menu {

@@ -7,9 +7,7 @@ import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } 
 import { CSS } from '@dnd-kit/utilities';
 import { BrowserOpenURL, Environment, EventsOn, WindowFullscreen, WindowGetPosition, WindowGetSize, WindowIsFullscreen, WindowIsMaximised, WindowIsMinimised, WindowIsNormal, WindowMaximise, WindowMinimise, WindowSetDarkTheme, WindowSetLightTheme, WindowSetPosition, WindowSetSize, WindowSetSystemDefaultTheme, WindowUnfullscreen, WindowUnmaximise } from '../wailsjs/runtime';
 import { ServiceTreeSidebar } from './components/serviceTree/ServiceTreeSidebar';
-import TitleBarPrimaryActions, {
-  resolveTitleBarPrimaryActionShortcut,
-} from './components/TitleBarPrimaryActions';
+import TitleBarPrimaryActions from './components/TitleBarPrimaryActions';
 import TitleBarSystemActions from './components/TitleBarSystemActions';
 import TitleBarViewMenu from './components/TitleBarViewMenu';
 import { useTitleBarViewMenuEntries } from './components/useTitleBarViewMenuEntries';
@@ -2827,16 +2825,6 @@ function App() {
   }, [connections, openSecurityUpdateSettings, runSecurityUpdateRound, securityUpdateStatus, t]);
   const useNativeMacWindowControls = isMacRuntime;
   const activeShortcutPlatform = getShortcutPlatform(isMacRuntime);
-  const titleBarNewQueryShortcut = resolveTitleBarPrimaryActionShortcut(
-      shortcutOptions,
-      'newQueryTab',
-      activeShortcutPlatform,
-  );
-  const titleBarNewConnectionShortcut = resolveTitleBarPrimaryActionShortcut(
-      shortcutOptions,
-      'newConnection',
-      activeShortcutPlatform,
-  );
   const macWindowDiagnosticsEnabled = shouldEnableMacWindowDiagnostics(
       isMacRuntime,
       import.meta.env.DEV,

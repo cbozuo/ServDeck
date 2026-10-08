@@ -107,78 +107,78 @@ describe('titlebarLayout', () => {
     });
   });
 
-  it('uses the larger default V2 titlebar while the explorer is expanded', () => {
+  it('uses the compact default V2 titlebar while the explorer is expanded', () => {
     expect(resolveTitleBarLayout(1)).toEqual({
-      height: 48,
-      actionHeight: 30,
+      height: 40,
+      actionHeight: 28,
       dividerHeight: 16,
-      upperBandHeight: 48,
+      upperBandHeight: 40,
       emptyWorkbenchTopOffset: 0,
     });
   });
 
   it('keeps the expanded V2 layout responsive to the configured UI scale', () => {
     expect(resolveTitleBarLayout(0.8, false)).toEqual({
-      height: 38,
+      height: 32,
       actionHeight: 24,
       dividerHeight: 13,
-      upperBandHeight: 38,
+      upperBandHeight: 32,
       emptyWorkbenchTopOffset: 0,
     });
     expect(resolveTitleBarLayout(1.25, false)).toEqual({
-      height: 60,
-      actionHeight: 38,
+      height: 50,
+      actionHeight: 35,
       dividerHeight: 20,
-      upperBandHeight: 60,
+      upperBandHeight: 50,
       emptyWorkbenchTopOffset: 0,
     });
     expect(resolveTitleBarLayout(1.1, false)).toEqual({
-      height: 53,
-      actionHeight: 33,
+      height: 44,
+      actionHeight: 31,
       dividerHeight: 18,
-      upperBandHeight: 53,
+      upperBandHeight: 44,
       emptyWorkbenchTopOffset: 0,
     });
   });
 
   it('keeps the taller V2 titlebar only while collapsed actions are docked into it', () => {
     expect(resolveTitleBarLayout(1, true)).toEqual({
-      height: 59,
-      actionHeight: 30,
+      height: 58,
+      actionHeight: 28,
       dividerHeight: 16,
-      upperBandHeight: 31,
-      emptyWorkbenchTopOffset: 11,
+      upperBandHeight: 30,
+      emptyWorkbenchTopOffset: 18,
     });
     expect(resolveTitleBarLayout(0.8, true)).toEqual({
       height: 52,
       actionHeight: 24,
       dividerHeight: 13,
       upperBandHeight: 29,
-      emptyWorkbenchTopOffset: 14,
+      emptyWorkbenchTopOffset: 20,
     });
     expect(resolveTitleBarLayout(1.25, true)).toEqual({
       height: 70,
-      actionHeight: 38,
+      actionHeight: 35,
       dividerHeight: 20,
-      upperBandHeight: 35,
-      emptyWorkbenchTopOffset: 10,
+      upperBandHeight: 34,
+      emptyWorkbenchTopOffset: 20,
     });
     expect(resolveTitleBarLayout(1.1, true)).toEqual({
-      height: 64,
-      actionHeight: 33,
+      height: 63,
+      actionHeight: 31,
       dividerHeight: 18,
-      upperBandHeight: 33,
-      emptyWorkbenchTopOffset: 11,
+      upperBandHeight: 32,
+      emptyWorkbenchTopOffset: 19,
     });
   });
 
   it('reserves enough height for enlarged collapsed sidebar actions', () => {
     expect(resolveTitleBarLayout(1, true, 1.8)).toEqual({
-      height: 80,
-      actionHeight: 30,
+      height: 79,
+      actionHeight: 28,
       dividerHeight: 16,
-      upperBandHeight: 31,
-      emptyWorkbenchTopOffset: 32,
+      upperBandHeight: 30,
+      emptyWorkbenchTopOffset: 39,
     });
   });
 

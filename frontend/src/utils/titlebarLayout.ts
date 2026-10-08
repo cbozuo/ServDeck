@@ -137,8 +137,9 @@ export const resolveTitleBarLayout = (
 ): TitleBarLayout => {
   const scale = resolveUiScale(uiScale);
   const resolvedSidebarButtonScale = resolveSidebarButtonScale(sidebarButtonScale);
-  const titlebarBaseHeight = 48;
-  const actionBaseHeight = 30;
+  // 2026-10-08:48→40 —— 图标入口改文字按钮后信息密度更低,收窄标题行让整体更协调。
+  const titlebarBaseHeight = 40;
+  const actionBaseHeight = 28;
   const dividerBaseHeight = 16;
   const compactLayout = {
     height: Math.max(28, Math.round(titlebarBaseHeight * scale)),

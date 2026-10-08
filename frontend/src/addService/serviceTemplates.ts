@@ -76,7 +76,9 @@ export const SERVICE_TEMPLATES: Record<ServiceTemplateId, ServiceTemplate> = {
         key: 'jvmPath',
         labelKey: 'service.field.jvmPath',
         type: 'text',
-        value: 'C:\\Program Files\\Java\\jdk-17\\bin\\java.exe',
+        // 默认空：本机 JDK 由用户在「选择 JDK」弹窗主动挑选（2026-10-08 用户反馈，
+        // 不再硬编码 jdk-17 假路径，也不自动预填探测结果）。
+        value: '',
       },
       // JVM 参数即完整 JVM 串：堆内存滑杆把 -Xms/-Xmx 同值写在最前，其余参数原位保留
       // （与服务详情页「常用参数」同一交互）。程序启动参数由应用自身配置文件承载，不再单列。

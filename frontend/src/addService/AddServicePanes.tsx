@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { message, Tooltip } from 'antd';
 import {
   EyeInvisibleOutlined,
@@ -13,7 +13,7 @@ import {
   type ServiceTemplate,
 } from './serviceTemplates';
 import type { ServiceFieldType, ServiceFieldValues } from './serviceFieldTypes';
-import { SelectImageFile, SelectServiceProgramFile, DetectJavaRuntimes } from '../../wailsjs/go/app/App';
+import { SelectImageFile, SelectServiceProgramFile } from '../../wailsjs/go/app/App';
 import { SegmentedControl } from './SegmentedControl';
 import { HeapMemoryField } from './HeapMemoryField';
 import { JdkPickerModal } from './JdkPickerModal';
@@ -403,45 +403,6 @@ export const AddServiceParamsPane: React.FC<{
   const jdkPathInputRef = useRef<HTMLInputElement>(null);
   /** JVM 参数输入框：调堆内存 / 点开关后保持聚焦，让改动落在看得见的地方。 */
   const jvmArgsInputRef = useRef<HTMLInputElement>(null);
-  /** JVM 路径默认值：本机检测到的最低版本 JDK（仅当用户没改过模板默认值时自动替换一次）。 */
-  const jdkDefaultAppliedRef = useRef(false);
-  useEffect(() => {
-    if (template.id !== 'java' || jdkDefaultAppliedRef.current) {
-      return;
-    }
-    const templateDefault = template.fields.find((item) => item.key === 'jvmPath')?.value ?? '';
-    if (String(values.jvmPath ?? '') !== templateDefault) {
-      // 用户已经填了自己的路径，不再动它
-      jdkDefaultAppliedRef.current = true;
-      return;
-    }
-    let alive = true;
-    DetectJavaRuntimes()
-      .then((result) => {
-        if (!alive || jdkDefaultAppliedRef.current || !result.success) {
-          return;
-        }
-        const list =
-          (result.data as { candidates?: { version: number; path: string }[] } | null | undefined)
-            ?.candidates ?? [];
-        const lowest = list.reduce<{ version: number; path: string } | null>(
-          (min, item) => (min === null || item.version < min.version ? item : min),
-          null,
-        );
-        if (lowest) {
-          jdkDefaultAppliedRef.current = true;
-          onChange('jvmPath', lowest.path);
-        }
-      })
-      .catch(() => {
-        // 检测不可用时保留模板默认路径。
-      });
-    return () => {
-      alive = false;
-    };
-    // 仅在进入参数配置时执行一次（values.jvmPath 故意不进依赖）。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [template.id]);
 
   const confContent = useMemo(() => {
     if (!template.conf) {

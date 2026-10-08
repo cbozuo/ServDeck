@@ -15,7 +15,7 @@ import {
   DetectJavaRuntimes,
   DescribeJavaRuntime,
   ProbeWindowsService,
-  SelectDirectory,
+  SelectJavaExeFile,
 } from '../../wailsjs/go/app/App';
 import './jdkPickerModal.css';
 
@@ -235,13 +235,16 @@ export const JdkPickerModal: React.FC<{
 
   const browse = async () => {
     try {
-      const result = await SelectDirectory(t('service.modal.jdk.pick'), '');
-      const dir = typeof result.data === 'string' ? result.data.trim() : '';
-      if (!dir) {
+      // 文件对话框直接选 java.exe（原目录对话框选不到 exe 文件，用户反馈）；
+      // JDK 目录场景由输入框手输，resolveJdkPath 两者都支持。
+      const result = await SelectJavaExeFile();
+      const picked = typeof result.data?.path === 'string' ? result.data.path.trim() : '';
+      if (!picked) {
+        // 用户取消选择：保持原样。
         return;
       }
       setApplying(true);
-      const resolved = await resolveJdkPath(dir);
+      const resolved = await resolveJdkPath(picked);
       if (!resolved) {
         message.error(t('service.modal.jdk.notFound'));
         setManualState('bad');

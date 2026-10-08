@@ -221,3 +221,23 @@ func (a *App) SelectServyEngineFile() connection.QueryResult {
 	}
 	return connection.QueryResult{Success: true, Data: map[string]any{"path": strings.TrimSpace(selection)}}
 }
+
+// SelectJavaExeFile 打开系统文件选择器，让用户挑 java.exe（JDK 选择弹窗「手动指定 → 浏览」用）。
+// 背景：原实现用 SelectDirectory 目录对话框，选不到 java.exe 文件（用户反馈）。
+// Windows 对话框无法同时选目录与文件——JDK 目录场景由输入框手输（placeholder 已说明两者均可）。
+func (a *App) SelectJavaExeFile() connection.QueryResult {
+	if a.webRuntime {
+		return connection.QueryResult{Success: false, Message: a.appText("app.data_root.log_directory.backend.error.desktop_only", nil)}
+	}
+	selection, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
+		Title: a.appText("service.modal.jdk.pick", nil),
+		Filters: []wailsruntime.FileFilter{
+			{DisplayName: "java (java.exe)", Pattern: "*.exe"},
+			{DisplayName: a.appText("file.backend.filter.all_files_pattern", nil), Pattern: "*.*"},
+		},
+	})
+	if err != nil {
+		return connection.QueryResult{Success: false, Message: err.Error()}
+	}
+	return connection.QueryResult{Success: true, Data: map[string]any{"path": strings.TrimSpace(selection)}}
+}

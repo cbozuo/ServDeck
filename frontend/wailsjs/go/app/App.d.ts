@@ -782,6 +782,8 @@ export function SelectDriverPackageFile(arg1:string):Promise<connection.QueryRes
 
 export function SelectImageFile(arg1:string):Promise<connection.QueryResult>;
 
+export function SelectJavaExeFile():Promise<connection.QueryResult>;
+
 export function SelectLogDirectory(arg1:string):Promise<connection.QueryResult>;
 
 export function SelectSQLDirectory(arg1:string):Promise<connection.QueryResult>;

@@ -135,7 +135,10 @@ describe('probe file collection', () => {
 
   it('java 校验 JVM 路径与程序文件两个文件（回归：jar 缺失也必须报出来）', () => {
     const template = SERVICE_TEMPLATES.java;
-    const files = collectProbeProgramFiles(template, initialValues(template), basicOf('D:\\apps\\order\\order.jar'));
+    // 模板默认 jvmPath 已置空（JDK 由用户在弹窗主动挑选），这里显式赋值保持"两个文件都校验"的用例意图。
+    const values = initialValues(template);
+    values.jvmPath = 'C:\\Program Files\\Java\\jdk-17\\bin\\java.exe';
+    const files = collectProbeProgramFiles(template, values, basicOf('D:\\apps\\order\\order.jar'));
     expect(files).toEqual([
       'C:\\Program Files\\Java\\jdk-17\\bin\\java.exe',
       'D:\\apps\\order\\order.jar',

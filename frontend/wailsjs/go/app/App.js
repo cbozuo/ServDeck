@@ -1542,6 +1542,10 @@ export function SelectImageFile(arg1) {
   return window['go']['app']['App']['SelectImageFile'](arg1);
 }
 
+export function SelectJavaExeFile() {
+  return window['go']['app']['App']['SelectJavaExeFile']();
+}
+
 export function SelectLogDirectory(arg1) {
   return window['go']['app']['App']['SelectLogDirectory'](arg1);
 }

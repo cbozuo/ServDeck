@@ -42,6 +42,7 @@
 .dtl-hero {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 14px;
   padding: 17px 20px 16px 19px;
@@ -66,8 +67,9 @@
   object-fit: contain;
 }
 .dtl-hero-main {
-  flex: 1;
-  min-width: 0;
+  /* flex-basis 兜底最小信息宽度：窄窗时信息区不再被按钮排挤成一字一行，
+     放不下则按钮排整体换行（配合 .dtl-hero 的 flex-wrap） */
+  flex: 1 1 260px;
 }
 .dtl-hero-title {
   display: flex;
@@ -81,6 +83,9 @@
   letter-spacing: -0.01em;
   color: var(--gn-fg-1);
   margin: 0;
+  /* 可收缩 + 省略号：长服务名在窄窗下截断而非把 Hero 撑破 */
+  min-width: 0;
+  flex: 0 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -197,6 +202,7 @@
   background: var(--gn-bg-panel);
   border: 1px solid var(--gn-br-2);
   cursor: pointer;
+  white-space: nowrap;
   transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 .dtl-btn .anticon {

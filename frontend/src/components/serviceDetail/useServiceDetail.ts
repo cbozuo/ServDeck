@@ -9,6 +9,7 @@ import {
   SampleServiceDetailMetrics,
 } from '../../../wailsjs/go/app/App';
 import type { ServiceDeploySnapshot } from '../../serviceRegistryStore';
+import { diffServiceStates, useHomeEventsStore } from '../home/homeEvents';
 import { normalizeProcessState, type DetailPending, type DetailRuleInput } from './detailRules';
 
 const POLL_MS = 2000;
@@ -71,8 +72,11 @@ export interface ServiceDetailData {
   dirBytes: number;
 }
 
-/** useServiceDetail：详情页的数据轮询中枢（详情快照挂载取一次，指标/端口 2 秒轮询）。 */
-export function useServiceDetail(name: string, deploy: ServiceDeploySnapshot | undefined, enabled: boolean) {
+/** 手动操作成功后，抑制同键的轮询 diff 事件（与首页 useServiceRuntime 同口径），避免重复。 */
+const MANUAL_EVENT_SUPPRESS_MS = 15000;
+
+/** useServiceDetail：详情页的数据轮询中枢（快照/指标/端口 2 秒轮询；目录占用 5 分钟一轮）。 */
+export function useServiceDetail(name: string, deploy: ServiceDeploySnapshot | undefined, enabled: boolean, displayName?: string) {
   const [info, setInfo] = useState<ServiceDetailInfo | null>(null);
   const [sample, setSample] = useState<ServiceDetailSample | null>(null);
   const [ports, setPorts] = useState<ServicePortCheck[]>([]);
@@ -81,6 +85,13 @@ export function useServiceDetail(name: string, deploy: ServiceDeploySnapshot | u
   const [deployDraft, setDeployDraft] = useState<ServiceDeploySnapshot | null>(deploy ?? null);
   const [deployDirty, setDeployDirty] = useState(false);
   const lastCpuSampleRef = useRef<{ pid: number; cpuTotal: number; at: number } | null>(null);
+  // 状态 diff 事件：上一轮 SCM 状态 + 手动操作后同键事件的抑制窗口
+  const prevStateRef = useRef<string | null>(null);
+  const manualEventRef = useRef<{ key: string; until: number } | null>(null);
+
+  const noteManualEvent = useCallback((key: string) => {
+    manualEventRef.current = { key, until: Date.now() + MANUAL_EVENT_SUPPRESS_MS };
+  }, []);
 
   const refreshInfo = useCallback(async (): Promise<ServiceDetailInfo | null> => {
     try {
@@ -92,13 +103,35 @@ export function useServiceDetail(name: string, deploy: ServiceDeploySnapshot | u
         if (next && next.installed === false) {
           setSample(null);
         }
+        // 状态迁移上时间线（口径同首页 diffServiceStates）：进程崩溃等非手动迁移
+        // 在详情页打开期间也要可见；手动操作刚推过的同键事件在抑制窗口内跳过
+        if (next) {
+          const state = next.installed === false ? 'Stopped' : next.state;
+          const prev = prevStateRef.current;
+          prevStateRef.current = state;
+          if (prev && prev !== state) {
+            const now = Date.now();
+            const drafts = diffServiceStates(
+              new Map([[name, prev]]),
+              [{ name, displayName: displayName || name, state }],
+              now,
+            );
+            const manual = manualEventRef.current;
+            drafts.forEach((draft) => {
+              if (manual && draft.key === manual.key && now < manual.until) {
+                return;
+              }
+              useHomeEventsStore.getState().pushEvent(draft);
+            });
+          }
+        }
         return next;
       }
     } catch {
       // 非 Windows 构建保留现状
     }
     return null;
-  }, [name]);
+  }, [name, displayName]);
 
   const refreshMetrics = useCallback(async () => {
     try {
@@ -159,6 +192,8 @@ export function useServiceDetail(name: string, deploy: ServiceDeploySnapshot | u
     void refreshDir();
     const timer = window.setInterval(() => {
       if (!pending) {
+        // 快照也在轮询内：SCM 状态迁移（进程崩溃退出等）不依赖用户操作即可反映到徽章
+        void refreshInfo();
         void refreshMetrics();
         void refreshPorts();
       }
@@ -248,6 +283,7 @@ export function useServiceDetail(name: string, deploy: ServiceDeploySnapshot | u
     refreshMetrics,
     refreshAfterAction,
     followUntilStable,
+    noteManualEvent,
     ruleInput,
   };
 }

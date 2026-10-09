@@ -45,7 +45,7 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
   const services = useServiceRegistryStore((state) => state.services);
   const addService = useServiceRegistryStore((state) => state.addService);
   const entry = useMemo(() => services.find((item) => item.name === name), [name, services]);
-  const detail = useServiceDetail(name, entry?.deploy, true);
+  const detail = useServiceDetail(name, entry?.deploy, true, entry?.displayName || name);
   const [tab, setTab] = useState<DetailTab>('overview');
   const [trend, setTrend] = useState<DetailTrendPoint[]>([]);
   const trendRef = useRef<DetailTrendPoint[]>([]);
@@ -122,10 +122,14 @@ export const ServiceDetail: React.FC<{ name: string }> = ({ name }) => {
                 ? 'home.events.started'
                 : 'home.events.restart',
           });
+          // 抑制随后快照轮询里同键的状态 diff 事件（如 start 后 SCM 短暂过渡到 Running）
+          detail.noteManualEvent(
+            action === 'stop' ? 'home.events.stopped' : action === 'start' ? 'home.events.started' : 'home.events.restart',
+          );
         },
       );
     },
-    [entry, name, runPending, t],
+    [detail, entry, name, runPending, t],
   );
 
   const handleRegister = useCallback(() => {

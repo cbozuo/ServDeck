@@ -725,7 +725,9 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onA
   ), [appearance.tabDisplay, dockedTabs]);
 
   const renderTabBar: TabsProps['renderTabBar'] = (tabBarProps, DefaultTabBar) => (
-    <DefaultTabBar {...tabBarProps} />
+    <DefaultTabBar {...tabBarProps}>
+      {(node) => <DraggableTabNode key={node.key} node={node} />}
+    </DefaultTabBar>
   );
 
   const items = useMemo(() => dockedTabs.map((tab, index) => {

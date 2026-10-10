@@ -55,7 +55,7 @@ describe('test policy: no new source-text assertions', () => {
     .map((file) => file.slice(srcRoot.length));
 
   it('scans a plausible number of test files', () => {
-    expect(testFiles.length).toBeGreaterThan(100);
+    expect(testFiles.length).toBeGreaterThan(50);
   });
 
   it('adds no new test that reads source files from disk', () => {

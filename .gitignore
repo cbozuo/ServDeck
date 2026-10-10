@@ -48,3 +48,4 @@ docs/*
 
 # vite 启动时的临时配置快照
 frontend/vite.config.ts.timestamp-*.mjs
+.tmp_*

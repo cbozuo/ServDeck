@@ -895,11 +895,12 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onA
               transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), background-color 120ms ease;
             }
             .main-tabs .gn-v2-tab-label-anchor {
-              /* 撑满页签节点：label 的 width:100% 以此为基准，
-                 关闭钮才能被 content(flex:1) 推到页签最右侧垂直居中 */
+              /* 撑满页签节点（宽+高）：label 的 width/height:100% 以此为基准，
+                 文字与关闭钮才能在页签内水平铺满、垂直正中 */
               display: inline-flex;
               align-items: center;
               width: 100%;
+              height: 100%;
               max-width: 100%;
             }
             .main-tabs .tab-dnd-label {

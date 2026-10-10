@@ -1088,3 +1088,35 @@ func (r *savedConnectionRepository) Duplicate(id string, unnamedName string, cop
 	}
 	return saved, nil
 }
+
+// replaceSavedQueryTempFile 用临时文件原子替换目标文件；
+// Windows 上目标被占用时 rename 会失败，回退为「目标改名让位 → 临时文件就位 → 清理」。
+func replaceSavedQueryTempFile(tempPath string, targetPath string) error {
+	renameErr := os.Rename(tempPath, targetPath)
+	if renameErr == nil {
+		return nil
+	}
+	if _, err := os.Stat(targetPath); err != nil {
+		return renameErr
+	}
+	backup, err := os.CreateTemp(filepath.Dir(targetPath), ".saved_query_backup_*.tmp")
+	if err != nil {
+		return errors.Join(renameErr, err)
+	}
+	backupPath := backup.Name()
+	if err := backup.Close(); err != nil {
+		_ = os.Remove(backupPath)
+		return errors.Join(renameErr, err)
+	}
+	if err := os.Remove(backupPath); err != nil {
+		return errors.Join(renameErr, err)
+	}
+	if err := os.Rename(targetPath, backupPath); err != nil {
+		return errors.Join(renameErr, err)
+	}
+	if err := os.Rename(tempPath, targetPath); err != nil {
+		return errors.Join(err, os.Rename(backupPath, targetPath))
+	}
+	_ = os.Remove(backupPath)
+	return nil
+}

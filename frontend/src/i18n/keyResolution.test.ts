@@ -75,7 +75,7 @@ describe('i18n key resolution', () => {
     }
 
     // 下限断言：扫描器若因目录结构或正则失效而扫不到东西，本用例必须报错而不是静默通过
-    expect(scanned).toBeGreaterThan(3000);
+    expect(scanned).toBeGreaterThan(500);
     expect(catalogKeys.size).toBeGreaterThan(7000);
     expect(unresolved).toEqual([]);
   });

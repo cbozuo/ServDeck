@@ -1,12 +1,12 @@
 <h1 align="center">ServDeck</h1>
 
 <p align="center">
-  <b>本地服务与数据源工作台 —— 服务注册即管、数据源连上即查，原生 Wails 而非 Electron。</b>
+  <b>本地服务管理工作台 —— 服务注册即管、运行状态尽收眼底，原生 Wails 而非 Electron。</b>
 </p>
 
 <p align="center">
-  基于 <a href="https://wails.io">Wails v2</a>（Go）+ <a href="https://react.dev">React 18</a> 的桌面工作台，
-  体积小、启动快；同一套 Go 内核提供桌面端、Web Server 与 headless CLI 三种形态。
+  基于 <a href="https://wails.io">Wails v2</a>（Go）+ <a href="https://react.dev">React 18</a> 的桌面应用，
+  体积小、启动快；面向 Windows 服务场景（如 Java/Spring 应用托管），同一套 Go 内核提供桌面端与 Web 形态。
 </p>
 
 ---
@@ -25,31 +25,15 @@
 - **端口监听检查**（自动从启动参数解析 server.port 等配置）
 - 服务目录占用统计、运行日志实时 tail、引擎事件日志
 
-### 🗄 多数据源工作台
-- **关系型**：MySQL（含 GoldenDB）· PostgreSQL · Oracle
-- **缓存**：Redis（命令编辑、键浏览、编码切换）
-- **文档**：MongoDB
-- **消息队列**：RocketMQ · Kafka · RabbitMQ · MQTT（Topic 浏览、消息发布/消费、消费组视角）
-- **向量库**：Chroma · Qdrant · Milvus
-- **搜索**：Elasticsearch（REST 控制台，操作白名单与写保护）
-- **注册中心**：Nacos 服务与配置查看
-- Monaco SQL 编辑器（上下文补全）、虚拟化 DataGrid（单元格编辑 / 批量 CRUD / 事务提交回滚 / 筛选 / 导出 CSV·XLSX·JSON·Markdown）、表设计器、ER 图
-
 ### 🧪 JVM 诊断
 - 通过 JMX 采集的 JVM 监控大盘、资源浏览、审计与诊断控制台（配套 `tools/jmx-helper`）
 
-### 📦 导入 / 批量操作
-- 数据导入工作台与导入任务历史
-- 批量连接工作台：跨连接执行与结果汇总
-- SSH 隧道、代理、连接配置导入导出
-
-### 🌐 三种形态，一套内核
+### 🌐 桌面 + Web 双形态
 
 | 形态 | 说明 |
 |---|---|
-| 桌面端 | Wails 原生窗口（主形态，Windows / macOS / Linux） |
+| 桌面端 | Wails 原生窗口（主形态，Windows） |
 | Web Server | 同一界面走 HTTP / SSE，浏览器访问（实验性，支持 Docker） |
-| CLI | headless 命令行，脚本化查询 / 导出 |
 
 ---
 

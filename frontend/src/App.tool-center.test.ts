@@ -10,10 +10,6 @@ const appCss = readFileSync(
   fileURLToPath(new globalThis.URL('./App.css', import.meta.url)),
   'utf8',
 );
-const sidebarSource = readFileSync(
-  fileURLToPath(new globalThis.URL('./components/Sidebar.tsx', import.meta.url)),
-  'utf8',
-);
 
 describe('settings center tool entries', () => {
 
@@ -190,18 +186,9 @@ describe('settings center tool entries', () => {
     );
   });
 
-  it('waits for the unsaved SQL confirmation before continuing an update install request', () => {
-    const quitHandlerStart = appSource.indexOf('const handleApplicationQuitRequest = useCallback(async (');
-    const quitHandlerEnd = appSource.indexOf('const handleInstallUpdateRequest = useCallback', quitHandlerStart);
-    const quitHandlerSource = appSource.slice(quitHandlerStart, quitHandlerEnd);
-
-    expect(quitHandlerStart).toBeGreaterThanOrEqual(0);
-    expect(quitHandlerEnd).toBeGreaterThan(quitHandlerStart);
-    expect(quitHandlerSource).toContain('await new Promise<void>((resolve) => {');
-    expect(quitHandlerSource).toContain('const finish = () => {');
-    expect(quitHandlerSource).toContain('await runConfirmedActionAndFinish();');
-    expect(quitHandlerSource).toContain('centered: true,');
-
+  it('continues an update install request after closing other instances', () => {
+    const quitHandlerEnd = appSource.indexOf('const handleInstallUpdateRequest = useCallback');
+    expect(quitHandlerEnd).toBeGreaterThan(0);
     const installRequestSource = appSource.slice(quitHandlerEnd);
     const closeInstancesModalStart = installRequestSource.indexOf("title: t('app.about.update_install_confirm.close_instances_title'");
     const closeInstancesModalSource = installRequestSource.slice(closeInstancesModalStart);

@@ -49,7 +49,6 @@ func (a *App) SaveConnection(input connection.SavedConnectionInput) (connection.
 	if err != nil {
 		return connection.SavedConnectionView{}, err
 	}
-	a.markCloudBackupDirty()
 	return sanitizeSavedConnectionView(view), nil
 }
 
@@ -58,15 +57,13 @@ func (a *App) UpdateConnectionVisibility(input connection.ConnectionVisibilityIn
 	if err != nil {
 		return connection.SavedConnectionView{}, err
 	}
-	a.markCloudBackupDirty()
 	return sanitizeSavedConnectionView(view), nil
 }
 
 func (a *App) DeleteConnection(id string) error {
 	err := a.savedConnectionRepository().Delete(id)
 	if err == nil {
-		a.markCloudBackupDirty()
-	}
+		}
 	return err
 }
 
@@ -75,8 +72,7 @@ func (a *App) DeleteConnection(id string) error {
 func (a *App) DeleteConnections(ids []string) error {
 	err := a.savedConnectionRepository().DeleteMany(ids)
 	if err == nil && len(ids) > 0 {
-		a.markCloudBackupDirty()
-	}
+		}
 	return err
 }
 
@@ -89,7 +85,6 @@ func (a *App) DuplicateConnection(id string) (connection.SavedConnectionView, er
 	if err != nil {
 		return connection.SavedConnectionView{}, err
 	}
-	a.markCloudBackupDirty()
 	return sanitizeSavedConnectionView(view), nil
 }
 
@@ -118,18 +113,49 @@ func (a *App) ImportLegacyConnections(items []connection.LegacySavedConnection) 
 	if err != nil {
 		return nil, err
 	}
-	a.markCloudBackupDirty()
 	return sanitizeSavedConnectionViews(views), nil
 }
 
 func (a *App) SaveGlobalProxy(input connection.SaveGlobalProxyInput) (connection.GlobalProxyView, error) {
 	view, err := a.saveGlobalProxy(input)
 	if err == nil {
-		a.markCloudBackupDirty()
-	}
+		}
 	return view, err
 }
 
 func (a *App) ImportLegacyGlobalProxy(input connection.LegacyGlobalProxyInput) (connection.GlobalProxyView, error) {
 	return a.saveGlobalProxy(connection.SaveGlobalProxyInput(input))
+}
+
+// importSavedConnectionsAtomically 在写锁下逐条导入保存的连接。
+// 云备份及其回滚快照随多数据源工作台退役，这里保留导入路径本身
+// （旧的 WebKit 存储迁移仍依赖它）。
+func (a *App) importSavedConnectionsAtomically(inputs []connection.SavedConnectionInput) ([]connection.SavedConnectionView, error) {
+	repo := a.savedConnectionRepository()
+	var result []connection.SavedConnectionView
+	err := repo.withWriteLock(func() error {
+		views := make([]connection.SavedConnectionView, 0, len(inputs))
+		for _, input := range inputs {
+			view, saveErr := repo.saveUnlocked(input)
+			if saveErr != nil {
+				return saveErr
+			}
+			views = append(views, view)
+		}
+		result = views
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }

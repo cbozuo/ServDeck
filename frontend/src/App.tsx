@@ -10,10 +10,8 @@ import { ManageServiceGroupsModal } from './components/serviceTree/ManageService
 import { AddServiceModal } from './components/AddServiceModal';
 import TabManager from './components/TabManager';
 import FloatingWorkbenchWindows from './components/FloatingWorkbenchWindows';
-import FloatingQueryResultWindows from './components/FloatingQueryResultWindows';
 import NativeDetachedWindowController from './components/NativeDetachedWindowController';
 import { TitleBarCloseIcon, TitleBarGearIcon, TitleBarMaximizeIcon, TitleBarMinimizeIcon, TitleBarPanelFoldIcon, TitleBarPanelUnfoldIcon, TitleBarRestoreIcon } from './components/TitleBarWindowControlIcons';
-import ConnectionModal from './components/ConnectionModal';
 import UpdateReleaseNotesModal from './components/UpdateReleaseNotesModal';
 import {
   buildReleaseNotesReadKey,
@@ -50,9 +48,6 @@ import {
   MAX_V2_SIDEBAR_RAIL_SCALE,
   MIN_TAB_ENVIRONMENT_ACCENT_THICKNESS,
   MIN_V2_SIDEBAR_RAIL_SCALE,
-  sanitizeTabEnvironmentAccentThickness,
-  sanitizeV2SidebarRailScale,
-  type QueryTableCtrlClickAction,
   type ThemePreference,
   flushAppStatePersistence,
   useStore,
@@ -84,40 +79,19 @@ import {
   type TabDisplayLayout,
   type TabDisplaySettings,
 } from './utils/tabDisplay';
-import {
-  resolveTitlebarContext,
-  type TitlebarSidebarSnapshot,
-} from './utils/titlebarContext';
 import { getMacNativeTitlebarContentOffset, getMacNativeTitlebarPaddingLeft, getMacNativeTitlebarPaddingRight, shouldHandleMacNativeFullscreenShortcut, shouldSuppressMacNativeEscapeExit } from './utils/macWindow';
 import { shouldEnableMacWindowDiagnostics } from './utils/macWindowDiagnostics';
 import { getConnectionWorkbenchState } from './utils/startupReadiness';
-import {
-  createConnectionSidebarLayoutCoordinator,
-  type ConnectionSidebarLayoutCoordinator,
-} from './utils/connectionSidebarLayoutCoordinator';
 import {
   buildSettingsCenterWorkbenchTab,
   SETTINGS_CENTER_WORKBENCH_TAB_ID,
 } from './utils/settingsCenterTab';
 import { SettingsCenterWorkbenchRegistrar } from './components/settings/SettingsCenterWorkbenchBridge';
 import {
-  getDataSourceCapabilities,
-  isMessageQueueDataSource,
-  resolveMessageQueueExecutionDbName,
-  resolveDataSourceType,
-} from './utils/dataSourceCapabilities';
-import { buildContextualNewQueryTemplate } from './utils/objectQueryTemplates';
-import {
   extractCustomThemeAntTokens,
 } from './utils/customTheme';
 import { resolveAvailableCustomTheme } from './utils/customThemePresets';
-import {
-  mergeRedisDbAliases,
-  sanitizeRedisDbAliases,
-  type RedisDbAliasMap,
-} from './utils/redisDbAlias';
 import { bootstrapSecureConfig } from './utils/secureConfigBootstrap';
-import { bootstrapSavedQueries } from './utils/savedQueryPersistence';
 import { getWindowsScaleFixNudgedWidth } from './utils/windowsScaleFix';
 import {
   clearStartupWindowRestorePending,
@@ -190,13 +164,7 @@ import {
   hasNativeDetachedWindowManager,
   openNativeWorkbenchTabWindow,
 } from './utils/nativeDetachedWindowHost';
-import {
-  buildApplicationQuitUnsavedSQLLabel,
-  collectApplicationQuitUnsavedSQLTargets,
-  saveLatestApplicationQuitUnsavedSQLState,
-} from './utils/sqlEditorApplicationQuit';
 import { prepareApplicationQuitPersistence } from './utils/applicationQuitPersistence';
-import { flushQueryTabDraftSnapshots } from './utils/sqlFileTabDrafts';
 import {
   APP_APPLICATION_QUIT_MODAL_Z_INDEX,
   APP_FOREGROUND_MODAL_Z_INDEX,
@@ -208,7 +176,6 @@ import { useAppLogPanelResize } from './hooks/useAppLogPanelResize';
 import { useAppSidebarCollapse } from './hooks/useAppSidebarCollapse';
 import { useAppSidebarResize } from './hooks/useAppSidebarResize';
 import { resolveSidebarResizeHitGeometry } from './utils/sidebarLayout';
-import { canInheritNewQueryTableContext, resolveNewQueryContext } from './utils/newQueryContext';
 import { useAppUtilityStyles } from './hooks/useAppUtilityStyles';
 import { useWorkbenchTabs } from './hooks/useWorkbenchTabs';
 import { isWailsDevNativeContextMenu, shouldAllowNativeContextMenu } from './utils/nativeContextMenu';
@@ -301,6 +268,16 @@ const SQL_EDITOR_FONT_SLIDER_MARKS: Record<number, string> = {
 };
 const DEFAULT_UI_SCALE = 1.0;
 const DEFAULT_FONT_SIZE = 14;
+const sanitizeTabEnvironmentAccentThicknessLocal = (value: unknown): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return 2;
+  return Math.min(MAX_TAB_ENVIRONMENT_ACCENT_THICKNESS, parsed);
+};
+const sanitizeV2SidebarRailScaleLocal = (value: unknown): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 1;
+  return Math.min(MAX_V2_SIDEBAR_RAIL_SCALE, parsed);
+};
 const EMPTY_INSTALLED_FONT_FAMILIES: InstalledFontFamily[] = [];
 
 type ThemeSettingsSliderUnit = 'percent' | 'px' | 'none';
@@ -542,11 +519,6 @@ const formatAboutReleaseTime = (value: string | undefined): string => {
 function App() {
   const { language, t } = useI18n();
   const [notificationApi, notificationContextHolder] = notification.useNotification();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isConnectionModalMounted, setIsConnectionModalMounted] = useState(false);
-  const [editingConnection, setEditingConnection] = useState<SavedConnection | null>(null);
-  const pendingConnectionTagIdRef = useRef<string | null>(null);
-  const connectionModalWarmupDoneRef = useRef(false);
   const windowState = useStore(state => state.windowState);
   const themeMode = useStore(state => state.theme);
   const themePreference = useStore(state => state.themePreference);
@@ -570,11 +542,6 @@ function App() {
   const autoCheckForUpdatesIntervalMinutes = useStore(state => state.autoCheckForUpdatesIntervalMinutes);
   const setAutoCheckForUpdatesIntervalMinutes = useStore(state => state.setAutoCheckForUpdatesIntervalMinutes);
   const replaceConnections = useStore(state => state.replaceConnections);
-  const replaceConnectionSidebarLayout = useStore(state => state.replaceConnectionSidebarLayout);
-  const replaceSavedQueries = useStore(state => state.replaceSavedQueries);
-  const reloadSavedQueryGroups = useStore(state => state.reloadSavedQueryGroups);
-  const queryOptions = useStore(state => state.queryOptions);
-  const setQueryOptions = useStore(state => state.setQueryOptions);
   const shortcutOptions = useStore(state => state.shortcutOptions);
   const [systemThemeMode, setSystemThemeMode] = useState<'light' | 'dark'>(() => getSystemThemeMode());
   const [runtimePlatform, setRuntimePlatform] = useState('');
@@ -627,14 +594,10 @@ function App() {
   const effectiveSidebarTreeFontSize = sidebarTreeFontSizeFollowsGlobal
       ? effectiveFontSize
       : (sanitizeSidebarTreeFontSize(appearance.sidebarTreeFontSize) ?? effectiveFontSize);
-  const effectiveSidebarRailScale = sanitizeV2SidebarRailScale(appearance.v2SidebarRailScale);
-  const effectiveTabEnvironmentAccentThickness = sanitizeTabEnvironmentAccentThickness(
+  const effectiveSidebarRailScale = sanitizeV2SidebarRailScaleLocal(appearance.v2SidebarRailScale);
+  const effectiveTabEnvironmentAccentThickness = sanitizeTabEnvironmentAccentThicknessLocal(
       appearance.tabEnvironmentAccentThickness,
   );
-  const tableDoubleClickAction = appearance.tableDoubleClickAction === 'open-design' ? 'open-design' : 'open-data';
-  const queryTableCtrlClickAction: QueryTableCtrlClickAction = appearance.queryTableCtrlClickAction === 'locate'
-      ? 'locate'
-      : 'open-design';
   const tabDisplaySettings = useMemo(
       () => sanitizeTabDisplaySettings(appearance.tabDisplay),
       [appearance.tabDisplay],
@@ -816,12 +779,7 @@ function App() {
   );
   const linuxCJKFontInstallHint = getLinuxCJKFontInstallHint(runtimePlatform, installedFontFamilies);
   const [isStoreHydrated, setIsStoreHydrated] = useState(() => useStore.persist.hasHydrated());
-  const closeTabsByConnection = useStore(state => state.closeTabsByConnection);
-  const savedQueriesBootstrapPromiseRef = useRef<Promise<void> | null>(null);
-  const savedQueriesLoadedRef = useRef(false);
   const [hasLoadedSecureConfig, setHasLoadedSecureConfig] = useState(false);
-  const [hasLoadedConnectionSidebarLayout, setHasLoadedConnectionSidebarLayout] = useState(false);
-  const connectionSidebarLayoutCoordinatorRef = useRef<ConnectionSidebarLayoutCoordinator | null>(null);
   const [viewportWidth, setViewportWidth] = useState(() => (typeof window === 'undefined' ? 1280 : window.innerWidth || 1280));
   /** 设置中心 = workbench tab 形态（2026-09-29 曾短暂改为弹框后按用户要求回退）。
       服务详情 2026-09-30 起同为 tab 形态，两者可并存，无需再强制退出详情页。 */
@@ -893,7 +851,7 @@ function App() {
   const connectionWorkbenchState = getConnectionWorkbenchState(
       isStoreHydrated,
       hasLoadedSecureConfig,
-      hasLoadedConnectionSidebarLayout,
+      true,
   );
 
   const windowCornerRadius = 14;
@@ -979,42 +937,6 @@ function App() {
       };
   }, [isStoreHydrated]);
 
-  const ensureSavedQueriesLoaded = useCallback(async (): Promise<void> => {
-      if (savedQueriesLoadedRef.current) {
-          return;
-      }
-      if (!savedQueriesBootstrapPromiseRef.current) {
-          savedQueriesBootstrapPromiseRef.current = (async () => {
-              await bootstrapSavedQueries({
-                  backend: (window as any).go?.app?.App,
-                  replaceSavedQueries,
-              });
-              savedQueriesLoadedRef.current = true;
-              void reloadSavedQueryGroups().catch((error) => {
-                  console.warn('Failed to reload saved query groups', error);
-              });
-          })();
-      }
-      const pending = savedQueriesBootstrapPromiseRef.current;
-      try {
-          await pending;
-      } catch (error) {
-          if (savedQueriesBootstrapPromiseRef.current === pending) {
-              savedQueriesBootstrapPromiseRef.current = null;
-          }
-          throw error;
-      }
-  }, [reloadSavedQueryGroups, replaceSavedQueries]);
-
-  useEffect(() => {
-      if (!isStoreHydrated) {
-          return;
-      }
-      void ensureSavedQueriesLoaded().catch((err) => {
-          console.warn('Failed to bootstrap saved queries', err);
-      });
-  }, [ensureSavedQueriesLoaded, isStoreHydrated]);
-
   useEffect(() => {
       if (!isStoreHydrated) {
           return;
@@ -1047,159 +969,7 @@ function App() {
       };
   }, [isStoreHydrated, replaceConnections, t]);
 
-  useEffect(() => {
-      if (!isStoreHydrated || !hasLoadedSecureConfig) {
-          return;
-      }
 
-      let cancelled = false;
-      const notificationKey = 'connection-sidebar-layout-save-state';
-      let coordinator: ConnectionSidebarLayoutCoordinator;
-      coordinator = createConnectionSidebarLayoutCoordinator({
-          backend: (window as any).go?.app?.App,
-          store: {
-              getLayout: () => {
-                  const state = useStore.getState();
-                  return {
-                      connectionTags: state.connectionTags,
-                      sidebarRootOrder: state.sidebarRootOrder,
-                      rootSortMode: state.rootSortMode,
-                      rootConnectionSortMode: state.rootConnectionSortMode,
-                  };
-              },
-              replaceLayout: replaceConnectionSidebarLayout,
-              subscribe: (listener) => useStore.subscribe((state, previousState) => {
-                    if (
-                        state.connectionTags !== previousState.connectionTags
-                        || state.sidebarRootOrder !== previousState.sidebarRootOrder
-                        || state.rootSortMode !== previousState.rootSortMode
-                        || state.rootConnectionSortMode !== previousState.rootConnectionSortMode
-                    ) {
-                      listener();
-                  }
-              }),
-          },
-          onError: (error) => {
-              console.warn('Failed to synchronize shared connection sidebar layout', error);
-          },
-          onSaveStateChange: (state) => {
-              if (cancelled) return;
-              if (state.status === 'saving') {
-                  notificationApi.open({
-                      key: notificationKey,
-                      message: t('app.connection_sidebar_layout.saving'),
-                      description: t('app.connection_sidebar_layout.saving_description'),
-                      icon: <SyncOutlined spin />,
-                      duration: 0,
-                      placement: 'bottomRight',
-                  });
-                  return;
-              }
-              if (state.status === 'saved') {
-                  notificationApi.success({
-                      key: notificationKey,
-                      message: t('app.connection_sidebar_layout.saved'),
-                      description: t('app.connection_sidebar_layout.saved_description'),
-                      duration: 2,
-                      placement: 'bottomRight',
-                  });
-                  return;
-              }
-              if (state.status === 'error') {
-                  const detail = state.error instanceof Error
-                      ? state.error.message
-                      : String(state.error);
-                  notificationApi.error({
-                      key: notificationKey,
-                      message: t('app.connection_sidebar_layout.save_failed'),
-                      description: t('app.connection_sidebar_layout.save_failed_description', { detail }),
-                      btn: (
-                          <Button
-                            size="small"
-                            type="primary"
-                            onClick={() => void coordinator.retryPendingSave().catch(() => undefined)}
-                          >
-                            {t('app.connection_sidebar_layout.retry_save')}
-                          </Button>
-                      ),
-                      duration: 0,
-                      placement: 'bottomRight',
-                  });
-                  return;
-              }
-              notificationApi.warning({
-                  key: notificationKey,
-                  message: t('app.connection_sidebar_layout.conflict'),
-                  description: t('app.connection_sidebar_layout.conflict_description'),
-                  btn: (
-                      <div style={{ display: 'flex', gap: 8 }}>
-                          <Button
-                            size="small"
-                            onClick={() => {
-                                coordinator.acceptRemoteLayout();
-                                notificationApi.info({
-                                    key: notificationKey,
-                                    message: t('app.connection_sidebar_layout.remote_applied'),
-                                    description: t('app.connection_sidebar_layout.remote_applied_description'),
-                                    duration: 2,
-                                    placement: 'bottomRight',
-                                });
-                            }}
-                          >
-                            {t('app.connection_sidebar_layout.refresh_remote')}
-                          </Button>
-                          <Button
-                            size="small"
-                            type="primary"
-                            onClick={() => void coordinator.retryPendingSave().catch(() => undefined)}
-                          >
-                            {t('app.connection_sidebar_layout.retry_save')}
-                          </Button>
-                      </div>
-                  ),
-                  duration: 0,
-                  placement: 'bottomRight',
-              });
-          },
-          refreshIntervalMs: 2_000,
-      });
-      connectionSidebarLayoutCoordinatorRef.current = coordinator;
-      const flushConnectionSidebarLayout = () => {
-          void coordinator.flush().catch((error) => {
-              console.warn('Failed to flush shared connection sidebar layout', error);
-          });
-      };
-      const refreshConnectionSidebarLayout = () => {
-          void coordinator.refresh().catch(() => undefined);
-      };
-      const refreshVisibleConnectionSidebarLayout = () => {
-          if (document.visibilityState === 'visible') {
-              refreshConnectionSidebarLayout();
-          }
-      };
-      window.addEventListener('pagehide', flushConnectionSidebarLayout, true);
-      window.addEventListener('beforeunload', flushConnectionSidebarLayout, true);
-      window.addEventListener('focus', refreshConnectionSidebarLayout);
-      document.addEventListener('visibilitychange', refreshVisibleConnectionSidebarLayout);
-      void coordinator.bootstrap().finally(() => {
-          if (!cancelled) {
-              setHasLoadedConnectionSidebarLayout(true);
-          }
-      });
-
-      return () => {
-          cancelled = true;
-          window.removeEventListener('pagehide', flushConnectionSidebarLayout, true);
-          window.removeEventListener('beforeunload', flushConnectionSidebarLayout, true);
-          window.removeEventListener('focus', refreshConnectionSidebarLayout);
-          document.removeEventListener('visibilitychange', refreshVisibleConnectionSidebarLayout);
-          notificationApi.destroy(notificationKey);
-          coordinator.dispose();
-          if (connectionSidebarLayoutCoordinatorRef.current === coordinator) {
-              connectionSidebarLayoutCoordinatorRef.current = null;
-          }
-      };
-  }, [hasLoadedSecureConfig, isStoreHydrated, notificationApi, replaceConnectionSidebarLayout, t]);
 
   useEffect(() => {
       let cancelled = false;
@@ -2095,63 +1865,14 @@ function App() {
   });
 
   const addTab = useStore(state => state.addTab);
-  const activeContext = useStore(state => state.activeContext);
   const connections = useStore(state => state.connections);
-  const connectionTags = useStore(state => state.connectionTags);
-  const [sidebarTitlebarSnapshot, setSidebarTitlebarSnapshot] = useState<TitlebarSidebarSnapshot>({
-      selection: null,
-      connectionStates: {},
-  });
-  const moveConnectionToTag = useStore(state => state.moveConnectionToTag);
-  const moveConnectionsToTag = useStore(state => state.moveConnectionsToTag);
-  const setConnectionDisplaySortMode = useStore(state => state.setConnectionDisplaySortMode);
   const tabs = useWorkbenchTabs();
   const activeTabId = useStore(state => state.activeTabId);
   const setActiveTab = useStore(state => state.setActiveTab);
-  const savedQueries = useStore(state => state.savedQueries);
-  const saveQuery = useStore(state => state.saveQuery);
   const activeWorkbenchTab = useMemo(
       () => activeTabId ? tabs.find(tab => tab.id === activeTabId) : undefined,
       [activeTabId, tabs],
   );
-  const titlebarContext = useMemo(
-      () => resolveTitlebarContext({
-          activeContext,
-          sidebarContext: sidebarTitlebarSnapshot.selection,
-          activeTab: activeWorkbenchTab,
-          connections,
-      }),
-      [activeContext, activeWorkbenchTab, connections, sidebarTitlebarSnapshot.selection],
-  );
-  // Keep primary-action semantics anchored to the active workbench context.
-  // The title-bar summary may intentionally follow a separate Sidebar row.
-  const currentPrimaryActionConnection = useMemo(() => {
-      const connectionId = String(activeContext?.connectionId || activeWorkbenchTab?.connectionId || '').trim();
-      return connections.find(connection => connection.id === connectionId) || null;
-  }, [activeContext?.connectionId, activeWorkbenchTab?.connectionId, connections]);
-  const explorerContextConnectionName = titlebarContext.connectionName
-      || t('sidebar.active_connection.no_host_selected');
-  const explorerContextTooltipText = [
-      titlebarContext.connection ? explorerContextConnectionName : '',
-      titlebarContext.databaseName,
-      titlebarContext.tableName,
-  ].filter(Boolean).join(' · ') || explorerContextConnectionName;
-  const explorerContextTooltip = titlebarContext.connection
-      ? explorerContextTooltipText
-      : t('sidebar.active_connection.no_host_selected');
-  const v2ExplorerContext = useMemo(() => ({
-      active: Boolean(titlebarContext.connection),
-      connectionName: explorerContextConnectionName,
-      databaseName: titlebarContext.databaseName,
-      objectName: titlebarContext.tableName,
-      tooltip: explorerContextTooltip,
-  }), [
-      explorerContextConnectionName,
-      explorerContextTooltip,
-      titlebarContext.connection,
-      titlebarContext.databaseName,
-      titlebarContext.tableName,
-  ]);
   const applicationQuitConfirmRef = useRef<{ destroy: () => void } | null>(null);
   const applicationQuitHandlingRef = useRef(false);
   const useNativeMacWindowControls = isMacRuntime;
@@ -2416,61 +2137,6 @@ function App() {
       };
   }, [emitWindowDiagnostic, macWindowDiagnosticsEnabled]);
 
-  const handleNewQuery = useCallback(() => {
-      const currentTab = activeTabId ? tabs.find(tab => tab.id === activeTabId) : undefined;
-      // 只继承支持查询编辑器的活动连接；Nacos/JVM 等工作台活动时不预选连接，
-      // 避免新建查询落入必然失败的 SQL 工作流。
-      const validConnectionIds = new Set(
-          connections
-              .filter(connection => getDataSourceCapabilities(connection.config).supportsQueryEditor)
-              .map(connection => connection.id),
-      );
-      const targetContext = resolveNewQueryContext({
-          sidebarContext: activeContext,
-          activeTab: currentTab,
-          validConnectionIds,
-      });
-      const connection = connections.find(c => c.id === targetContext.connectionId);
-      if (connection && isMessageQueueDataSource(connection.config)) {
-          const dbName = resolveMessageQueueExecutionDbName(
-              connection.config,
-              targetContext.dbName,
-          );
-          addTab({
-              id: `message-queue-${connection.id}-${encodeURIComponent(dbName || 'default')}`,
-              title: `${connection.name} · ${t('message_queue_workbench.tab_kind')}`,
-              type: 'message-queue',
-              connectionId: connection.id,
-              dbName,
-              messageQueueAction: 'open',
-              messageQueueRequestKey: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          });
-          return;
-      }
-      const inheritsTableContext = canInheritNewQueryTableContext({
-          activeTab: currentTab,
-          targetContext,
-      });
-      const tableName = inheritsTableContext ? String(currentTab?.tableName || '').trim() : '';
-      const contextualQuery = tableName && connection
-          ? buildContextualNewQueryTemplate({
-              dbType: resolveDataSourceType(connection.config),
-              tableName,
-              customTemplate: appearance.newQuerySqlTemplate,
-          })
-          : null;
-
-      addTab({
-          id: `query-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          title: t('query.new'),
-          type: 'query',
-          connectionId: targetContext.connectionId,
-          dbName: targetContext.dbName,
-          schemaName: targetContext.schemaName,
-          query: contextualQuery ?? '',
-      });
-  }, [activeTabId, tabs, connections, activeContext, addTab, appearance.newQuerySqlTemplate, t]);
-
   const switchActiveTabByOffset = useCallback((offset: 1 | -1) => {
       if (tabs.length < 2) return;
       const activeIndex = tabs.findIndex(tab => tab.id === activeTabId);
@@ -2519,10 +2185,9 @@ function App() {
           try {
               await prepareApplicationQuitPersistence({
                   captureWindowState: () => captureMainWindowStateRef.current(),
-                  flushDrafts: flushQueryTabDraftSnapshots,
+                  flushDrafts: async () => undefined,
                   flushAppState: async () => {
                       await flushAppStatePersistence();
-                      await connectionSidebarLayoutCoordinatorRef.current?.flush();
                   },
               });
               if (confirmedAction) {
@@ -2544,106 +2209,8 @@ function App() {
           return accepted;
       };
 
-      let targets;
-      try {
-          await ensureSavedQueriesLoaded();
-          const latestState = useStore.getState();
-          targets = await collectApplicationQuitUnsavedSQLTargets(
-              latestState.tabs,
-              latestState.savedQueries,
-          );
-      } catch (error) {
-          cancelRequest();
-          message.error(t('app.quit.unsaved_sql.inspect_failed', {
-              detail: error instanceof Error ? error.message : String(error),
-          }));
-          return;
-      }
-
-      if (targets.length === 0) {
-          await runConfirmedAction();
-          return;
-      }
-
-      const label = buildApplicationQuitUnsavedSQLLabel(targets);
-      await new Promise<void>((resolve) => {
-          let finished = false;
-          const finish = () => {
-              if (finished) return;
-              finished = true;
-              resolve();
-          };
-          const runConfirmedActionAndFinish = async () => {
-              try {
-                  await runConfirmedAction();
-              } finally {
-                  finish();
-              }
-          };
-
-          let destroyConfirm: (() => void) | null = null;
-          const confirmRef = Modal.confirm({
-              title: t('app.quit.unsaved_sql.title'),
-              content: t(targets.length === 1
-                  ? 'app.quit.unsaved_sql.content_single'
-                  : 'app.quit.unsaved_sql.content_multiple', { label }),
-              okText: t('app.quit.unsaved_sql.save_exit'),
-              cancelText: t('app.quit.unsaved_sql.cancel'),
-              centered: true,
-              closable: true,
-              maskClosable: false,
-              zIndex: applicationQuitModalZIndex,
-              okButtonProps: { danger: true, type: 'primary' },
-              footer: (_, { OkBtn, CancelBtn }) => (
-                  <>
-                      <Button
-                        onClick={() => {
-                            destroyConfirm?.();
-                            applicationQuitConfirmRef.current = null;
-                            void runConfirmedActionAndFinish();
-                        }}
-                      >
-                          {t('app.quit.unsaved_sql.confirm_exit')}
-                      </Button>
-                      <CancelBtn />
-                      <OkBtn />
-                  </>
-              ),
-              onCancel: () => {
-                  cancelRequest();
-                  finish();
-              },
-              onOk: async () => {
-                  try {
-                      await saveLatestApplicationQuitUnsavedSQLState({
-                          getState: () => {
-                              const latestState = useStore.getState();
-                              return {
-                                  tabs: latestState.tabs,
-                                  savedQueries: latestState.savedQueries,
-                              };
-                          },
-                          updateTabs: (update) => {
-                              useStore.setState((state) => ({ tabs: update(state.tabs) }));
-                          },
-                          saveQuery,
-                      });
-                      message.success(t('app.quit.unsaved_sql.saved'));
-                  } catch (error) {
-                      cancelRequest();
-                      finish();
-                      message.error(t('app.quit.unsaved_sql.save_failed_cancel_exit', {
-                          detail: error instanceof Error ? error.message : String(error),
-                      }));
-                      throw error;
-                  }
-                  await runConfirmedActionAndFinish();
-              },
-          });
-          destroyConfirm = confirmRef.destroy;
-          applicationQuitConfirmRef.current = confirmRef;
-      });
-  }, [applicationQuitModalZIndex, ensureSavedQueriesLoaded, forceQuitApplication, resetApplicationQuitRequest, saveQuery, t]);
+      await runConfirmedAction();
+  }, [forceQuitApplication, resetApplicationQuitRequest, t]);
 
 
   const handleInstallUpdateRequest = useCallback(async () => {
@@ -3322,87 +2889,6 @@ function App() {
       handleCloseAppLogPanel();
   }, [handleCloseAppLogPanel]);
 
-  const openCreateConnection = useCallback((targetTagId?: string) => {
-      const normalizedTargetTagId = String(targetTagId || '').trim();
-      pendingConnectionTagIdRef.current = normalizedTargetTagId || null;
-      setEditingConnection(null);
-      setIsConnectionModalMounted(true);
-      setIsModalOpen(true);
-  }, []);
-  const handleCreateConnection = useCallback(() => openCreateConnection(), [openCreateConnection]);
-  const handleCreateConnectionInGroup = useCallback(
-      (targetTagId: string) => openCreateConnection(targetTagId),
-      [openCreateConnection],
-  );
-
-  const handleEditConnection = useCallback((conn: SavedConnection) => {
-      pendingConnectionTagIdRef.current = null;
-      setIsConnectionModalMounted(true);
-      void (async () => {
-          const backendApp = (window as any).go?.app?.App;
-          let nextConnection = conn;
-          if (typeof backendApp?.GetEditableSavedConnection === 'function') {
-              try {
-                  const editableConnection = await backendApp.GetEditableSavedConnection(conn.id);
-                  if (editableConnection) {
-                      nextConnection = editableConnection;
-                  }
-              } catch (error: any) {
-                  const errorMessage = error?.message;
-                  const detail = (
-                      typeof errorMessage === 'string'
-                          ? errorMessage
-                          : (
-                              typeof errorMessage === 'number'
-                              || typeof errorMessage === 'boolean'
-                                  ? String(errorMessage)
-                                  : String(error ?? '')
-                          )
-                  ).trim();
-                  void message.warning(
-                      detail
-                          ? t('app.connection.message.editable_load_failed_with_detail', { detail })
-                          : t('app.connection.message.editable_load_failed')
-                  );
-              }
-          }
-          setEditingConnection(nextConnection);
-          setIsModalOpen(true);
-      })();
-  }, [t]);
-
-  useEffect(() => {
-      if (connectionModalWarmupDoneRef.current) {
-          return;
-      }
-      connectionModalWarmupDoneRef.current = true;
-      const warmup = () => setIsConnectionModalMounted(true);
-      if (typeof window === 'undefined') {
-          warmup();
-          return;
-      }
-      if (typeof window.requestIdleCallback === 'function') {
-          const idleId = window.requestIdleCallback(() => warmup(), { timeout: 1200 });
-          return () => window.cancelIdleCallback?.(idleId);
-      }
-      const timerId = window.setTimeout(warmup, 300);
-      return () => window.clearTimeout(timerId);
-  }, []);
-
-  const handleConnectionSaved = useCallback(async (savedConnection: SavedConnection) => {
-      const targetTagId = pendingConnectionTagIdRef.current;
-      pendingConnectionTagIdRef.current = null;
-      if (targetTagId && savedConnection?.id) {
-          moveConnectionToTag(savedConnection.id, targetTagId);
-      }
-  }, [moveConnectionToTag]);
-
-  const handleCloseModal = () => {
-      pendingConnectionTagIdRef.current = null;
-      setIsModalOpen(false);
-      setEditingConnection(null);
-  };
-
   const handleWebLogout = useCallback(async () => {
       try {
           await fetch('/__gonavi/auth/logout', {
@@ -3592,16 +3078,6 @@ function App() {
   }, [handleOpenToolCenterPane]);
 
   useEffect(() => {
-      const handleCreateQueryTabEvent = () => {
-          handleNewQuery();
-      };
-      window.addEventListener('gonavi:create-query-tab', handleCreateQueryTabEvent as EventListener);
-      return () => {
-          window.removeEventListener('gonavi:create-query-tab', handleCreateQueryTabEvent as EventListener);
-      };
-  }, [handleNewQuery]);
-
-  useEffect(() => {
       if (!isMacRuntime || !useNativeMacWindowControls) {
           return;
       }
@@ -3716,17 +3192,11 @@ function App() {
               case 'focusSidebarSearch':
                   handleFocusSidebarSearch();
                   break;
-              case 'newQueryTab':
-                  handleNewQuery();
-                  break;
               case 'switchToNextTab':
                   switchActiveTabByOffset(1);
                   break;
               case 'switchToPreviousTab':
                   switchActiveTabByOffset(-1);
-                  break;
-              case 'newConnection':
-                  handleCreateConnection();
                   break;
               case 'toggleLogPanel':
                   handleToggleLogPanel();
@@ -3749,7 +3219,7 @@ function App() {
       return () => {
           window.removeEventListener('keydown', handleGlobalShortcut, true);
       };
-  }, [activeShortcutPlatform, handleCreateConnection, handleFocusSidebarSearch, handleManualResetWindowZoom, handleNewQuery, handleTitleBarWindowToggle, handleToggleLogPanel, isMacRuntime, selectPresetTheme, shortcutOptions, switchActiveTabByOffset, themeMode, useNativeMacWindowControls]);
+  }, [activeShortcutPlatform, handleFocusSidebarSearch, handleManualResetWindowZoom, handleTitleBarWindowToggle, handleToggleLogPanel, isMacRuntime, selectPresetTheme, shortcutOptions, switchActiveTabByOffset, themeMode, useNativeMacWindowControls]);
 
   const linuxResizeHandleStyleBase = {
       position: 'fixed',
@@ -4412,18 +3882,8 @@ function App() {
                                                   value={effectiveSidebarRailScale}
                                                   unit="percent"
                                                   onChange={(value) => setAppearance({
-                                                      v2SidebarRailScale: sanitizeV2SidebarRailScale(value),
+                                                      v2SidebarRailScale: sanitizeV2SidebarRailScaleLocal(value),
                                                   })}
-                                              />
-                                          ),
-                                      })}
-                                      {renderThemeSettingsRow({
-                                          label: t('app.theme.appearance.single_database_expansion_title'),
-                                          hint: t('app.theme.appearance.single_database_expansion_hint'),
-                                          control: (
-                                              <Switch
-                                                  checked={appearance.sidebarSingleDatabaseExpansion === true}
-                                                  onChange={(checked) => setAppearance({ sidebarSingleDatabaseExpansion: checked })}
                                               />
                                           ),
                                       })}
@@ -5001,21 +4461,12 @@ function App() {
                <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'transparent', marginBottom: isLogPanelOpen ? 8 : 0, borderRadius: isLogPanelOpen ? 'var(--gonavi-border-radius)' : 0, clipPath: isLogPanelOpen ? 'inset(0 round var(--gonavi-border-radius))' : 'none' }}>
                   <TabManager onFocusSidebarSearch={handleFocusSidebarSearch} onAddService={() => setIsAddServiceModalOpen(true)} />
                   <FloatingWorkbenchWindows />
-                  <FloatingQueryResultWindows />
-                  <NativeDetachedWindowController />
+                              <NativeDetachedWindowController />
                </div>
              </div>
 
           </Content>
           </Layout>
-          {isConnectionModalMounted && (
-          <ConnectionModal
-            open={isModalOpen}
-            onClose={handleCloseModal}
-            initialValues={editingConnection}
-            onSaved={handleConnectionSaved}
-          />
-          )}
           {isSettingsModalOpen && (() => {
             // 「数据目录」为顶层叶组（items 为空即渲染为不可展开的顶层行，
             // 点击经 resolveSettingsCenterGroupInitialPane 直达对应面板），与「关于」同级。

@@ -3,7 +3,6 @@ package app
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -14,7 +13,6 @@ import (
 
 	"GoNavi-Wails/internal/appdata"
 	"GoNavi-Wails/internal/connection"
-	"GoNavi-Wails/internal/db"
 	"GoNavi-Wails/internal/logger"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -138,48 +136,12 @@ func (a *App) ApplyDataRootDirectory(directory string, migrate bool) connection.
 	}
 	if filepath.Clean(currentRoot) == filepath.Clean(targetRoot) {
 		a.configDir = targetRoot
-		db.SetExternalDriverDownloadDirectory(appdata.DriverRoot(targetRoot))
 		return connection.QueryResult{
 			Success: true,
 			Message: a.appText("app.data_root.backend.message.unchanged", nil),
 			Data:    dataRootInfoPayload(targetRoot),
 		}
 	}
-
-	// Both audit and data-sync task stores use SQLite WAL journaling. Stop the
-	// sync scheduler/runs first, then checkpoint and close both stores so root
-	// migration never copies a live WAL or starts the same scheduled run twice.
-	resumeDataSyncJobs, suspendSyncErr := a.suspendDataSyncJobs()
-	if suspendSyncErr != nil {
-		resumeDataSyncJobs()
-		return connection.QueryResult{
-			Success: false,
-			Message: dataRootErrorWithDetail(
-				a.appText,
-				"app.data_root.backend.error.migrate_directory_failed",
-				suspendSyncErr.Error(),
-				suspendSyncErr,
-				map[string]any{"entry": "data_sync"},
-			).Error(),
-		}
-	}
-	defer resumeDataSyncJobs()
-
-	resumeSQLAudit, suspendErr := a.suspendSQLAudit()
-	if suspendErr != nil {
-		a.resumeSQLAudit(resumeSQLAudit)
-		return connection.QueryResult{
-			Success: false,
-			Message: dataRootErrorWithDetail(
-				a.appText,
-				"app.data_root.backend.error.migrate_directory_failed",
-				suspendErr.Error(),
-				suspendErr,
-				map[string]any{"entry": "audit"},
-			).Error(),
-		}
-	}
-	defer a.resumeSQLAudit(resumeSQLAudit)
 
 	if migrate {
 		if err := migrateDataRootContentsWithText(currentRoot, targetRoot, a.appText); err != nil {
@@ -192,7 +154,6 @@ func (a *App) ApplyDataRootDirectory(directory string, migrate bool) connection.
 		return connection.QueryResult{Success: false, Message: dataRootLocalizeSetActiveRootError(a.appText, err).Error()}
 	}
 	a.configDir = appliedRoot
-	db.SetExternalDriverDownloadDirectory(appdata.DriverRoot(appliedRoot))
 	message := a.appText("app.data_root.backend.message.updated_restart", nil)
 	if migrate {
 		message = a.appText("app.data_root.backend.message.migrated_restart", nil)
@@ -282,12 +243,6 @@ func migrateDataRootContentsUnlocked(sourceRoot string, targetRoot string, text 
 		if _, excluded := dataRootMigrationExcludedEntries[name]; excluded {
 			continue
 		}
-		if name == "audit" {
-			// The SQLite audit store is copied as an exact directory snapshot
-			// after every other migration step succeeds. Merging it would leave
-			// stale WAL/SHM or health sidecars from an existing target root.
-			continue
-		}
 		sourcePath := filepath.Join(sourceRoot, name)
 		targetPath := filepath.Join(targetRoot, name)
 		info, err := entry.Info()
@@ -306,9 +261,6 @@ func migrateDataRootContentsUnlocked(sourceRoot string, targetRoot string, text 
 	}
 	if err := rewriteMigratedDataRootStateWithText(targetRoot, text); err != nil {
 		return err
-	}
-	if err := replaceMigratedAuditDirectory(sourceRoot, targetRoot); err != nil {
-		return dataRootWrapError(text, "app.data_root.backend.error.migrate_directory_failed", err, map[string]any{"entry": "audit"})
 	}
 	return nil
 }
@@ -361,81 +313,6 @@ func withDataRootSharedStorageLocks(sourceRoot string, targetRoot string, text d
 		closeErr = dataRootWrapError(text, "app.data_root.backend.error.migrate_directory_failed", closeErr, map[string]any{"entry": "storage_lock"})
 	}
 	return errors.Join(operationErr, closeErr)
-}
-
-func replaceMigratedAuditDirectory(sourceRoot string, targetRoot string) error {
-	sourceAudit := filepath.Join(sourceRoot, "audit")
-	targetAudit := filepath.Join(targetRoot, "audit")
-
-	sourceInfo, sourceErr := os.Stat(sourceAudit)
-	sourceExists := sourceErr == nil
-	if sourceErr != nil && !os.IsNotExist(sourceErr) {
-		return fmt.Errorf("inspect source audit directory: %w", sourceErr)
-	}
-	if sourceExists && !sourceInfo.IsDir() {
-		return errors.New("source audit path is not a directory")
-	}
-
-	stagePath := ""
-	if sourceExists {
-		var err error
-		stagePath, err = os.MkdirTemp(targetRoot, ".gonavi-audit-stage-")
-		if err != nil {
-			return fmt.Errorf("create audit migration stage: %w", err)
-		}
-		defer func() { _ = os.RemoveAll(stagePath) }()
-		if err := copyDir(sourceAudit, stagePath); err != nil {
-			return fmt.Errorf("stage audit directory: %w", err)
-		}
-	}
-
-	targetInfo, targetErr := os.Lstat(targetAudit)
-	targetExists := targetErr == nil
-	if targetErr != nil && !os.IsNotExist(targetErr) {
-		return fmt.Errorf("inspect target audit directory: %w", targetErr)
-	}
-	if targetExists && targetInfo == nil {
-		return errors.New("target audit path is unavailable")
-	}
-
-	backupPath := ""
-	if targetExists {
-		reserved, err := os.MkdirTemp(targetRoot, ".gonavi-audit-backup-")
-		if err != nil {
-			return fmt.Errorf("reserve audit migration backup: %w", err)
-		}
-		if err := os.Remove(reserved); err != nil {
-			return fmt.Errorf("prepare audit migration backup: %w", err)
-		}
-		backupPath = reserved
-		if err := os.Rename(targetAudit, backupPath); err != nil {
-			return fmt.Errorf("backup target audit directory: %w", err)
-		}
-	}
-
-	rollback := func(cause error) error {
-		if backupPath == "" {
-			return cause
-		}
-		if restoreErr := os.Rename(backupPath, targetAudit); restoreErr != nil {
-			return errors.Join(cause, fmt.Errorf("restore target audit directory: %w", restoreErr))
-		}
-		backupPath = ""
-		return cause
-	}
-
-	if sourceExists {
-		if err := os.Rename(stagePath, targetAudit); err != nil {
-			return rollback(fmt.Errorf("activate staged audit directory: %w", err))
-		}
-		stagePath = ""
-	}
-	if backupPath != "" {
-		if err := os.RemoveAll(backupPath); err != nil {
-			logger.Warnf("清理数据目录迁移的旧审计备份失败：path=%s err=%v", backupPath, err)
-		}
-	}
-	return nil
 }
 
 func rewriteMigratedDataRootState(targetRoot string) error {

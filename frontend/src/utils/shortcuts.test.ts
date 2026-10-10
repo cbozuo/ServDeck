@@ -633,14 +633,6 @@ describe('shortcut defaults', () => {
     expect(getShortcutPlatform()).toBe('windows');
   });
 
-  it('registers the new connection action as a real shortcut', () => {
-    expect(DEFAULT_SHORTCUT_OPTIONS.newConnection).toEqual({
-      mac: { combo: 'Meta+Shift+N', enabled: true },
-      windows: { combo: 'Ctrl+Shift+N', enabled: true },
-    });
-    expect(SHORTCUT_ACTION_META.newConnection.label).toBe('新建数据源');
-  });
-
   it('migrates legacy single-platform shortcut bindings into both platform slots', () => {
     const options = sanitizeShortcutOptions({
       runQuery: { combo: 'Ctrl+Shift+R', enabled: false },

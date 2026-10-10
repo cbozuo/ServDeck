@@ -1,15 +1,7 @@
 [
-  "App.collapsed-titlebar-actions.test.ts",
   "App.tool-center.test.ts",
-  "components/ConnectionModal.i18n.test.tsx",
-  "components/DataGrid.ddl.test.tsx",
-  "components/DataGrid.layout.test.tsx",
-  "components/QueryEditor.results-and-drop.test.tsx",
-  "components/QueryEditorToolbar.layout.test.tsx",
-  "components/QueryEditorTransaction.i18n.test.ts",
-  "components/Sidebar.locate-toolbar.test.tsx",
-  "components/TableExportWorkbench.test.tsx",
   "components/TitleBarPrimaryActions.test.tsx",
   "i18n/catalog.test.ts",
-  "utils/overlayZIndex.test.ts"
+  "utils/overlayZIndex.test.ts",
+  "addService/AddServiceLogic.test.ts"
 ]

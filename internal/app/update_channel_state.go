@@ -150,7 +150,6 @@ func (a *App) SetUpdateChannel(channel string) connection.QueryResult {
 	a.updateState.staged = nil
 	a.updateState.task = nil
 	a.updateState.revision++
-	a.markCloudBackupDirty()
 
 	return connection.QueryResult{
 		Success: true,

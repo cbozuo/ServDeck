@@ -1,6 +1,4 @@
-import type { Key } from 'react';
 import { APP_DETACHED_WINDOW_Z_INDEX_BASE } from './overlayZIndex';
-import type { FilterCondition } from './sql';
 
 export type DetachedWindowBounds = {
   x: number;
@@ -12,56 +10,6 @@ export type DetachedWindowBounds = {
 
 export type DetachedWorkbenchWindow = DetachedWindowBounds & {
   tabId: string;
-};
-
-export type DetachedQueryResultSnapshot = {
-  key: string;
-  sql: string;
-  exportSql?: string;
-  sourceStatementIndex?: number;
-  statementResultIndex?: number;
-  rows: any[];
-  columns: string[];
-  messages?: string[];
-  resultType?: 'grid' | 'message' | 'elasticsearch';
-  requestLabel?: string;
-  httpStatus?: number;
-  rawResponse?: string;
-  partialFailure?: boolean;
-  outcomeUnknown?: boolean;
-  tableName?: string;
-  /** 列类型/注释元数据所属库（跨库 SELECT 时可能与窗口 dbName 不同） */
-  metadataDbName?: string;
-  metadataTableName?: string;
-  ddlDbName?: string;
-  ddlTableName?: string;
-  executionConnectionId?: string;
-  executionDbName?: string;
-  executionConnectionParams?: string;
-  pkColumns: string[];
-  editLocator?: {
-    strategy?: string;
-    columns?: string[];
-    values?: Record<string, unknown>;
-  };
-  readOnly: boolean;
-  showRowNumberColumn?: boolean;
-  truncated?: boolean;
-  pinned?: boolean;
-  filterConditions?: FilterCondition[];
-  quickWhereCondition?: string;
-  selectedRowKeys?: Key[];
-  selectedCellKeys?: string[];
-  scrollSnapshot?: { top: number; left: number };
-};
-
-export type DetachedQueryResultWindow = DetachedWindowBounds & {
-  id: string;
-  sourceQueryTabId: string;
-  connectionId: string;
-  dbName?: string;
-  title: string;
-  result: DetachedQueryResultSnapshot;
 };
 
 export type DetachedWindowCoordinateSpace = 'viewport' | 'screen';
@@ -144,15 +92,6 @@ export const shouldDetachTabByDrag = (deltaY: number, overId?: string | null): b
   // 垂直拖出超过阈值即判定为独立窗口；即使仍 hover 在其他 tab 上也可拆出
   return Math.abs(deltaY) >= DETACH_TAB_DRAG_Y_THRESHOLD;
 };
-
-/** 从指针位置推算浮动窗落点，便于结果 Tab 拖出时「跟手」打开 */
-export const resolveResultDetachPreferredBounds = (
-  clientX: number,
-  clientY: number,
-): Partial<Pick<DetachedWindowBounds, 'x' | 'y'>> => ({
-  x: Math.max(DETACHED_WINDOW_VIEWPORT_PADDING, Math.round(clientX - 120)),
-  y: Math.max(DETACHED_WINDOW_VIEWPORT_PADDING, Math.round(clientY - 24)),
-});
 
 export const resolveNativeDetachReleasePoint = (input: {
   startScreenX: number;

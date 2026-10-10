@@ -6,11 +6,9 @@ import {
   DEFAULT_DETACHED_WINDOW_MIN_HEIGHT,
   DEFAULT_DETACHED_WINDOW_MIN_WIDTH,
   DEFAULT_DETACHED_WINDOW_WIDTH,
-  type DetachedQueryResultWindow,
   type DetachedWindowBounds,
 } from './detachedWindow';
 import {
-  buildNativeDetachedQueryResultPayload,
   buildNativeDetachedStoreSnapshot,
   buildNativeDetachedWorkbenchPayload,
   NATIVE_DETACHED_CUSTOM_THEME_CONTEXT_KEY,
@@ -21,7 +19,6 @@ import {
   type NativeDetachedWindowKind,
   type NativeDetachedWindowPayload,
 } from './nativeDetachedWindowClient';
-import { peekQueryEditorResultSession } from './queryEditorResultSessionCache';
 import { resolveAvailableCustomTheme } from './customThemePresets';
 
 export type NativeDetachedWindowOperationResult = {
@@ -62,11 +59,6 @@ export const getActiveNativeDetachedThemeContext = (): NativeDetachedThemeContex
   const state = useCustomThemeStore.getState();
   return resolveAvailableCustomTheme(state.themes, state.activeThemeId);
 };
-
-export type NativeQueryResultWindowInput = Omit<
-  DetachedQueryResultWindow,
-  keyof DetachedWindowBounds
-> & Partial<DetachedWindowBounds>;
 
 const openingWindows = new Map<string, Promise<boolean>>();
 const nativeHostStateRevisions = new Map<string, number>();
@@ -297,7 +289,7 @@ const openOnce = (
 };
 
 const resolveWorkbenchTitle = (tab: TabData): string =>
-  String(tab.title || tab.tableName || tab.viewName || tab.id).trim() || tab.id;
+  String(tab.title || tab.id).trim() || tab.id;
 
 export const openNativeWorkbenchTabWindow = async (
   tabId: string,
@@ -320,11 +312,6 @@ export const openNativeWorkbenchTabWindow = async (
   }
 
   const bounds = getNativeWindowBounds(preferred);
-  if (tab.type === 'query' && typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('gonavi:capture-query-result-session', {
-      detail: { tabId: tab.id },
-    }));
-  }
   const request: NativeDetachedWindowOpenRequest = {
     id: windowId,
     kind: 'workbench',
@@ -333,7 +320,6 @@ export const openNativeWorkbenchTabWindow = async (
     payload: buildNativeDetachedWorkbenchPayload(
       state,
       tab,
-      tab.type === 'query' ? peekQueryEditorResultSession(tab.id) : null,
       getActiveNativeDetachedThemeContext(),
     ),
   };
@@ -357,45 +343,6 @@ export const openNativeWorkbenchTabWindow = async (
     );
   }
   return opened;
-};
-
-export const openNativeQueryResultWindow = async (
-  windowState: NativeQueryResultWindowInput,
-  managerOverride?: NativeDetachedWindowManager,
-): Promise<boolean> => {
-  const id = String(windowState.id || '').trim();
-  if (!id) return false;
-  const state = useStore.getState();
-  const manager = managerOverride ?? resolveNativeDetachedWindowManager();
-  if (!manager) {
-    state.detachQueryResultWindow(windowState);
-    return true;
-  }
-  if (state.detachedQueryResultWindows.some((item) => item.id === id)) {
-    return focusExistingWindow(manager, id);
-  }
-  const bounds = getNativeWindowBounds(windowState);
-  return openOnce(manager, {
-    id,
-    kind: 'query-result',
-    title: windowState.title,
-    ...bounds,
-    payload: buildNativeDetachedQueryResultPayload(state, {
-      ...windowState,
-      ...bounds,
-      zIndex: Number(windowState.zIndex) || 1201,
-    }, getActiveNativeDetachedThemeContext()),
-  }, (openedBounds) => {
-    const latest = useStore.getState();
-    if (!latest.tabs.some((tab) => tab.id === windowState.sourceQueryTabId)) {
-      void manager.Close(id);
-      return false;
-    }
-    latest.detachQueryResultWindow({ ...windowState, ...openedBounds });
-    return true;
-  }, () => {
-    useStore.getState().closeDetachedQueryResultWindow(id);
-  });
 };
 
 export const syncNativeDetachedShortcutOptions = async (

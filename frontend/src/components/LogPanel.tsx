@@ -4,7 +4,6 @@ import { BugOutlined, ClearOutlined, CloseOutlined } from '@ant-design/icons';
 import { useStore } from '../store';
 import { useI18n } from '../i18n/provider';
 import { normalizeOpacityForPlatform, resolveAppearanceValues } from '../utils/appearance';
-import { QueryEditorExecutionErrorCard } from './queryEditor/QueryEditorExecutionErrorCard';
 import LogPanelList from './LogPanelList';
 import './LogPanel.css';
 interface LogPanelProps {
@@ -23,10 +22,6 @@ const LogPanel: React.FC<LogPanelProps> = ({
     onClose,
     onResizeStart,
     variant = 'panel',
-    executionError,
-    onDiagnoseExecutionError,
-    diagnoseShortcutLabel,
-    onLocateExecutionError,
 }) => {
     const { t } = useI18n();
     const sqlLogs = useStore(state => state.sqlLogs);
@@ -92,25 +87,6 @@ const LogPanel: React.FC<LogPanelProps> = ({
                     background: 'var(--gn-query-workbench-bg, var(--gn-bg-panel-2))',
                 }}
             >
-                {executionError && (
-                    <div style={{ padding: '12px 12px 0' }}>
-                        <div style={{
-                            padding: 14,
-                            borderRadius: 8,
-                            border: `1px solid ${darkMode ? '#5c2020' : '#ffccc7'}`,
-                            background: darkMode ? '#2d1a1a' : '#fff2f0',
-                        }}>
-                            <QueryEditorExecutionErrorCard
-                                compact
-                                darkMode={darkMode}
-                                error={executionError}
-                                onDiagnose={onDiagnoseExecutionError}
-                                diagnoseShortcutLabel={diagnoseShortcutLabel}
-                                onLocate={onLocateExecutionError}
-                            />
-                        </div>
-                    </div>
-                )}
                 {logBody}
             </div>
         );

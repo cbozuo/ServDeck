@@ -90,64 +90,6 @@ func TestMigrateDataRootContentsCopiesKnownFilesAndDirectories(t *testing.T) {
 	}
 }
 
-func TestMigrateDataRootContentsReplacesAuditDirectoryWithoutStaleSidecars(t *testing.T) {
-	sourceRoot := t.TempDir()
-	targetRoot := t.TempDir()
-	sourceAudit := filepath.Join(sourceRoot, "audit")
-	targetAudit := filepath.Join(targetRoot, "audit")
-	if err := os.MkdirAll(sourceAudit, 0o700); err != nil {
-		t.Fatalf("create source audit directory: %v", err)
-	}
-	if err := os.MkdirAll(targetAudit, 0o700); err != nil {
-		t.Fatalf("create target audit directory: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(sourceAudit, "sql_audit.db"), []byte("source-db"), 0o600); err != nil {
-		t.Fatalf("write source audit database: %v", err)
-	}
-	for name, content := range map[string]string{
-		"sql_audit.db":          "old-db",
-		"sql_audit.db-wal":      "stale-wal",
-		"sql_audit.db-shm":      "stale-shm",
-		"sql_audit_health.json": "stale-health",
-	} {
-		if err := os.WriteFile(filepath.Join(targetAudit, name), []byte(content), 0o600); err != nil {
-			t.Fatalf("write target audit artifact %s: %v", name, err)
-		}
-	}
-
-	if err := migrateDataRootContents(sourceRoot, targetRoot); err != nil {
-		t.Fatalf("migrateDataRootContents returned error: %v", err)
-	}
-	payload, err := os.ReadFile(filepath.Join(targetAudit, "sql_audit.db"))
-	if err != nil || string(payload) != "source-db" {
-		t.Fatalf("target audit database = %q err=%v, want exact source snapshot", payload, err)
-	}
-	for _, name := range []string{"sql_audit.db-wal", "sql_audit.db-shm", "sql_audit_health.json"} {
-		if _, err := os.Stat(filepath.Join(targetAudit, name)); !os.IsNotExist(err) {
-			t.Fatalf("stale target audit artifact %s survived exact replacement: %v", name, err)
-		}
-	}
-}
-
-func TestMigrateDataRootContentsRemovesTargetAuditWhenSourceHasNone(t *testing.T) {
-	sourceRoot := t.TempDir()
-	targetRoot := t.TempDir()
-	targetAudit := filepath.Join(targetRoot, "audit")
-	if err := os.MkdirAll(targetAudit, 0o700); err != nil {
-		t.Fatalf("create target audit directory: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(targetAudit, "sql_audit.db-wal"), []byte("stale"), 0o600); err != nil {
-		t.Fatalf("write stale target audit artifact: %v", err)
-	}
-
-	if err := migrateDataRootContents(sourceRoot, targetRoot); err != nil {
-		t.Fatalf("migrateDataRootContents returned error: %v", err)
-	}
-	if _, err := os.Stat(targetAudit); !os.IsNotExist(err) {
-		t.Fatalf("target audit directory survived despite absent source snapshot: %v", err)
-	}
-}
-
 func TestMigrateDataRootContentsCopiesSecurityUpdateStateAndRewritesBackupPaths(t *testing.T) {
 	sourceRoot := t.TempDir()
 	targetRoot := filepath.Join(t.TempDir(), "gonavi-data")

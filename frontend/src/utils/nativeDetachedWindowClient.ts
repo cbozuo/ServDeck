@@ -1,13 +1,5 @@
 import type { TabData } from '../types';
-import type {
-  DetachedQueryResultWindow,
-  DetachedQueryResultSnapshot,
-} from './detachedWindow';
-import type { QueryEditorResultSessionSnapshot } from './queryEditorResultSessionCache';
 import { isNativeDetachedWindowRoute } from './nativeDetachedWindowRoute';
-import { resolveLiveQueryTab } from './liveQueryTabs';
-import { setQueryTabDraft } from './sqlFileTabDrafts';
-import { sanitizeTableAccessCount } from './tableAccessCount';
 import {
   sanitizeCustomThemeDefinition,
   type CustomThemeDefinition,
@@ -17,7 +9,6 @@ export const NATIVE_DETACHED_BOOTSTRAP_URL = '/__gonavi/detached/bootstrap';
 export const NATIVE_DETACHED_ACTION_URL = '/__gonavi/detached/action';
 export { NATIVE_DETACHED_WINDOW_QUERY_PARAM } from './nativeDetachedWindowRoute';
 export const NATIVE_DETACHED_WINDOW_COMMAND_EVENT = 'gonavi:native-detached-command';
-export const NATIVE_DETACHED_QUERY_RESULT_REDETACH_EVENT = 'gonavi:redetach-query-result';
 
 export const NATIVE_DETACHED_HOST_EVENTS_KEY = '__gonaviNativeHostEvents';
 /** Reserved snapshot key; it is consumed by the detached document, not hydrated into Zustand. */
@@ -55,9 +46,6 @@ const withNativeDetachedThemeContext = (
 };
 
 export const NATIVE_DETACHED_HOST_EVENT_NAMES = [
-  'gonavi:locate-sidebar-object',
-  'gonavi:insert-sql',
-  'gonavi:insert-sql-to-tab',
   'gonavi:jvm-apply-diagnostic-plan',
 ] as const;
 
@@ -69,7 +57,7 @@ export interface NativeDetachedHostEvent {
   detail?: unknown;
 }
 
-export type NativeDetachedWindowKind = 'workbench' | 'query-result';
+export type NativeDetachedWindowKind = 'workbench';
 export type NativeDetachedWindowAction =
   | 'ready'
   | 'sync'
@@ -83,8 +71,6 @@ export type NativeDetachedStoreSnapshot = Record<string, unknown>;
 export interface NativeDetachedWindowPayload {
   storeState: NativeDetachedStoreSnapshot;
   tab?: TabData;
-  resultWindow?: DetachedQueryResultWindow;
-  resultSession?: QueryEditorResultSessionSnapshot | null;
 }
 
 export interface NativeDetachedWindowBootstrap {
@@ -102,8 +88,6 @@ export interface NativeDetachedWindowActionPayload {
   rollbackAction?: 'attach' | 'hide' | 'close';
   storeState?: NativeDetachedStoreSnapshot;
   tab?: TabData;
-  resultWindow?: DetachedQueryResultWindow;
-  resultSession?: QueryEditorResultSessionSnapshot | null;
   hostEvent?: NativeDetachedHostEvent;
   openedTabs?: TabData[];
   workbenchState?: NativeDetachedStoreSnapshot;
@@ -119,24 +103,10 @@ export interface NativeDetachedWindowActionPayload {
 
 export const buildNativeDetachedSyncStoreSnapshot = (
   state: object,
-  tabId: string,
+  _tabId: string,
   newSqlLogs: unknown[] = [],
 ): NativeDetachedStoreSnapshot => {
-  const record = state as Record<string, unknown>;
-  const pending = record.sqlEditorPendingTransactions;
-  const pendingRecord = pending && typeof pending === 'object'
-    ? pending as Record<string, unknown>
-    : {};
   return buildNativeDetachedStoreSnapshot({
-    ...(tabId
-      ? {
-          sqlEditorPendingTransactions: {
-            [tabId]: Object.prototype.hasOwnProperty.call(pendingRecord, tabId)
-              ? pendingRecord[tabId]
-              : null,
-          },
-        }
-      : {}),
     ...(newSqlLogs.length > 0 ? { sqlLogs: newSqlLogs } : {}),
   });
 };
@@ -178,35 +148,11 @@ const WORKBENCH_BOOTSTRAP_OMITTED_KEYS = new Set([
   'jvmDiagnosticOutputs',
   'tabs',
   'detachedWorkbenchWindows',
-  'detachedQueryResultWindows',
-  'sqlEditorPendingTransactions',
-]);
-const QUERY_RESULT_BOOTSTRAP_OMITTED_KEYS = new Set([
-  ...WORKBENCH_BOOTSTRAP_OMITTED_KEYS,
-  'sqlLogs',
 ]);
 const NATIVE_DETACHED_PROCESSED_EVENT_LIMIT = 256;
 const NATIVE_DETACHED_HOST_EVENT_NAME_SET = new Set<string>(NATIVE_DETACHED_HOST_EVENT_NAMES);
 export const NATIVE_DETACHED_WORKBENCH_MUTABLE_KEYS = [
-  'activeContext',
-  'pinnedSidebarTables',
-  'queryOptions',
-  'sqlFormatOptions',
-  'dataEditTransactionOptions',
-  'sqlEditorTransactionOptions',
-  'tableColumnOrders',
-  'enableColumnOrderMemory',
-  'tablePinnedLeftColumns',
-  'tableHiddenColumns',
-  'enableHiddenColumnMemory',
   'shortcutOptions',
-  'savedQueries',
-  'recentConnectionTargets',
-  'recentSQLFiles',
-  'tableExportHistories',
-  'tableAccessCount',
-  'tableSortPreference',
-  'sidebarTreeOrders',
   'jvmDiagnosticDrafts',
   'jvmDiagnosticOutputs',
 ] as const;
@@ -290,25 +236,13 @@ const buildFilteredStoreSnapshot = (
 export const buildNativeDetachedWorkbenchPayload = (
   state: object,
   tab: TabData,
-  resultSession?: QueryEditorResultSessionSnapshot | null,
   themeContext?: NativeDetachedThemeContext,
 ): NativeDetachedWindowPayload => {
-  const liveTab = resolveLiveQueryTab(tab);
   const storeState = buildFilteredStoreSnapshot(state, WORKBENCH_BOOTSTRAP_OMITTED_KEYS);
   const source = state as Record<string, unknown>;
-  const allPending = source.sqlEditorPendingTransactions;
-  const pendingRecord = allPending && typeof allPending === 'object'
-    ? allPending as Record<string, unknown>
-    : {};
-  storeState.tabs = [liveTab];
-  storeState.activeTabId = liveTab.id;
+  storeState.tabs = [tab];
+  storeState.activeTabId = tab.id;
   storeState.detachedWorkbenchWindows = [];
-  storeState.detachedQueryResultWindows = [];
-  storeState.sqlEditorPendingTransactions = buildNativeDetachedStoreSnapshot(
-    Object.prototype.hasOwnProperty.call(pendingRecord, liveTab.id)
-      ? { [liveTab.id]: pendingRecord[liveTab.id] }
-      : {},
-  );
   const diagnosticDrafts = source.jvmDiagnosticDrafts;
   const diagnosticOutputs = source.jvmDiagnosticOutputs;
   const diagnosticDraftRecord = diagnosticDrafts && typeof diagnosticDrafts === 'object'
@@ -318,40 +252,18 @@ export const buildNativeDetachedWorkbenchPayload = (
     ? diagnosticOutputs as Record<string, unknown>
     : {};
   storeState.jvmDiagnosticDrafts = buildNativeDetachedStoreSnapshot(
-    Object.prototype.hasOwnProperty.call(diagnosticDraftRecord, liveTab.id)
-      ? { [liveTab.id]: diagnosticDraftRecord[liveTab.id] }
+    Object.prototype.hasOwnProperty.call(diagnosticDraftRecord, tab.id)
+      ? { [tab.id]: diagnosticDraftRecord[tab.id] }
       : {},
   );
   storeState.jvmDiagnosticOutputs = buildNativeDetachedStoreSnapshot(
-    Object.prototype.hasOwnProperty.call(diagnosticOutputRecord, liveTab.id)
-      ? { [liveTab.id]: diagnosticOutputRecord[liveTab.id] }
+    Object.prototype.hasOwnProperty.call(diagnosticOutputRecord, tab.id)
+      ? { [tab.id]: diagnosticOutputRecord[tab.id] }
       : {},
   );
   return {
     storeState: withNativeDetachedThemeContext(storeState, themeContext),
-    tab: liveTab,
-    resultSession: resultSession ?? null,
-  };
-};
-
-export const buildNativeDetachedQueryResultPayload = (
-  state: object,
-  resultWindow: DetachedQueryResultWindow,
-  themeContext?: NativeDetachedThemeContext,
-): NativeDetachedWindowPayload => {
-  const storeState = buildFilteredStoreSnapshot(state, QUERY_RESULT_BOOTSTRAP_OMITTED_KEYS);
-  storeState.tabs = [];
-  storeState.activeTabId = null;
-  storeState.detachedWorkbenchWindows = [];
-  storeState.detachedQueryResultWindows = [];
-  storeState.sqlLogs = [];
-  storeState.sqlEditorPendingTransactions = {};
-  return {
-    storeState: withNativeDetachedThemeContext(storeState, themeContext),
-    resultWindow: {
-      ...resultWindow,
-      result: buildNativeDetachedQueryResultSnapshot(resultWindow.result),
-    },
+    tab,
   };
 };
 
@@ -386,87 +298,6 @@ const mergeNativeDetachedValueDelta = (
   nextSourceValue: unknown,
   path: string[] = [],
 ): unknown => {
-  if (Array.isArray(previousSourceValue) && Array.isArray(nextSourceValue)) {
-    const rootKey = path[0] || '';
-    const supportsIdentityMerge = rootKey === 'savedQueries'
-      || rootKey === 'recentConnectionTargets'
-      || rootKey === 'recentSQLFiles'
-      || rootKey === 'tableExportHistories'
-      || rootKey === 'pinnedSidebarTables';
-    if (supportsIdentityMerge) {
-      const identity = (item: unknown): string | null => {
-        if (rootKey === 'pinnedSidebarTables') {
-          return typeof item === 'string' && item ? `value:${item}` : null;
-        }
-        if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
-        const record = item as Record<string, unknown>;
-        if (rootKey === 'savedQueries') {
-          const id = String(record.id || '').trim();
-          return id ? `id:${id}` : null;
-        }
-        if (rootKey === 'recentConnectionTargets') {
-          const connectionId = String(record.connectionId || '').trim();
-          return connectionId
-            ? `target:${connectionId}\u0000${String(record.dbName || '')}`
-            : null;
-        }
-        if (rootKey === 'recentSQLFiles') {
-          const connectionId = String(record.connectionId || '').trim();
-          const filePath = String(record.filePath || '').trim().replace(/\\/g, '/');
-          return connectionId && filePath
-            ? `file:${connectionId}\u0000${String(record.dbName || '')}\u0000${filePath}`
-            : null;
-        }
-        if (rootKey === 'tableExportHistories') {
-          const jobId = String(record.jobId || '').trim();
-          return jobId ? `job:${jobId}` : null;
-        }
-        const dbName = String(record.dbName || '').trim();
-        const tableName = String(record.tableName || '').trim();
-        return dbName || tableName
-          ? `context:${dbName}\u0000${String(record.schemaName || '')}\u0000${tableName}`
-          : null;
-      };
-      const previousIds = previousSourceValue.map(identity);
-      const nextIds = nextSourceValue.map(identity);
-      if (previousIds.every(Boolean) && nextIds.every(Boolean)) {
-        const previousById = new Map(previousIds.map((id, index) => [id!, previousSourceValue[index]]));
-        const nextById = new Map(nextIds.map((id, index) => [id!, nextSourceValue[index]]));
-        const currentItems = Array.isArray(currentValue) ? currentValue : [];
-        const currentById = new Map(
-          currentItems.flatMap((item) => {
-            const id = identity(item);
-            return id ? [[id, item] as const] : [];
-          }),
-        );
-        const changedIds = new Set<string>();
-        for (const id of new Set([...previousById.keys(), ...nextById.keys()])) {
-          if (!previousById.has(id)
-            || !nextById.has(id)
-            || JSON.stringify(previousById.get(id)) !== JSON.stringify(nextById.get(id))) {
-            changedIds.add(id);
-          }
-        }
-        const merged = nextIds.map((id, index) => (
-          changedIds.has(id!) ? nextSourceValue[index] : currentById.get(id!) ?? nextSourceValue[index]
-        ));
-        const nextIdSet = new Set(nextIds);
-        const previousIdSet = new Set(previousIds);
-        for (const item of currentItems) {
-          const id = identity(item);
-          if (id && !previousIdSet.has(id) && !nextIdSet.has(id)) merged.push(item);
-        }
-        if (rootKey === 'recentConnectionTargets' || rootKey === 'recentSQLFiles') {
-          merged.sort((left, right) => {
-            const leftAt = Number((left as Record<string, unknown>)?.openedAt || 0);
-            const rightAt = Number((right as Record<string, unknown>)?.openedAt || 0);
-            return rightAt - leftAt;
-          });
-        }
-        return buildNativeDetachedStoreSnapshot({ value: merged }).value;
-      }
-    }
-  }
   const currentIsRecord = Boolean(currentValue)
     && typeof currentValue === 'object'
     && !Array.isArray(currentValue);
@@ -515,15 +346,12 @@ export const mergeNativeDetachedStoreDelta = (
   const nextState = { ...currentState };
   for (const [key, nextSourceValue] of Object.entries(changedSource)) {
     if (UNSAFE_OBJECT_KEYS.has(key)) continue;
-    const mergedValue = mergeNativeDetachedValueDelta(
+    nextState[key] = mergeNativeDetachedValueDelta(
       currentState[key],
       previousSource[key],
       nextSourceValue,
       [key],
     );
-    nextState[key] = key === 'tableAccessCount'
-      ? sanitizeTableAccessCount(mergedValue)
-      : mergedValue;
   }
   return nextState;
 };
@@ -535,22 +363,6 @@ export const advanceNativeDetachedStoreSource = (
   ...previousSource,
   ...buildNativeDetachedStoreSnapshot(changedSource),
 });
-
-export const buildNativeDetachedQueryResultSnapshot = (
-  result: DetachedQueryResultSnapshot,
-): DetachedQueryResultSnapshot => {
-  const cloned = cloneSerializableValue(result, new WeakSet());
-  return cloned && cloned !== OMIT_VALUE && !Array.isArray(cloned)
-    ? cloned as DetachedQueryResultSnapshot
-    : {
-        key: '',
-        sql: '',
-        rows: [],
-        columns: [],
-        pkColumns: [],
-        readOnly: true,
-      };
-};
 
 /** Merge bootstrap state without replacing any action currently installed by Zustand. */
 export const mergeNativeDetachedStoreState = <TState extends object>(
@@ -663,18 +475,6 @@ export const applyNativeDetachedHostStateCommand = <TState extends object>(
     return currentRevision;
   }
   const safeSnapshot = buildNativeDetachedStoreSnapshot(command.payload.storeState);
-  const activeTab = safeSnapshot.activeTab;
-  if (
-    activeTab
-    && typeof activeTab === 'object'
-    && !Array.isArray(activeTab)
-    && (activeTab as Record<string, unknown>).type === 'query'
-    && typeof (activeTab as Record<string, unknown>).id === 'string'
-    && typeof (activeTab as Record<string, unknown>).query === 'string'
-  ) {
-    const queryTab = activeTab as Record<string, unknown>;
-    setQueryTabDraft(queryTab.id as string, queryTab.query as string);
-  }
   store.setState(applyNativeDetachedHostStateSync(
     store.getState(),
     safeSnapshot,
@@ -728,10 +528,7 @@ export const fetchNativeDetachedWindowBootstrap = async (
   if (!bootstrap || typeof bootstrap.id !== 'string' || !bootstrap.id.trim()) {
     throw new Error('Native detached window bootstrap is missing an id');
   }
-  if (
-    bootstrap.kind !== 'workbench'
-    && bootstrap.kind !== 'query-result'
-  ) {
+  if (bootstrap.kind !== 'workbench') {
     throw new Error('Native detached window bootstrap has an invalid kind');
   }
   if (

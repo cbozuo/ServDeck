@@ -8,7 +8,6 @@ import { getAntdLocale } from '../i18n/frameworkLocale';
 import { useOptionalI18n } from '../i18n/provider';
 import { type SqlLog, useStore } from '../store';
 import type { TabData } from '../types';
-import type { DetachedQueryResultWindow } from '../utils/detachedWindow';
 import {
   attachNativeDetachedWindow,
   advanceNativeDetachedStoreSource,
@@ -39,21 +38,12 @@ import {
   type NativeDetachedHostStateCommand,
 } from '../utils/nativeDetachedWindowClient';
 import type { CustomThemeDefinition } from '../utils/customTheme';
-import {
-  peekQueryEditorResultSession,
-  saveQueryEditorResultSessionForOpenTab,
-  subscribeQueryEditorResultSession,
-  type QueryEditorResultSessionSnapshot,
-} from '../utils/queryEditorResultSessionCache';
 import { APP_OVERLAY_Z_INDEX_BASE } from '../utils/overlayZIndex';
 import { isWailsDevNativeContextMenu, shouldAllowNativeContextMenu } from '../utils/nativeContextMenu';
-import { resolveLiveQueryTab, resolveLiveQueryTabs } from '../utils/liveQueryTabs';
-import { subscribeQueryTabDraftChanges } from '../utils/sqlFileTabDrafts';
 import CustomThemeStyleHost, {
   type CustomThemeAntTokenSnapshot,
 } from './theme/CustomThemeStyleHost';
 import ToolbarAppearanceStyleHost from './theme/ToolbarAppearanceStyleHost';
-import NativeDetachedQueryResult from './NativeDetachedQueryResult';
 import { installGlobalImeCompositionTracking } from '../utils/shortcuts';
 const WorkbenchTabContent = React.lazy(() => import('./WorkbenchTabContent'));
 const NativeDetachedWindowController = React.lazy(
@@ -161,19 +151,16 @@ export interface NativeDetachedWindowAppProps {
 const buildActionPayload = (
   bootstrap: NativeDetachedWindowBootstrap,
   tab?: TabData,
-  resultSession?: QueryEditorResultSessionSnapshot | null,
-  includeResultSession = false,
   newSqlLogs: SqlLog[] = [],
   revision?: number,
   workbenchState?: NativeDetachedStoreSnapshot,
   workbenchStateBase?: NativeDetachedStoreSnapshot,
   openedTabs: TabData[] = [],
   clearSqlLogs = false,
-  resultWindow?: DetachedQueryResultWindow | null,
 ): NativeDetachedWindowActionPayload => {
   const storeState = buildNativeDetachedSyncStoreSnapshot(
     useStore.getState(),
-    bootstrap.kind === 'workbench' ? bootstrap.payload.tab?.id || '' : '',
+    bootstrap.payload.tab?.id || '',
     newSqlLogs,
   );
   const screenX = typeof window === 'undefined' ? Number.NaN : Number(window.screenX);
@@ -209,10 +196,6 @@ const buildActionPayload = (
       ? { storeState }
       : {}),
     ...(tab ? { tab } : {}),
-    ...(bootstrap.kind === 'query-result' && resultWindow ? { resultWindow } : {}),
-    ...(bootstrap.kind === 'workbench' && includeResultSession
-      ? { resultSession: resultSession ?? null }
-      : {}),
   };
 };
 
@@ -221,14 +204,12 @@ const NativeDetachedWindowContent: React.FC<{
   themeModeOverride?: 'light' | 'dark';
   onContentReady: () => void;
   onClose: () => void;
-  onQueryResultStateChange: (patch: Partial<DetachedQueryResultWindow['result']>) => void;
   interactionDisabled?: boolean;
 }> = ({
   bootstrap,
   themeModeOverride,
   onContentReady,
   onClose,
-  onQueryResultStateChange,
   interactionDisabled = false,
 }) => {
   const tabFromStore = useStore((state) => bootstrap.payload.tab
@@ -247,19 +228,6 @@ const NativeDetachedWindowContent: React.FC<{
             onContentReady={onContentReady}
             onRequestClose={onClose}
           />
-        )
-      : null;
-  }
-  if (bootstrap.kind === 'query-result') {
-    return bootstrap.payload.resultWindow
-      ? (
-          <>
-            <NativeDetachedQueryResult
-              windowState={bootstrap.payload.resultWindow}
-              onStateChange={onQueryResultStateChange}
-            />
-            <NativeDetachedContentReady onReady={onContentReady} />
-          </>
         )
       : null;
   }
@@ -300,14 +268,10 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
   const closePreemptionRequestedRef = useRef(false);
   const hideVisibilityRevisionRef = useRef(0);
   const lastFocusVisibilityRevisionRef = useRef(0);
-  const resultSessionRef = useRef<QueryEditorResultSessionSnapshot | null>(null);
-  const queryResultWindowRef = useRef<DetachedQueryResultWindow | null>(null);
-  const queryResultDirtyGenerationRef = useRef(0);
-  const scheduleSyncRef = useRef<(includeResultSession?: boolean) => void>(() => undefined);
+  const scheduleSyncRef = useRef<() => void>(() => undefined);
   const syncedSqlLogIdsRef = useRef<Set<string>>(new Set());
   const sqlLogsClearPendingRef = useRef(false);
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const syncIncludesResultSessionRef = useRef(false);
   const hostStateRevisionRef = useRef(0);
   const actionRevisionRef = useRef(0);
   const actionQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -315,17 +279,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
   const hostEventSequenceRef = useRef(0);
   const workbenchStateSourceRef = useRef<NativeDetachedStoreSnapshot>({});
   const syncedWorkbenchTabIdsRef = useRef<Set<string>>(new Set());
-  const handleQueryResultStateChange = useCallback((patch: Partial<DetachedQueryResultWindow['result']>) => {
-    const resultWindow = queryResultWindowRef.current;
-    if (!resultWindow) return;
-    queryResultWindowRef.current = {
-      ...resultWindow,
-      result: { ...resultWindow.result, ...patch },
-    };
-    queryResultDirtyGenerationRef.current += 1;
-    scheduleSyncRef.current(false);
-  }, []);
-
   const themeMode = useStore((state) => state.theme);
   const fontSize = useStore((state) => state.fontSize);
   const uiScale = useStore((state) => state.uiScale);
@@ -373,7 +326,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
         setControllerEnabled(false);
         hydrateNativeDetachedStore(useStore, nextBootstrap.payload.storeState);
         setCustomThemeOverride(readNativeDetachedThemeContext(nextBootstrap.payload.storeState));
-        queryResultWindowRef.current = nextBootstrap.payload.resultWindow ?? null;
         workbenchStateSourceRef.current = buildNativeDetachedWorkbenchMutableStoreSnapshot(
           useStore.getState(),
         );
@@ -385,16 +337,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
             .map((log) => String(log.id || '').trim())
             .filter(Boolean),
         );
-        if (nextBootstrap.kind === 'workbench' && nextBootstrap.payload.tab) {
-          resultSessionRef.current = nextBootstrap.payload.resultSession ?? null;
-          if (nextBootstrap.payload.resultSession) {
-            saveQueryEditorResultSessionForOpenTab(
-              nextBootstrap.payload.tab.id,
-              nextBootstrap.payload.resultSession,
-              useStore.getState().tabs,
-            );
-          }
-        }
         setBootstrap(nextBootstrap);
       })
       .catch((error) => {
@@ -476,9 +418,7 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
 
   useEffect(() => {
     if (!bootstrap || typeof window === 'undefined' || !client.hostEvent) return undefined;
-    const eventNames: NativeDetachedHostEventName[] = [
-      ...(bootstrap.kind === 'workbench' ? ['gonavi:locate-sidebar-object' as const] : []),
-    ];
+    const eventNames: NativeDetachedHostEventName[] = [];
     const forwardToHost = (event: Event) => {
       hostEventSequenceRef.current += 1;
       const hostEvent: NativeDetachedHostEvent = {
@@ -532,10 +472,8 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
   const readCurrentTab = useCallback((): TabData | undefined => {
     const bootstrapTab = bootstrap?.payload.tab;
     if (!bootstrapTab) return undefined;
-    return resolveLiveQueryTab(
-      useStore.getState().tabs.find((item) => item.id === bootstrapTab.id)
-        || bootstrapTab,
-    );
+    return useStore.getState().tabs.find((item) => item.id === bootstrapTab.id)
+      || bootstrapTab;
   }, [bootstrap]);
 
   const readUnsyncedSqlLogs = useCallback((): SqlLog[] => {
@@ -554,7 +492,7 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
   }, []);
 
   const readWorkbenchSyncData = useCallback(() => {
-    if (bootstrap?.kind !== 'workbench' && bootstrap?.kind !== 'query-result') {
+    if (bootstrap?.kind !== 'workbench') {
       return {
         workbenchState: {},
         workbenchStateBase: {},
@@ -572,11 +510,9 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
     return {
       workbenchState,
       workbenchStateBase,
-      openedTabs: bootstrap.kind === 'workbench'
-        ? resolveLiveQueryTabs(state.tabs.filter(
-          (tab) => !syncedWorkbenchTabIdsRef.current.has(String(tab.id || '').trim()),
-        ))
-        : [],
+      openedTabs: state.tabs.filter(
+        (tab) => !syncedWorkbenchTabIdsRef.current.has(String(tab.id || '').trim()),
+      ),
     };
   }, [bootstrap?.kind]);
 
@@ -605,48 +541,32 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
     return result;
   }, []);
 
-  const scheduleSync = useCallback((includeResultSession = false) => {
+  const scheduleSync = useCallback(() => {
     if (!bootstrap || terminalAction) return;
-    syncIncludesResultSessionRef.current = syncIncludesResultSessionRef.current || includeResultSession;
     if (syncTimerRef.current !== null) {
       clearTimeout(syncTimerRef.current);
     }
     syncTimerRef.current = setTimeout(() => {
       syncTimerRef.current = null;
       void enqueueAction(async () => {
-        const shouldIncludeResultSession = syncIncludesResultSessionRef.current;
-        syncIncludesResultSessionRef.current = false;
         const newSqlLogs = readUnsyncedSqlLogs();
         const clearSqlLogs = sqlLogsClearPendingRef.current;
-        const queryResultDirtyGeneration = queryResultDirtyGenerationRef.current;
-        const queryResultChanged = queryResultDirtyGeneration > 0;
         const { workbenchState, workbenchStateBase, openedTabs } = readWorkbenchSyncData();
         if (
-          bootstrap.kind === 'query-result'
-          && newSqlLogs.length === 0
+          newSqlLogs.length === 0
           && !clearSqlLogs
-          && !queryResultChanged
           && Object.keys(workbenchState).length === 0
         ) return;
         await client.sync(buildActionPayload(
           bootstrap,
           readCurrentTab(),
-          resultSessionRef.current,
-          shouldIncludeResultSession,
           newSqlLogs,
           nextActionRevision(),
           workbenchState,
           workbenchStateBase,
           openedTabs,
           clearSqlLogs,
-          queryResultWindowRef.current,
         ));
-        if (
-          queryResultChanged
-          && queryResultDirtyGenerationRef.current === queryResultDirtyGeneration
-        ) {
-          queryResultDirtyGenerationRef.current = 0;
-        }
         if (clearSqlLogs) {
           syncedSqlLogIdsRef.current.clear();
           sqlLogsClearPendingRef.current = false;
@@ -682,28 +602,10 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
       ) {
         sqlLogsClearPendingRef.current = true;
       }
-      scheduleSync(false);
+      scheduleSync();
     });
-    const unsubscribeResultSession = bootstrap.kind === 'workbench' && bootstrap.payload.tab
-      ? subscribeQueryEditorResultSession(
-          bootstrap.payload.tab.id,
-          (snapshot) => {
-            // QueryEditor consumes the initial cache entry during mount. Keep
-            // the last non-null snapshot for the final attach action.
-            if (snapshot) {
-              resultSessionRef.current = snapshot;
-              scheduleSync(false);
-            }
-          },
-        )
-      : () => undefined;
-    const unsubscribeQueryDrafts = bootstrap.kind === 'workbench'
-      ? subscribeQueryTabDraftChanges(() => scheduleSync(false))
-      : () => undefined;
     return () => {
       unsubscribeStore();
-      unsubscribeResultSession();
-      unsubscribeQueryDrafts();
       if (syncTimerRef.current !== null) {
         clearTimeout(syncTimerRef.current);
         syncTimerRef.current = null;
@@ -801,11 +703,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
       terminalActionGenerationRef.current === terminalActionGeneration
     );
 
-    // Workbench content has unmounted before this effect runs, so QueryEditor
-    // has published its final result session to the cache.
-    const currentSession = bootstrap.payload.tab
-      ? peekQueryEditorResultSession(bootstrap.payload.tab.id) || resultSessionRef.current
-      : null;
     void (async () => {
       let actionToRun = terminalAction;
       let closeActionSubmitted = false;
@@ -814,15 +711,12 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
         await client.close(buildActionPayload(
           bootstrap,
           readCurrentTab(),
-          currentSession,
-          false,
           readUnsyncedSqlLogs(),
           nextActionRevision(),
           closeWorkbench.workbenchState,
           closeWorkbench.workbenchStateBase,
           closeWorkbench.openedTabs,
           sqlLogsClearPendingRef.current,
-          queryResultWindowRef.current,
         ));
         closeActionSubmitted = true;
         actionToRun = 'close';
@@ -841,15 +735,12 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
             ...buildActionPayload(
               bootstrap,
               readCurrentTab(),
-              currentSession,
-              false,
               readUnsyncedSqlLogs(),
               nextActionRevision(),
               cancelWorkbench.workbenchState,
               cancelWorkbench.workbenchStateBase,
               cancelWorkbench.openedTabs,
               sqlLogsClearPendingRef.current,
-              queryResultWindowRef.current,
             ),
             rollbackAction: actionToRun,
           } satisfies NativeDetachedWindowActionPayload;
@@ -914,15 +805,12 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
             await client.sync(buildActionPayload(
               bootstrap,
               readCurrentTab(),
-              currentSession,
-              true,
               finalSqlLogs,
               nextActionRevision(),
               finalWorkbench.workbenchState,
               finalWorkbench.workbenchStateBase,
               finalWorkbench.openedTabs,
               clearSqlLogs,
-              queryResultWindowRef.current,
             ));
             if (clearSqlLogs) {
               syncedSqlLogIdsRef.current.clear();
@@ -943,15 +831,12 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
         const payload = buildActionPayload(
           bootstrap,
           readCurrentTab(),
-          currentSession,
-          actionToRun === 'attach',
           readUnsyncedSqlLogs(),
           nextActionRevision(),
           terminalWorkbench.workbenchState,
           terminalWorkbench.workbenchStateBase,
           terminalWorkbench.openedTabs,
           sqlLogsClearPendingRef.current,
-          queryResultWindowRef.current,
         );
         if (actionToRun === 'attach') {
           await client.attach(payload);
@@ -1086,13 +971,9 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
   }, [requestTerminalAction]);
 
   const chromeLabels = useMemo(() => ({
-    attach: bootstrap?.kind === 'workbench'
-      ? translate('tab_manager.detached.restore')
-      : translate('query_editor.results_panel.detached.restore'),
-    close: bootstrap?.kind === 'workbench'
-      ? translate('tab_manager.detached.close')
-      : translate('query_editor.results_panel.detached.close'),
-  }), [bootstrap?.kind, translate]);
+    attach: translate('tab_manager.detached.restore'),
+    close: translate('tab_manager.detached.close'),
+  }), [translate]);
 
   const isDark = effectiveThemeMode === 'dark';
   const customThemeStyleContextKey = `${effectiveThemeMode}:v2`;
@@ -1321,7 +1202,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
                 onContentReady={markContentReady}
                 onClose={requestWindowClose}
                 interactionDisabled={Boolean(terminalAction)}
-                onQueryResultStateChange={handleQueryResultStateChange}
               />
             </React.Suspense>
           ) : null}

@@ -7,7 +7,6 @@ import {
   resolveNativeDetachDragRelease,
   resolveNativeDetachPreferredBounds,
   resolveNativeDetachReleasePoint,
-  resolveResultDetachPreferredBounds,
   shouldDetachAfterNativePointerCancel,
   shouldDetachTabByDrag,
   shouldDetachAtScreenPoint,
@@ -51,11 +50,6 @@ describe('detachedWindow helpers', () => {
       kindLabel: 'SQL 查询',
       fallbackTitle: 'Query 1',
     })).toBe('Query 1');
-  });
-
-  it('maps pointer release position to floating window preferred bounds', () => {
-    expect(resolveResultDetachPreferredBounds(200, 300)).toEqual({ x: 80, y: 276 });
-    expect(resolveResultDetachPreferredBounds(10, 10)).toEqual({ x: 16, y: 16 });
   });
 
   it('keeps virtual-desktop coordinates when detaching to another display', () => {

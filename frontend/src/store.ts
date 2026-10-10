@@ -1,24 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { v4 as uuidv4 } from "uuid";
 import { isNativeDetachedWindowRoute } from "./utils/nativeDetachedWindowRoute";
 import {
   ConnectionConfig,
-  ProxyConfig,
   SavedConnection,
-  SchemaVisibilityRule,
   TabData,
-  SavedQuery,
-  SavedQueryGroup,
-  ConnectionTag,
-  ConnectionSidebarLayoutInput,
-  ConnectionDisplaySortMode,
-  ConnectionSortMode,
-  ExternalSQLDirectory,
   JVMDiagnosticCommandDraft,
   JVMDiagnosticEventChunk,
-  SqlSnippet,
-  TableExportHistoryEntry,
 } from "./types";
 import {
   ShortcutAction,
@@ -32,27 +20,6 @@ import {
   type ShortcutPlatform,
 } from "./utils/shortcuts";
 import {
-  buildExternalSQLDirectoryId,
-  normalizeExternalSQLPath,
-} from "./utils/externalSqlTree";
-import {
-  DEFAULT_SQL_SNIPPETS,
-  BUILTIN_SNIPPET_MAP,
-} from "./utils/sqlSnippetDefaults";
-import {
-  DEFAULT_BRAND_ICON_ID,
-} from "./brand/brandIcons";
-
-type ActiveContext = {
-  connectionId: string;
-  dbName: string;
-  schemaName?: string;
-  tableName?: string;
-};
-
-const sanitizeBrandIconIdLocal = (_value: unknown): string =>
-  DEFAULT_BRAND_ICON_ID;
-import {
   DEFAULT_DATA_GRID_DISPLAY_SETTINGS,
   sanitizeDataGridDisplaySettings,
   type DataGridDisplaySettings,
@@ -63,27 +30,17 @@ import {
   sanitizeSqlEditorTypographySettings,
   type SqlEditorTypographySettings,
 } from "./utils/sqlEditorTypography";
-import {
-  normalizeOceanBaseProtocol,
-  resolveOceanBaseProtocolFromConfig,
-  resolveOceanBaseProtocolFromQueryText,
-} from "./utils/oceanBaseProtocol";
 import { sanitizeFontFamilyInput } from "./utils/fontFamilies";
 import {
   createDefaultDetachedBounds,
   nextDetachedZIndex,
-  type DetachedQueryResultWindow,
   type DetachedWorkbenchWindow,
   type DetachedWindowBounds,
 } from "./utils/detachedWindow";
-import { clearQueryEditorResultSession } from "./utils/queryEditorResultSessionCache";
-import { getDataSourceCapabilities } from "./utils/dataSourceCapabilities";
-import { normalizeConnectionEnvironmentType } from "./utils/connectionEnvironment";
 import {
   DEFAULT_LANGUAGE,
   LANGUAGE_PREFERENCES,
   resolveLanguage,
-  t as translate,
   type LanguagePreference,
 } from "./i18n";
 import {
@@ -92,79 +49,24 @@ import {
   type TabDisplaySettings,
 } from "./utils/tabDisplay";
 import {
-  DEFAULT_REDIS_DB_ALIASES,
-  sanitizeRedisDbAliases,
-  setRedisDbAlias as applyRedisDbAlias,
-  type RedisDbAliasMap,
-} from "./utils/redisDbAlias";
-import {
-  captureLegacySavedQueriesSnapshot,
-  deleteSavedQueryGroupFromBackend,
-  deleteSavedQueryFromBackend,
-  getSavedQueryGroupsFromBackend,
-  moveSavedQueryGroupInBackend,
-  moveSavedQueryToGroupInBackend,
-  sanitizeSavedQueries,
-  saveSavedQueryGroupToBackend,
-  saveSavedQueryToBackend,
-  type SavedQueryBackend,
-} from "./utils/savedQueryPersistence";
-import { normalizeSavedQueryGroups } from "./utils/savedQueryGroups";
-import {
-  clearQueryTabDraft,
-  getPersistedQueryTabDraftEntry,
-  listPersistedQueryTabDraftEntries,
-} from "./utils/sqlFileTabDrafts";
-import {
   deriveLegacyConnectionReadOnlyFlag,
-  MAX_CONNECTION_KEEPALIVE_SQL_LENGTH,
   normalizeConnectionProtectionConfig,
   resolveConnectionProtectionConfig,
-  supportsConnectionKeepAliveSQL,
 } from "./utils/connectionReadOnly";
-import {
-  DEFAULT_QUERY_EDITOR_EDITOR_HEIGHT_RATIO,
-  sanitizeQueryEditorEditorHeightRatio,
-} from "./utils/queryEditorSplitLayout";
 import { sanitizeSidebarWidth } from "./utils/sidebarLayout";
-import {
-  CONNECTION_TYPE_GROUPS,
-  getConnectionTypeDefaultPort,
-} from "./utils/connectionTypeCatalog";
-import { supportsSSLForType } from "./utils/connectionTypeCapabilities";
-import { normalizeDriverType } from "./utils/connectionDriverType";
 import { createDebouncedPersistStorage } from "./utils/debouncedPersistStorage";
-import {
-  incrementTableAccessCount,
-  removeConnectionTableAccessCounts,
-  sanitizeTableAccessCount,
-} from "./utils/tableAccessCount";
 import {
   DEFAULT_TOOLBAR_BUTTON_COLOR_OVERRIDES,
   sanitizeToolbarButtonColorOverrides,
   type ToolbarButtonColorOverrides,
 } from "./utils/toolbarAppearance";
-import { normalizeTableAliasPrefix } from "./utils/tableAliasPrefix";
 import {
-  buildSidebarDatabasePinKey,
-  buildSidebarTablePinKey,
-  sanitizeSidebarTreeOrders,
-  updateSidebarDatabasePinKeys,
-  updateSidebarTreeOrders as applySidebarTreeOrderUpdates,
-  type SidebarTableSortPreference,
-  type SidebarTreeOrders,
-  type SidebarTreeOrderUpdates,
-} from "./utils/sidebarTreeOrder";
+  DEFAULT_BRAND_ICON_ID,
+} from "./brand/brandIcons";
 
-export {
-  buildSidebarDatabasePinKey,
-  buildSidebarTablePinKey,
-  updateSidebarDatabasePinKeys,
-} from "./utils/sidebarTreeOrder";
+const sanitizeBrandIconIdLocal = (_value: unknown): string =>
+  DEFAULT_BRAND_ICON_ID;
 
-export type TableDoubleClickAction = "open-data" | "open-design";
-/** SQL 编辑器中按住 Ctrl/Cmd 点击表名时执行的动作。 */
-export type QueryTableCtrlClickAction = "open-design" | "locate";
 export type ThemeMode = "light" | "dark";
 export type ThemePreference = ThemeMode | "system";
 
@@ -173,20 +75,12 @@ export interface AppearanceSettings
   enabled: boolean;
   opacity: number;
   blur: number;
-  tableDoubleClickAction: TableDoubleClickAction;
-  queryTableCtrlClickAction: QueryTableCtrlClickAction;
   v2SidebarRailScale: number;
   tabEnvironmentAccentThickness: number;
   toolbarButtonColorOverrides: ToolbarButtonColorOverrides;
-  sidebarSingleDatabaseExpansion: boolean;
   customUIFontFamily: string | null;
   customMonoFontFamily: string | null;
-  newQuerySqlTemplate: string | null;
-  autoAddTableAlias: boolean;
-  customTableAliasPrefixEnabled: boolean;
-  customTableAliasPrefix: string;
   tabDisplay: TabDisplaySettings;
-  redisDbAliases: RedisDbAliasMap;
 }
 
 export const DEFAULT_V2_SIDEBAR_RAIL_SCALE = 1.0;
@@ -200,20 +94,12 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   enabled: true,
   opacity: 1.0,
   blur: 0,
-  tableDoubleClickAction: "open-data",
-  queryTableCtrlClickAction: "open-design",
   v2SidebarRailScale: DEFAULT_V2_SIDEBAR_RAIL_SCALE,
   tabEnvironmentAccentThickness: DEFAULT_TAB_ENVIRONMENT_ACCENT_THICKNESS,
   toolbarButtonColorOverrides: { ...DEFAULT_TOOLBAR_BUTTON_COLOR_OVERRIDES },
-  sidebarSingleDatabaseExpansion: false,
   customUIFontFamily: null,
   customMonoFontFamily: null,
-  newQuerySqlTemplate: null,
-  autoAddTableAlias: true,
-  customTableAliasPrefixEnabled: false,
-  customTableAliasPrefix: '',
   tabDisplay: DEFAULT_TAB_DISPLAY_SETTINGS,
-  redisDbAliases: DEFAULT_REDIS_DB_ALIASES,
   ...DEFAULT_DATA_GRID_DISPLAY_SETTINGS,
   ...DEFAULT_SQL_EDITOR_TYPOGRAPHY_SETTINGS,
 };
@@ -233,97 +119,25 @@ const DEFAULT_AUTO_CHECK_FOR_UPDATES_INTERVAL_MINUTES = 30;
 const AUTO_CHECK_FOR_UPDATES_INTERVAL_OPTIONS_SET = new Set<number>(
   AUTO_CHECK_FOR_UPDATES_INTERVAL_OPTIONS,
 );
-const LEGACY_DEFAULT_OPACITY = 0.95;
-const OPACITY_EPSILON = 1e-6;
-const MAX_NEW_QUERY_SQL_TEMPLATE_LENGTH = 32 * 1024;
-
-const sanitizeTableDoubleClickAction = (
-  value: unknown,
-): TableDoubleClickAction => {
-  return value === "open-design" ? "open-design" : DEFAULT_APPEARANCE.tableDoubleClickAction;
-};
-
-const sanitizeQueryTableCtrlClickAction = (
-  value: unknown,
-): QueryTableCtrlClickAction => {
-  return value === "locate" ? "locate" : DEFAULT_APPEARANCE.queryTableCtrlClickAction;
-};
-
-const sanitizeNewQuerySqlTemplate = (value: unknown): string | null => {
-  if (value === null || value === undefined) {
-    return DEFAULT_APPEARANCE.newQuerySqlTemplate;
-  }
-  if (typeof value !== "string") {
-    return DEFAULT_APPEARANCE.newQuerySqlTemplate;
-  }
-  return value
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .slice(0, MAX_NEW_QUERY_SQL_TEMPLATE_LENGTH);
-};
-
-export const sanitizeV2SidebarRailScale = (value: unknown): number => {
-  return normalizeFloatInRange(
-    value,
-    DEFAULT_V2_SIDEBAR_RAIL_SCALE,
-    MIN_V2_SIDEBAR_RAIL_SCALE,
-    MAX_V2_SIDEBAR_RAIL_SCALE,
-  );
-};
-
-export const sanitizeTabEnvironmentAccentThickness = (value: unknown): number => {
-  return normalizeIntegerInRange(
-    value,
-    DEFAULT_TAB_ENVIRONMENT_ACCENT_THICKNESS,
-    MIN_TAB_ENVIRONMENT_ACCENT_THICKNESS,
-    MAX_TAB_ENVIRONMENT_ACCENT_THICKNESS,
-  );
-};
-
-const MAX_URI_LENGTH = 4096;
-const MAX_HOST_ENTRY_LENGTH = 512;
-const MAX_HOST_ENTRIES = 64;
-const DEFAULT_TIMEOUT_SECONDS = 30;
-const MAX_TIMEOUT_SECONDS = 3600;
-const DEFAULT_KEEPALIVE_INTERVAL_MINUTES = 240;
-const MIN_KEEPALIVE_INTERVAL_MINUTES = 1;
-const MAX_KEEPALIVE_INTERVAL_MINUTES = 1440;
-const DEFAULT_DIAGNOSTIC_TIMEOUT_SECONDS = 15;
-const MAX_DIAGNOSTIC_TIMEOUT_SECONDS = 300;
 const PERSIST_VERSION = 21;
 const SQL_EDITOR_FONT_SIZE_SPLIT_VERSION = 19;
 const TAB_DISPLAY_DEFAULT_MIGRATION_VERSION = 20;
 const SIDEBAR_SEARCH_SHORTCUT_MIGRATION_VERSION = 18;
 const PERSIST_STORAGE_KEY = "lite-db-storage";
 const PERSIST_WRITE_DEBOUNCE_MS = 160;
-const MAX_PERSISTED_QUERY_TABS = 20;
-const MAX_PERSISTED_QUERY_LENGTH = 1024 * 1024;
 const MAX_RUNTIME_SQL_LOGS = 120;
 const MAX_RUNTIME_SQL_LOG_LENGTH = 12 * 1024;
 const MAX_RUNTIME_SQL_LOG_MESSAGE_LENGTH = 1024;
 const MAX_PERSISTED_SQL_LOGS = 200;
 const MAX_PERSISTED_SQL_LOG_LENGTH = 24 * 1024;
 const MAX_PERSISTED_SQL_LOG_MESSAGE_LENGTH = 2 * 1024;
-const MAX_TABLE_EXPORT_HISTORY_PER_TARGET = 20;
-const MAX_TABLE_EXPORT_HISTORY_TARGETS = 200;
-const MAX_RECENT_WORKBENCH_TARGETS = 8;
-const MAX_RECENT_SQL_FILES = 8;
-const MAX_RECENT_TARGET_DATABASE_LENGTH = 256;
-const MAX_RECENT_SQL_FILE_NAME_LENGTH = 256;
-const DEFAULT_CONNECTION_TYPE = "mysql";
+const DEFAULT_CONNECTION_TYPE = "jvm";
 const DEFAULT_JVM_PORT = 9010;
 const DEFAULT_LANGUAGE_PREFERENCE: LanguagePreference = "system";
-const MAX_REDIS_DATABASE_INDEX = Number.MAX_SAFE_INTEGER;
+
 const isFrontendTestRuntime = (): boolean => {
   const env = (import.meta as unknown as { env?: Record<string, unknown> }).env || {};
   return env.MODE === "test" || env.VITEST === true || env.VITEST === "true";
-};
-
-const resolveSavedQueryBackend = (): SavedQueryBackend | undefined => {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-  return (window as unknown as { go?: { app?: { App?: SavedQueryBackend } } }).go?.app?.App;
 };
 
 const writePersistedStatePatch = (
@@ -356,35 +170,6 @@ const writePersistedStatePatch = (
   }
 };
 
-const resolveOceanBaseProtocol = (
-  raw: Record<string, unknown>,
-  normalizedConnectionParams: string,
-  normalizedUri: string,
-): "mysql" | "oracle" => {
-  const normalizedConfig = {
-    ...raw,
-    connectionParams: normalizedConnectionParams,
-    uri: normalizedUri,
-  };
-  try {
-    return resolveOceanBaseProtocolFromConfig(normalizedConfig);
-  } catch {
-    return (
-      normalizeOceanBaseProtocol(raw.oceanBaseProtocol) ||
-      resolveOceanBaseProtocolFromQueryText(normalizedConnectionParams).protocol ||
-      resolveOceanBaseProtocolFromQueryText(normalizedUri).protocol ||
-      "mysql"
-    );
-  }
-};
-const SUPPORTED_CONNECTION_TYPES = new Set([
-  ...CONNECTION_TYPE_GROUPS.flatMap((group) =>
-    group.items.map((item) => item.key),
-  ),
-  // Legacy persisted alias, normalized to diros before support is checked.
-  "doris",
-]);
-
 const toTrimmedString = (value: unknown, fallback = ""): string => {
   if (typeof value === "string") {
     return value.trim();
@@ -395,167 +180,52 @@ const toTrimmedString = (value: unknown, fallback = ""): string => {
   return fallback;
 };
 
-const indexedStoreFallback = (
-  key:
-    | "store.fallback.connection_name"
-    | "store.fallback.connection_tag_name"
-    | "store.fallback.sql_snippet_name",
-  index: number,
-): string => translate(key, { index: index + 1 });
-
-const normalizeClickHouseProtocol = (
+const normalizeIntegerInRange = (
   value: unknown,
-): "auto" | "http" | "native" => {
-  const text = toTrimmedString(value).toLowerCase();
-  if (text === "http" || text === "https") return "http";
-  if (text === "native" || text === "tcp") return "native";
-  return "auto";
+  fallback: number,
+  min: number,
+  max: number,
+): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  const clamped = Math.min(max, Math.max(min, Math.round(parsed)));
+  return clamped;
+};
+
+const normalizeFloatInRange = (
+  value: unknown,
+  fallback: number,
+  min: number,
+  max: number,
+): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
 };
 
 const normalizePort = (value: unknown, fallbackPort: number): number => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallbackPort;
-  const port = Math.trunc(parsed);
-  if (port <= 0 || port > 65535) return fallbackPort;
+  const port = Math.round(parsed);
+  if (port < 1 || port > 65535) return fallbackPort;
   return port;
-};
-
-const normalizeIntegerInRange = (
-  value: unknown,
-  fallbackValue: number,
-  min: number,
-  max: number,
-): number => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return fallbackValue;
-  const normalized = Math.trunc(parsed);
-  if (normalized < min || normalized > max) return fallbackValue;
-  return normalized;
-};
-
-const normalizeFloatInRange = (
-  value: unknown,
-  fallbackValue: number,
-  min: number,
-  max: number,
-): number => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return fallbackValue;
-  if (parsed < min || parsed > max) return fallbackValue;
-  return parsed;
-};
-
-const isValidHostEntry = (entry: string): boolean => {
-  if (!entry) return false;
-  if (entry.length > MAX_HOST_ENTRY_LENGTH) return false;
-  if (/[()\\/\s]/.test(entry)) return false;
-  return true;
 };
 
 const sanitizeStringArray = (value: unknown, maxLength = 256): string[] => {
   if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
   const result: string[] = [];
   value.forEach((entry) => {
-    const normalized = toTrimmedString(entry);
-    if (!normalized || normalized.length > maxLength) return;
-    if (seen.has(normalized)) return;
-    seen.add(normalized);
-    result.push(normalized);
-  });
-  return result;
-};
-
-const DATABASE_FILTER_PATTERN_LIMIT = 256;
-const utf8Encoder = new TextEncoder();
-
-const sanitizeDatabasePatternArray = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const entry of value) {
-    const normalized = toTrimmedString(entry);
-    if (!normalized || utf8Encoder.encode(normalized).byteLength > DATABASE_FILTER_PATTERN_LIMIT) {
-      continue;
-    }
-    if (seen.has(normalized)) continue;
-    seen.add(normalized);
-    result.push(normalized);
-    if (result.length >= DATABASE_FILTER_PATTERN_LIMIT) break;
-  }
-  return result;
-};
-
-const sanitizeSchemaVisibilityByDatabase = (
-  value: unknown,
-  caseSensitive: boolean,
-): Record<string, SchemaVisibilityRule> | undefined => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-
-  const result: Record<string, SchemaVisibilityRule> = {};
-  const seenDatabases = new Set<string>();
-  Object.entries(value as Record<string, unknown>).some(([rawDatabase, rawRule]) => {
-    if (Object.keys(result).length >= 128) return true;
-    const database = toTrimmedString(rawDatabase);
-    const databaseKey = caseSensitive ? database : database.toLocaleLowerCase();
-    if (!database || database.length > 256 || seenDatabases.has(databaseKey)) {
-      return false;
-    }
-    if (!rawRule || typeof rawRule !== "object" || Array.isArray(rawRule)) {
-      return false;
-    }
-    const rule = rawRule as Record<string, unknown>;
-    const mode = rule.mode === "include" || rule.mode === "exclude"
-      ? rule.mode
-      : undefined;
-    if (!mode) return false;
-
-    const seenSchemas = new Set<string>();
-    const schemas = sanitizeStringArray(rule.schemas, 256)
-      .filter((schema) => {
-        const schemaKey = caseSensitive ? schema : schema.toLocaleLowerCase();
-        if (seenSchemas.has(schemaKey)) return false;
-        seenSchemas.add(schemaKey);
-        return true;
-      })
-      .slice(0, 256);
-    if (schemas.length === 0) return false;
-
-    seenDatabases.add(databaseKey);
-    result[database] = { mode, schemas };
-    return false;
-  });
-
-  return Object.keys(result).length > 0 ? result : undefined;
-};
-
-const sanitizeNumberArray = (
-  value: unknown,
-  min: number,
-  max: number,
-): number[] => {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<number>();
-  const result: number[] = [];
-  value.forEach((entry) => {
-    const parsed = Number(entry);
-    if (!Number.isFinite(parsed)) return;
-    const num = Math.trunc(parsed);
-    if (num < min || num > max) return;
-    if (seen.has(num)) return;
-    seen.add(num);
-    result.push(num);
+    const trimmed = toTrimmedString(entry);
+    if (!trimmed) return;
+    result.push(trimmed.slice(0, maxLength));
   });
   return result;
 };
 
 const sanitizeAddressList = (value: unknown): string[] => {
-  const all = sanitizeStringArray(value, MAX_HOST_ENTRY_LENGTH).filter(
-    (entry) => isValidHostEntry(entry),
-  );
-  return all.slice(0, MAX_HOST_ENTRIES);
+  return sanitizeStringArray(value, 512)
+    .filter((entry) => entry.length > 0)
+    .slice(0, 64);
 };
 
 const sanitizeConnectionIconType = (value: unknown): string | undefined => {
@@ -570,67 +240,17 @@ const sanitizeConnectionIconColor = (value: unknown): string | undefined => {
     : undefined;
 };
 
+/** 连接类型别名归一：只保留 JVM 服务诊断所需的宽松映射。 */
 const normalizeConnectionType = (value: unknown): string => {
-  const type = normalizeDriverType(toTrimmedString(value));
-  if (type === "doris") {
-    return "diros";
-  }
-  if (type === "postgresql") {
-    return "postgres";
-  }
-  if (type === "mssql" || type === "sql_server" || type === "sql-server") {
-    return "sqlserver";
-  }
-  if (type === "kingbase8" || type === "kingbasees" || type === "kingbasev8") {
-    return "kingbase";
-  }
-  if (type === "dm" || type === "dm8") {
-    return "dameng";
-  }
-  if (type === "sqlite3") {
-    return "sqlite";
-  }
-  if (type === "sphinxql") {
-    return "sphinx";
-  }
-  if (
-    type === "open_gauss" ||
-    type === "open-gauss" ||
-    type === "opengauss"
-  ) {
-    return "opengauss";
-  }
-  if (type === "gaussdb" || type === "gauss_db" || type === "gauss-db") {
-    return "gaussdb";
-  }
-  if (type === "goldendb" || type === "greatdb" || type === "gdb") {
-    return "goldendb";
-  }
-  if (type === "kafka" || type === "apache-kafka" || type === "apache_kafka") {
-    return "kafka";
-  }
-  if (
-    type === "intersystems-cache" ||
-    type === "intersystemscache" ||
-    type === "inter-systems-cache" ||
-    type === "intersystems-cache-database" ||
-    type === "cache-db" ||
-    type === "cachedb"
-  ) {
-    return "cache";
-  }
-  if (
-    type === "inter-systems" ||
-    type === "inter-systems-iris" ||
-    type === "intersystems" ||
-    type === "intersystems iris" ||
-    type === "intersystemsiris" ||
-    type.includes("iris")
-  ) {
-    return "iris";
-  }
-  return SUPPORTED_CONNECTION_TYPES.has(type) ? type : DEFAULT_CONNECTION_TYPE;
+  const type = toTrimmedString(value).toLowerCase();
+  if (!type) return DEFAULT_CONNECTION_TYPE;
+  if (type === "jvm" || type === "java" || type === "jvm-service") return "jvm";
+  return type;
 };
+
+const getConnectionTypeDefaultPort = (type: string): number => (
+  type === "jvm" ? DEFAULT_JVM_PORT : 3306
+);
 
 const sanitizeJVMModes = (
   value: unknown,
@@ -764,6 +384,12 @@ const sanitizeJVMConfig = (
   };
 };
 
+const MAX_URI_LENGTH = 4096;
+const DEFAULT_TIMEOUT_SECONDS = 30;
+const MAX_TIMEOUT_SECONDS = 3600;
+const DEFAULT_DIAGNOSTIC_TIMEOUT_SECONDS = 15;
+const MAX_DIAGNOSTIC_TIMEOUT_SECONDS = 300;
+
 const sanitizeConnectionConfig = (value: unknown): ConnectionConfig => {
   const raw =
     value && typeof value === "object"
@@ -773,17 +399,6 @@ const sanitizeConnectionConfig = (value: unknown): ConnectionConfig => {
   const defaultPort = getConnectionTypeDefaultPort(type);
   const savePassword =
     typeof raw.savePassword === "boolean" ? raw.savePassword : true;
-  const mongoSrv = !!raw.mongoSrv;
-  const sslCapable = supportsSSLForType(type);
-  const sslModeRaw = toTrimmedString(raw.sslMode, "preferred").toLowerCase();
-  const sslMode: "preferred" | "required" | "skip-verify" | "disable" =
-    sslModeRaw === "required"
-      ? "required"
-      : sslModeRaw === "skip-verify"
-        ? "skip-verify"
-        : sslModeRaw === "disable"
-          ? "disable"
-          : "preferred";
 
   const sshRaw =
     raw.ssh && typeof raw.ssh === "object"
@@ -826,11 +441,6 @@ const sanitizeConnectionConfig = (value: unknown): ConnectionConfig => {
     encodeBase64:
       (httpTunnelRaw.encodeBase64 ?? raw.httpTunnelEncodeBase64) !== false,
   };
-  const supportsNetworkTunnel = type !== "sqlite" && type !== "duckdb";
-  const useHttpTunnel =
-    supportsNetworkTunnel &&
-    (raw.useHttpTunnel === true || raw.UseHTTPTunnel === true);
-  const useProxy = supportsNetworkTunnel && !!raw.useProxy && !useHttpTunnel;
   const normalizedProtection = normalizeConnectionProtectionConfig(
     raw.protection,
   );
@@ -847,16 +457,11 @@ const sanitizeConnectionConfig = (value: unknown): ConnectionConfig => {
     database: toTrimmedString(raw.database),
     readOnly: raw.readOnly === true,
     protection: normalizedProtection,
-    useSSL: sslCapable ? !!raw.useSSL : false,
-    sslMode: sslCapable ? sslMode : "disable",
-    sslCAPath: sslCapable ? toTrimmedString(raw.sslCAPath) : "",
-    sslCertPath: sslCapable ? toTrimmedString(raw.sslCertPath) : "",
-    sslKeyPath: sslCapable ? toTrimmedString(raw.sslKeyPath) : "",
     useSSH: !!raw.useSSH,
     ssh,
-    useProxy,
+    useProxy: !!raw.useProxy,
     proxy,
-    useHttpTunnel,
+    useHttpTunnel: !!raw.useHttpTunnel,
     httpTunnel,
     uri: toTrimmedString(raw.uri).slice(0, MAX_URI_LENGTH),
     connectionParams: toTrimmedString(raw.connectionParams).slice(
@@ -864,89 +469,17 @@ const sanitizeConnectionConfig = (value: unknown): ConnectionConfig => {
       MAX_URI_LENGTH,
     ),
     hosts: sanitizeAddressList(raw.hosts),
-    topology:
-      raw.topology === "replica"
-        ? "replica"
-        : raw.topology === "cluster"
-          ? "cluster"
-          : raw.topology === "sentinel"
-            ? "sentinel"
-          : "single",
-    mysqlReplicaUser: toTrimmedString(raw.mysqlReplicaUser),
-    mysqlReplicaPassword: savePassword
-      ? toTrimmedString(raw.mysqlReplicaPassword)
-      : "",
-    replicaSet: toTrimmedString(raw.replicaSet),
-    authSource: toTrimmedString(raw.authSource),
-    readPreference: toTrimmedString(raw.readPreference),
-    mongoSrv,
-    mongoAuthMechanism: toTrimmedString(raw.mongoAuthMechanism),
-    mongoReplicaUser: toTrimmedString(raw.mongoReplicaUser),
-    mongoReplicaPassword: savePassword
-      ? toTrimmedString(raw.mongoReplicaPassword)
-      : "",
     timeout: normalizeIntegerInRange(
       raw.timeout,
       DEFAULT_TIMEOUT_SECONDS,
       1,
       MAX_TIMEOUT_SECONDS,
     ),
-    keepAliveEnabled: Boolean(raw.keepAliveEnabled),
-    keepAliveIntervalMinutes: normalizeIntegerInRange(
-      raw.keepAliveIntervalMinutes,
-      DEFAULT_KEEPALIVE_INTERVAL_MINUTES,
-      MIN_KEEPALIVE_INTERVAL_MINUTES,
-      MAX_KEEPALIVE_INTERVAL_MINUTES,
-    ),
-    keepAliveSQL: supportsConnectionKeepAliveSQL({
-      type,
-      driver: toTrimmedString(raw.driver),
-      oceanBaseProtocol:
-        raw.oceanBaseProtocol as ConnectionConfig["oceanBaseProtocol"],
-    })
-      ? toTrimmedString(raw.keepAliveSQL).slice(
-          0,
-          MAX_CONNECTION_KEEPALIVE_SQL_LENGTH,
-        )
-      : "",
   };
 
   const resolvedProtection = resolveConnectionProtectionConfig(safeConfig);
   safeConfig.protection = resolvedProtection;
   safeConfig.readOnly = deriveLegacyConnectionReadOnlyFlag(resolvedProtection);
-
-  if (type === "redis") {
-    safeConfig.redisDB = normalizeIntegerInRange(
-      raw.redisDB,
-      0,
-      0,
-      MAX_REDIS_DATABASE_INDEX,
-    );
-    safeConfig.redisSentinelMaster = toTrimmedString(raw.redisSentinelMaster);
-    safeConfig.redisSentinelUser = toTrimmedString(raw.redisSentinelUser);
-    safeConfig.redisSentinelPassword = savePassword
-      ? toTrimmedString(raw.redisSentinelPassword)
-      : "";
-  }
-
-  if (type === "clickhouse") {
-    safeConfig.clickHouseProtocol = normalizeClickHouseProtocol(
-      raw.clickHouseProtocol,
-    );
-  }
-
-  if (type === "oceanbase") {
-    safeConfig.oceanBaseProtocol = resolveOceanBaseProtocol(
-      raw,
-      safeConfig.connectionParams || "",
-      safeConfig.uri || "",
-    );
-  }
-
-  if (type === "custom") {
-    safeConfig.driver = toTrimmedString(raw.driver);
-    safeConfig.dsn = toTrimmedString(raw.dsn).slice(0, MAX_URI_LENGTH);
-  }
 
   if (type === "jvm") {
     safeConfig.jvm = sanitizeJVMConfig(raw.jvm, {
@@ -988,58 +521,24 @@ const sanitizeSavedConnection = (
   const config = sanitizeConnectionConfig(resolveConnectionConfigPayload(raw));
   const id =
     toTrimmedString(raw.id, `conn-${index + 1}`) || `conn-${index + 1}`;
-  const displayType = config.type === "diros" ? "doris" : config.type;
   const fallbackName = config.host
-    ? `${displayType}-${config.host}`
-    : indexedStoreFallback("store.fallback.connection_name", index);
+    ? `${config.type}-${config.host}`
+    : `conn-${index + 1}`;
   const name = toTrimmedString(raw.name, fallbackName) || fallbackName;
   const createdAtValue = Number(raw.createdAt);
-  const includeDatabases = sanitizeStringArray(raw.includeDatabases, 256);
-  const includeDatabasePatterns = sanitizeDatabasePatternArray(
-    raw.includeDatabasePatterns,
-  );
-  const excludeDatabasePatterns = sanitizeDatabasePatternArray(
-    raw.excludeDatabasePatterns,
-  );
-  const includeRedisDatabases = sanitizeNumberArray(
-    raw.includeRedisDatabases,
-    0,
-    MAX_REDIS_DATABASE_INDEX,
-  );
-  const schemaVisibilityByDatabase = sanitizeSchemaVisibilityByDatabase(
-    raw.schemaVisibilityByDatabase,
-    getDataSourceCapabilities(config).schemaIdentifierCaseSensitive,
-  );
 
   return {
     id,
     name,
     createdAt: Number.isFinite(createdAtValue) && createdAtValue > 0 ? createdAtValue : undefined,
-    environmentType: normalizeConnectionEnvironmentType(raw.environmentType),
     config: { ...config, id: config.id || id },
     secretRef: toTrimmedString(raw.secretRef) || undefined,
     hasPrimaryPassword: raw.hasPrimaryPassword === true,
     hasSSHPassword: raw.hasSSHPassword === true,
     hasProxyPassword: raw.hasProxyPassword === true,
     hasHttpTunnelPassword: raw.hasHttpTunnelPassword === true,
-    hasMySQLReplicaPassword: raw.hasMySQLReplicaPassword === true,
-    hasMongoReplicaPassword: raw.hasMongoReplicaPassword === true,
-    hasRedisSentinelPassword: raw.hasRedisSentinelPassword === true,
     hasOpaqueURI: raw.hasOpaqueURI === true,
     hasOpaqueDSN: raw.hasOpaqueDSN === true,
-    includeDatabases:
-      includeDatabases.length > 0 ? includeDatabases : undefined,
-    includeDatabasePatterns:
-      includeDatabasePatterns.length > 0
-        ? includeDatabasePatterns
-        : undefined,
-    excludeDatabasePatterns:
-      excludeDatabasePatterns.length > 0
-        ? excludeDatabasePatterns
-        : undefined,
-    includeRedisDatabases:
-      includeRedisDatabases.length > 0 ? includeRedisDatabases : undefined,
-    schemaVisibilityByDatabase,
     iconType: sanitizeConnectionIconType(raw.iconType),
     iconColor: sanitizeConnectionIconColor(raw.iconColor),
   };
@@ -1064,792 +563,61 @@ const sanitizeConnections = (value: unknown): SavedConnection[] => {
   return result;
 };
 
-const SIDEBAR_ROOT_TAG_TOKEN_PREFIX = "tag:";
-const SIDEBAR_ROOT_CONNECTION_TOKEN_PREFIX = "connection:";
+/** 允许持久化的页签类型：设置中心、服务详情与 JVM 诊断页签。 */
+const WORKBENCH_TAB_TYPES: readonly TabData["type"][] = [
+  "settings-center",
+  "service-detail",
+  "jvm-overview",
+  "jvm-resource",
+  "jvm-audit",
+  "jvm-diagnostic",
+  "jvm-monitoring",
+];
 
-export const buildSidebarRootTagToken = (tagId: string): string =>
-  `${SIDEBAR_ROOT_TAG_TOKEN_PREFIX}${toTrimmedString(tagId)}`;
+const sanitizeTabs = (value: unknown): TabData[] => {
+  const entries = Array.isArray(value) ? value : [];
+  const result: TabData[] = [];
+  const seenIds = new Set<string>();
 
-export const buildSidebarRootConnectionToken = (
-  connectionId: string,
-): string => `${SIDEBAR_ROOT_CONNECTION_TOKEN_PREFIX}${toTrimmedString(connectionId)}`;
-
-const isSidebarRootTagToken = (token: string): boolean =>
-  token.startsWith(SIDEBAR_ROOT_TAG_TOKEN_PREFIX) &&
-  token.length > SIDEBAR_ROOT_TAG_TOKEN_PREFIX.length;
-
-const isSidebarRootConnectionToken = (token: string): boolean =>
-  token.startsWith(SIDEBAR_ROOT_CONNECTION_TOKEN_PREFIX) &&
-  token.length > SIDEBAR_ROOT_CONNECTION_TOKEN_PREFIX.length;
-
-const getSidebarTagIdFromToken = (token: string): string =>
-  isSidebarRootTagToken(token)
-    ? token.slice(SIDEBAR_ROOT_TAG_TOKEN_PREFIX.length)
-    : "";
-
-const getSidebarConnectionIdFromToken = (token: string): string =>
-  isSidebarRootConnectionToken(token)
-    ? token.slice(SIDEBAR_ROOT_CONNECTION_TOKEN_PREFIX.length)
-    : "";
-
-const sanitizeSidebarItemOrder = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-  const result: string[] = [];
-  value.forEach((entry) => {
-    const token = toTrimmedString(entry);
-    if (!token) return;
-    if (!isSidebarRootTagToken(token) && !isSidebarRootConnectionToken(token)) {
-      return;
-    }
-    if (seen.has(token)) return;
-    seen.add(token);
-    result.push(token);
-  });
-  return result;
-};
-
-const sanitizeSidebarRootOrder = sanitizeSidebarItemOrder;
-
-const normalizeConnectionTagTree = (
-  value: ConnectionTag[],
-): ConnectionTag[] => {
-  const tags: ConnectionTag[] = [];
-  const idSet = new Set<string>();
-
-  value.forEach((entry, index) => {
-    if (!entry || typeof entry !== "object") return;
-    const id =
-      toTrimmedString(entry.id, `tag-${index + 1}`) || `tag-${index + 1}`;
-    if (idSet.has(id)) return;
-    idSet.add(id);
-
-    const fallbackName = indexedStoreFallback(
-      "store.fallback.connection_tag_name",
-      index,
-    );
-    const name = toTrimmedString(entry.name, fallbackName) || fallbackName;
-    const parentTagId = toTrimmedString(entry.parentTagId) || undefined;
-    const createdAt = Number(entry.createdAt);
-    tags.push({
-      id,
-      name,
-      createdAt: Number.isFinite(createdAt) && createdAt > 0 ? createdAt : undefined,
-      parentTagId,
-      connectionIds: sanitizeStringArray(entry.connectionIds, 256),
-      childOrder: sanitizeSidebarItemOrder(entry.childOrder),
-      // Group order is always user-defined. Preserve a legacy automatic mode
-      // only as the initial direct-connection display preference.
-      sortMode: 'manual',
-      connectionSortMode: entry.connectionSortMode === 'manual' || entry.connectionSortMode === 'name' || entry.connectionSortMode === 'createdAt'
-        ? entry.connectionSortMode
-        : entry.sortMode === 'name' || entry.sortMode === 'createdAt'
-          ? entry.sortMode
-          : 'createdAt',
-    });
-  });
-
-  const tagById = new Map(tags.map((tag) => [tag.id, tag]));
-  tags.forEach((tag) => {
-    if (
-      !tag.parentTagId ||
-      tag.parentTagId === tag.id ||
-      !tagById.has(tag.parentTagId)
-    ) {
-      tag.parentTagId = undefined;
-    }
-  });
-
-  // Corrupted persisted data must never make the sidebar recurse forever.
-  // Promote every member of a detected parent cycle to the root.
-  tags.forEach((tag) => {
-    const path: string[] = [];
-    const pathIndex = new Map<string, number>();
-    let currentId = tag.id;
-    while (currentId) {
-      const current = tagById.get(currentId);
-      if (!current?.parentTagId) break;
-      const cycleStart = pathIndex.get(currentId);
-      if (cycleStart !== undefined) {
-        path.slice(cycleStart).forEach((cycleTagId) => {
-          const cycleTag = tagById.get(cycleTagId);
-          if (cycleTag) cycleTag.parentTagId = undefined;
-        });
-        break;
-      }
-      pathIndex.set(currentId, path.length);
-      path.push(currentId);
-      currentId = current.parentTagId;
-    }
-  });
-
-  // A host can have one direct owner only. Keep the first persisted owner to
-  // make recovery deterministic and match the flat model's intended invariant.
-  const assignedConnectionIds = new Set<string>();
-  tags.forEach((tag) => {
-    tag.connectionIds = tag.connectionIds.filter((connectionId) => {
-      if (assignedConnectionIds.has(connectionId)) return false;
-      assignedConnectionIds.add(connectionId);
-      return true;
-    });
-  });
-
-  return tags.map((tag) => {
-    const childOrder = resolveConnectionTagChildOrder(tag.id, tags);
-    return {
-      ...tag,
-      // Keep the direct-host array aligned with its display-order subsequence.
-      connectionIds: childOrder
-        .filter(isSidebarRootConnectionToken)
-        .map(getSidebarConnectionIdFromToken),
-      childOrder,
-    };
-  });
-};
-
-const sanitizeConnectionTags = (value: unknown): ConnectionTag[] => {
-  if (!Array.isArray(value)) return [];
-  const result: ConnectionTag[] = [];
-  const idSet = new Set<string>();
-
-  value.forEach((entry, index) => {
+  entries.forEach((entry, index) => {
     if (!entry || typeof entry !== "object") return;
     const raw = entry as Record<string, unknown>;
-    const id =
-      toTrimmedString(raw.id, `tag-${index + 1}`) || `tag-${index + 1}`;
-    if (idSet.has(id)) return;
-    idSet.add(id);
+    const rawType = toTrimmedString(raw.type);
+    if (!(WORKBENCH_TAB_TYPES as readonly string[]).includes(rawType)) return;
 
-    const fallbackName = indexedStoreFallback(
-      "store.fallback.connection_tag_name",
-      index,
-    );
-    const name = toTrimmedString(raw.name, fallbackName) || fallbackName;
-    const sortMode = toTrimmedString(raw.sortMode) as ConnectionSortMode;
-    const connectionSortMode = toTrimmedString(raw.connectionSortMode) as ConnectionDisplaySortMode;
-    const createdAt = Number(raw.createdAt);
+    let id = toTrimmedString(raw.id, `tab-${index + 1}`) || `tab-${index + 1}`;
+    if (seenIds.has(id)) {
+      id = `${id}-${index + 1}`;
+    }
+    seenIds.add(id);
+
     result.push({
       id,
-      name,
-      createdAt: Number.isFinite(createdAt) && createdAt > 0 ? createdAt : undefined,
-      parentTagId: toTrimmedString(raw.parentTagId) || undefined,
-      connectionIds: sanitizeStringArray(raw.connectionIds, 256),
-      childOrder: sanitizeSidebarItemOrder(raw.childOrder),
-      sortMode: 'manual',
-      connectionSortMode: connectionSortMode === 'manual' || connectionSortMode === 'name' || connectionSortMode === 'createdAt'
-        ? connectionSortMode
-        : sortMode === 'name' || sortMode === 'createdAt'
-          ? sortMode
-          : 'createdAt',
+      title: toTrimmedString(raw.title, rawType) || rawType,
+      type: rawType as TabData["type"],
+      connectionId: toTrimmedString(raw.connectionId),
+      serviceName: toTrimmedString(raw.serviceName) || undefined,
+      readOnly: raw.readOnly === true,
+      providerMode: raw.providerMode as TabData["providerMode"],
+      resourcePath: toTrimmedString(raw.resourcePath) || undefined,
+      resourceKind: toTrimmedString(raw.resourceKind) || undefined,
     });
   });
 
-  return normalizeConnectionTagTree(result);
-};
-
-export const resolveConnectionTagChildOrder = (
-  tagId: string,
-  connectionTags: ConnectionTag[],
-): string[] => {
-  const tag = connectionTags.find((candidate) => candidate.id === tagId);
-  if (!tag) return [];
-
-  const defaultOrder = [
-    ...sanitizeStringArray(tag.connectionIds, 256).map(
-      buildSidebarRootConnectionToken,
-    ),
-    ...connectionTags
-      .filter((candidate) => candidate.parentTagId === tagId)
-      .map((candidate) => buildSidebarRootTagToken(candidate.id)),
-  ];
-  const validTokens = new Set(defaultOrder);
-  const seen = new Set<string>();
-  const result: string[] = [];
-
-  sanitizeSidebarItemOrder(tag.childOrder).forEach((token) => {
-    if (!validTokens.has(token) || seen.has(token)) return;
-    seen.add(token);
-    result.push(token);
-  });
-  defaultOrder.forEach((token) => {
-    if (seen.has(token)) return;
-    seen.add(token);
-    result.push(token);
-  });
-
   return result;
 };
 
-const buildDefaultSidebarRootOrderTokens = (
-  connectionTags: ConnectionTag[],
-  connections: SavedConnection[],
-): string[] => {
-  const groupedConnectionIds = new Set<string>();
-  connectionTags.forEach((tag) => {
-    tag.connectionIds.forEach((connectionId) => {
-      if (connectionId) groupedConnectionIds.add(connectionId);
-    });
-  });
-
-  return [
-    ...connectionTags
-      .filter((tag) => !tag.parentTagId)
-      .map((tag) => buildSidebarRootTagToken(tag.id)),
-    ...connections
-      .filter((connection) => !groupedConnectionIds.has(connection.id))
-      .map((connection) => buildSidebarRootConnectionToken(connection.id)),
-  ];
+const sanitizeActiveTabId = (activeTabId: unknown, tabs: TabData[]): string | null => {
+  const id = toTrimmedString(activeTabId);
+  if (id && tabs.some((tab) => tab.id === id)) {
+    return id;
+  }
+  return tabs[0]?.id || null;
 };
 
-export const resolveSidebarRootOrderTokens = (
-  sidebarRootOrder: unknown,
-  connectionTags: ConnectionTag[],
-  connections: SavedConnection[],
-): string[] => {
-  const defaultOrder = buildDefaultSidebarRootOrderTokens(
-    connectionTags,
-    connections,
-  );
-  if (defaultOrder.length === 0) {
-    return [];
-  }
-
-  const validTokens = new Set(defaultOrder);
-  const seen = new Set<string>();
-  const result: string[] = [];
-
-  sanitizeSidebarRootOrder(sidebarRootOrder).forEach((token) => {
-    if (!validTokens.has(token) || seen.has(token)) return;
-    seen.add(token);
-    result.push(token);
-  });
-
-  defaultOrder.forEach((token) => {
-    if (seen.has(token)) return;
-    seen.add(token);
-    result.push(token);
-  });
-
-  return result;
-};
-
-const resolveHydratedSidebarRootOrderTokens = (
-  sidebarRootOrder: unknown,
-  connectionTags?: ConnectionTag[],
-  connections?: SavedConnection[],
-): string[] => {
-  const sanitized = sanitizeSidebarRootOrder(sidebarRootOrder);
-  if (!connectionTags) {
-    return sanitized;
-  }
-  const rootTagIds = new Set(
-    connectionTags
-      .filter((tag) => !tag.parentTagId)
-      .map((tag) => tag.id),
-  );
-  const rootOnly = sanitized.filter(
-    (token) =>
-      !isSidebarRootTagToken(token) ||
-      rootTagIds.has(getSidebarTagIdFromToken(token)),
-  );
-  if (!connections) {
-    return rootOnly;
-  }
-  return resolveSidebarRootOrderTokens(rootOnly, connectionTags, connections);
-};
-
-const insertSidebarRootTokenBeforeUngrouped = (
-  sidebarRootOrder: string[],
-  token: string,
-): string[] => {
-  if (!token || sidebarRootOrder.includes(token)) {
-    return [...sidebarRootOrder];
-  }
-  const firstConnectionIndex = sidebarRootOrder.findIndex(
-    isSidebarRootConnectionToken,
-  );
-  if (firstConnectionIndex === -1) {
-    return [...sidebarRootOrder, token];
-  }
-  const nextOrder = [...sidebarRootOrder];
-  nextOrder.splice(firstConnectionIndex, 0, token);
-  return nextOrder;
-};
-
-const insertSidebarRootTokenAfter = (
-  sidebarRootOrder: string[],
-  token: string,
-  anchorToken: string,
-): string[] => {
-  if (!token) return [...sidebarRootOrder];
-  const nextOrder = sidebarRootOrder.filter((item) => item !== token);
-  const anchorIndex = nextOrder.indexOf(anchorToken);
-  if (anchorIndex === -1) {
-    nextOrder.push(token);
-    return nextOrder;
-  }
-  nextOrder.splice(anchorIndex + 1, 0, token);
-  return nextOrder;
-};
-
-const moveSidebarRootToken = (
-  sidebarRootOrder: string[],
-  sourceToken: string,
-  targetToken: string,
-  insertBefore: boolean,
-): string[] => {
-  if (!sourceToken || !targetToken || sourceToken === targetToken) {
-    return [...sidebarRootOrder];
-  }
-  const filtered = sidebarRootOrder.filter((token) => token !== sourceToken);
-  const targetIndex = filtered.indexOf(targetToken);
-  const insertIndex =
-    targetIndex === -1
-      ? filtered.length
-      : Math.max(
-          0,
-          Math.min(
-            filtered.length,
-            insertBefore ? targetIndex : targetIndex + 1,
-          ),
-        );
-  filtered.splice(insertIndex, 0, sourceToken);
-  return filtered;
-};
-
-type ConnectionTagTreeState = {
-  connectionTags: ConnectionTag[];
-  sidebarRootOrder: string[];
-};
-
-const setConnectionTagChildOrder = (
-  connectionTags: ConnectionTag[],
-  tagId: string,
-  childOrder: string[],
-): ConnectionTag[] =>
-  connectionTags.map((tag) =>
-    tag.id === tagId ? { ...tag, childOrder } : tag,
-  );
-
-const removeSidebarItemTokenFromTagOrders = (
-  connectionTags: ConnectionTag[],
-  token: string,
-): ConnectionTag[] =>
-  connectionTags.map((tag) => ({
-    ...tag,
-    childOrder: sanitizeSidebarItemOrder(tag.childOrder).filter(
-      (item) => item !== token,
-    ),
-  }));
-
-const placeSidebarItemToken = (
-  order: string[],
-  token: string,
-  targetToken?: string | null,
-  insertBefore = false,
-): string[] => {
-  if (!token) return [...order];
-  if (targetToken === token) return [...order];
-  const nextOrder = order.filter((item) => item !== token);
-  if (!targetToken) {
-    return [...nextOrder, token];
-  }
-  const targetIndex = nextOrder.indexOf(targetToken);
-  if (targetIndex === -1) {
-    return [...nextOrder, token];
-  }
-  const insertIndex = insertBefore ? targetIndex : targetIndex + 1;
-  nextOrder.splice(insertIndex, 0, token);
-  return nextOrder;
-};
-
-const replaceSidebarItemToken = (
-  order: string[],
-  token: string,
-  replacements: string[],
-): string[] => {
-  const replacementTokens = Array.from(
-    new Set(replacements.filter(Boolean)),
-  );
-  const replacementSet = new Set(replacementTokens);
-  const result: string[] = [];
-  let inserted = false;
-
-  order.forEach((item) => {
-    if (item === token) {
-      if (!inserted) {
-        result.push(...replacementTokens);
-        inserted = true;
-      }
-      return;
-    }
-    if (replacementSet.has(item)) return;
-    result.push(item);
-  });
-  if (!inserted) {
-    result.push(...replacementTokens);
-  }
-  return result;
-};
-
-const getConnectionOwnerTagId = (
-  connectionId: string,
-  connectionTags: ConnectionTag[],
-): string | undefined =>
-  connectionTags.find((tag) => tag.connectionIds.includes(connectionId))?.id;
-
-const getRootConnectionTagId = (
-  tagId: string | undefined,
-  connectionTags: ConnectionTag[],
-): string | undefined => {
-  if (!tagId) return undefined;
-  const tagById = new Map(connectionTags.map((tag) => [tag.id, tag]));
-  const visited = new Set<string>();
-  let current = tagById.get(tagId);
-  while (current && !visited.has(current.id)) {
-    visited.add(current.id);
-    if (!current.parentTagId) return current.id;
-    current = tagById.get(current.parentTagId);
-  }
-  return undefined;
-};
-
-const isConnectionTagSelfOrDescendant = (
-  tagId: string,
-  candidateParentTagId: string,
-  connectionTags: ConnectionTag[],
-): boolean => {
-  const tagById = new Map(connectionTags.map((tag) => [tag.id, tag]));
-  const visited = new Set<string>();
-  let currentId: string | undefined = candidateParentTagId;
-  while (currentId && !visited.has(currentId)) {
-    if (currentId === tagId) return true;
-    visited.add(currentId);
-    currentId = tagById.get(currentId)?.parentTagId;
-  }
-  return false;
-};
-
-const normalizeConnectionTagTreeState = (
-  connectionTags: ConnectionTag[],
-  sidebarRootOrder: string[],
-  connections: SavedConnection[],
-): ConnectionTagTreeState => {
-  const nextTags = normalizeConnectionTagTree(connectionTags);
-  return {
-    connectionTags: nextTags,
-    sidebarRootOrder: resolveSidebarRootOrderTokens(
-      sidebarRootOrder,
-      nextTags,
-      connections,
-    ),
-  };
-};
-
-const sortConnectionIdsForDisplay = (
-  ids: string[],
-  connections: SavedConnection[],
-  mode: ConnectionDisplaySortMode,
-): string[] => {
-  if (mode === 'manual') return [...ids];
-  const connectionById = new Map(connections.map((connection) => [connection.id, connection]));
-  const stableIndex = new Map(ids.map((id, index) => [id, index]));
-  return [...ids].sort((left, right) => {
-    const a = connectionById.get(left);
-    const b = connectionById.get(right);
-    if (!a || !b) return (stableIndex.get(left) || 0) - (stableIndex.get(right) || 0);
-    if (mode === 'createdAt') {
-      return (b.createdAt || 0) - (a.createdAt || 0)
-        || (stableIndex.get(left) || 0) - (stableIndex.get(right) || 0)
-        || left.localeCompare(right);
-    }
-    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true })
-      || (stableIndex.get(left) || 0) - (stableIndex.get(right) || 0)
-      || left.localeCompare(right);
-  });
-};
-
-const applyConnectionOrderToMixedTokens = (
-  tokens: string[],
-  orderedConnectionIds: string[],
-): string[] => {
-  const orderedTokens = orderedConnectionIds.map(buildSidebarRootConnectionToken);
-  let connectionIndex = 0;
-  return tokens.map((token) => (
-    isSidebarRootConnectionToken(token)
-      ? orderedTokens[connectionIndex++] || token
-      : token
-  ));
-};
-
-const connectionIdsFromMixedTokens = (tokens: string[]): string[] => (
-  tokens
-    .filter(isSidebarRootConnectionToken)
-    .map(getSidebarConnectionIdFromToken)
-);
-
-const materializeManualConnectionOrder = (
-  connectionTags: ConnectionTag[],
-  sidebarRootOrder: string[],
-  connections: SavedConnection[],
-  rootConnectionSortMode: ConnectionDisplaySortMode,
-  targetTagId: string | null,
-): ConnectionTagTreeState & { rootConnectionSortMode: ConnectionDisplaySortMode } => {
-  const normalized = normalizeConnectionTagTreeState(connectionTags, sidebarRootOrder, connections);
-  const normalizedTargetTagId = toTrimmedString(targetTagId);
-  if (normalizedTargetTagId) {
-    const target = normalized.connectionTags.find((tag) => tag.id === normalizedTargetTagId);
-    if (!target) return { ...normalized, rootConnectionSortMode };
-    const currentChildOrder = resolveConnectionTagChildOrder(target.id, normalized.connectionTags);
-    const currentMode = target.connectionSortMode || 'createdAt';
-    const orderedConnectionIds = currentMode === 'manual'
-      ? connectionIdsFromMixedTokens(currentChildOrder)
-      : sortConnectionIdsForDisplay(target.connectionIds, connections, currentMode);
-    const childOrder = applyConnectionOrderToMixedTokens(
-      currentChildOrder,
-      orderedConnectionIds,
-    );
-    return {
-      ...normalized,
-      connectionTags: normalized.connectionTags.map((tag) => (
-        tag.id === target.id
-          ? { ...tag, connectionIds: orderedConnectionIds, childOrder, connectionSortMode: 'manual' }
-          : tag
-      )),
-      rootConnectionSortMode,
-    };
-  }
-
-  const groupedConnectionIds = new Set(normalized.connectionTags.flatMap((tag) => tag.connectionIds));
-  const rootConnectionIds = connections
-    .map((connection) => connection.id)
-    .filter((connectionId) => !groupedConnectionIds.has(connectionId));
-  const currentRootOrder = resolveSidebarRootOrderTokens(
-    normalized.sidebarRootOrder,
-    normalized.connectionTags,
-    connections,
-  );
-  const orderedConnectionIds = rootConnectionSortMode === 'manual'
-    ? connectionIdsFromMixedTokens(currentRootOrder)
-    : sortConnectionIdsForDisplay(rootConnectionIds, connections, rootConnectionSortMode);
-  return {
-    ...normalized,
-    sidebarRootOrder: applyConnectionOrderToMixedTokens(
-      currentRootOrder,
-      orderedConnectionIds,
-    ),
-    rootConnectionSortMode: 'manual',
-  };
-};
-
-const moveConnectionTagInTree = (
-  connectionTags: ConnectionTag[],
-  sidebarRootOrder: string[],
-  connections: SavedConnection[],
-  tagId: string,
-  targetParentTagId: string | null,
-  targetToken?: string | null,
-  insertBefore = false,
-): ConnectionTagTreeState | null => {
-  const normalized = normalizeConnectionTagTreeState(
-    connectionTags,
-    sidebarRootOrder,
-    connections,
-  );
-  const tagById = new Map(
-    normalized.connectionTags.map((tag) => [tag.id, tag]),
-  );
-  const source = tagById.get(tagId);
-  if (!source) return null;
-
-  const nextParentTagId = toTrimmedString(targetParentTagId) || undefined;
-  if (
-    nextParentTagId &&
-    (!tagById.has(nextParentTagId) ||
-      isConnectionTagSelfOrDescendant(
-        tagId,
-        nextParentTagId,
-        normalized.connectionTags,
-      ))
-  ) {
-    return null;
-  }
-
-  const token = buildSidebarRootTagToken(tagId);
-  let nextTags = removeSidebarItemTokenFromTagOrders(
-    normalized.connectionTags,
-    token,
-  ).map((tag) =>
-    tag.id === tagId ? { ...tag, parentTagId: nextParentTagId } : tag,
-  );
-  let nextRootOrder = normalized.sidebarRootOrder.filter(
-    (item) => item !== token,
-  );
-
-  nextTags = normalizeConnectionTagTree(nextTags);
-  if (nextParentTagId) {
-    const targetOrder = resolveConnectionTagChildOrder(
-      nextParentTagId,
-      nextTags,
-    );
-    nextTags = setConnectionTagChildOrder(
-      nextTags,
-      nextParentTagId,
-      placeSidebarItemToken(targetOrder, token, targetToken, insertBefore),
-    );
-  } else {
-    const targetOrder = resolveSidebarRootOrderTokens(
-      nextRootOrder,
-      nextTags,
-      connections,
-    );
-    nextRootOrder = placeSidebarItemToken(
-      targetOrder,
-      token,
-      targetToken,
-      insertBefore,
-    );
-  }
-
-  return normalizeConnectionTagTreeState(
-    nextTags,
-    nextRootOrder,
-    connections,
-  );
-};
-
-const moveConnectionInTree = (
-  connectionTags: ConnectionTag[],
-  sidebarRootOrder: string[],
-  connections: SavedConnection[],
-  connectionId: string,
-  targetTagId: string | null,
-  targetToken?: string | null,
-  insertBefore = false,
-): ConnectionTagTreeState | null => {
-  if (!connections.some((connection) => connection.id === connectionId)) {
-    return null;
-  }
-  const normalized = normalizeConnectionTagTreeState(
-    connectionTags,
-    sidebarRootOrder,
-    connections,
-  );
-  const nextTargetTagId = toTrimmedString(targetTagId) || undefined;
-  if (
-    nextTargetTagId &&
-    !normalized.connectionTags.some((tag) => tag.id === nextTargetTagId)
-  ) {
-    return null;
-  }
-
-  const sourceTagId = getConnectionOwnerTagId(
-    connectionId,
-    normalized.connectionTags,
-  );
-  const sourceRootTagId = getRootConnectionTagId(
-    sourceTagId,
-    normalized.connectionTags,
-  );
-  const token = buildSidebarRootConnectionToken(connectionId);
-  let nextTags = removeSidebarItemTokenFromTagOrders(
-    normalized.connectionTags,
-    token,
-  ).map((tag) => ({
-    ...tag,
-    connectionIds: tag.connectionIds.filter((id) => id !== connectionId),
-  }));
-  let nextRootOrder = normalized.sidebarRootOrder.filter(
-    (item) => item !== token,
-  );
-
-  if (nextTargetTagId) {
-    nextTags = nextTags.map((tag) =>
-      tag.id === nextTargetTagId
-        ? {
-            ...tag,
-            connectionIds: [...tag.connectionIds, connectionId],
-          }
-        : tag,
-    );
-    nextTags = normalizeConnectionTagTree(nextTags);
-    const targetOrder = resolveConnectionTagChildOrder(
-      nextTargetTagId,
-      nextTags,
-    );
-    nextTags = setConnectionTagChildOrder(
-      nextTags,
-      nextTargetTagId,
-      placeSidebarItemToken(targetOrder, token, targetToken, insertBefore),
-    );
-  } else {
-    nextTags = normalizeConnectionTagTree(nextTags);
-    const rootOrder = resolveSidebarRootOrderTokens(
-      nextRootOrder,
-      nextTags,
-      connections,
-    );
-    nextRootOrder = targetToken
-      ? placeSidebarItemToken(rootOrder, token, targetToken, insertBefore)
-      : sourceRootTagId
-        ? insertSidebarRootTokenAfter(
-            rootOrder,
-            token,
-            buildSidebarRootTagToken(sourceRootTagId),
-          )
-        : insertSidebarRootTokenBeforeUngrouped(rootOrder, token);
-  }
-
-  return normalizeConnectionTagTreeState(
-    nextTags,
-    nextRootOrder,
-    connections,
-  );
-};
-
-const orderUngroupedConnectionsBySidebarRootOrder = (
-  connections: SavedConnection[],
-  connectionTags: ConnectionTag[],
-  sidebarRootOrder: string[],
-): SavedConnection[] => {
-  const rootOrder = resolveSidebarRootOrderTokens(
-    sidebarRootOrder,
-    connectionTags,
-    connections,
-  );
-  const orderMap = new Map<string, number>();
-  rootOrder.forEach((token, index) => {
-    if (isSidebarRootConnectionToken(token)) {
-      orderMap.set(getSidebarConnectionIdFromToken(token), index);
-    }
-  });
-  return [...connections].sort((left, right) => {
-    const leftIndex = orderMap.get(left.id);
-    const rightIndex = orderMap.get(right.id);
-    if (leftIndex !== undefined && rightIndex !== undefined) {
-      return leftIndex - rightIndex;
-    }
-    if (leftIndex !== undefined) return -1;
-    if (rightIndex !== undefined) return 1;
-    return 0;
-  });
-};
-
-const isLegacyDefaultAppearance = (
-  appearance: Partial<{ opacity: number; blur: number }> | undefined,
-): boolean => {
-  if (!appearance) {
-    return true;
-  }
-  const opacity =
-    typeof appearance.opacity === "number"
-      ? appearance.opacity
-      : LEGACY_DEFAULT_OPACITY;
-  const blur = typeof appearance.blur === "number" ? appearance.blur : 0;
-  return (
-    Math.abs(opacity - LEGACY_DEFAULT_OPACITY) < OPACITY_EPSILON && blur === 0
-  );
-};
+const resolveCloseTabActiveTabId = (
+  newTabs: TabData[],
+): string | null => (newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null);
 
 export interface SqlLog {
   id: string;
@@ -1865,927 +633,6 @@ export interface SqlLog {
   transactionId?: string;
   transactionAction?: "commit" | "rollback";
 }
-
-/** 首页一键重新打开的最近连接 / 数据库目标。 */
-export interface RecentConnectionTarget {
-  connectionId: string;
-  dbName?: string;
-  openedAt: number;
-}
-
-/** 首页一键重新打开的 SQL 文件，始终保留其运行时连接上下文。 */
-export interface RecentSQLFile {
-  filePath: string;
-  fileName: string;
-  connectionId: string;
-  dbName?: string;
-  openedAt: number;
-}
-
-export type TableOverviewViewMode = "card" | "list" | "table";
-
-export interface QueryOptions {
-  maxRows: number;
-  wordWrap: boolean;
-  tableOverviewViewMode?: TableOverviewViewMode;
-  showColumnComment: boolean;
-  showSidebarTableComment?: boolean;
-  showColumnType: boolean;
-  alignNumericTemporalCellsRight: boolean;
-  showQueryResultsPanel: boolean;
-  queryEditorEditorHeightRatio: number;
-}
-
-export interface DataEditTransactionOptions {
-  commitMode: "manual" | "auto";
-  autoCommitDelayMs: number;
-}
-
-export interface SqlEditorTransactionOptions {
-  commitMode: "manual" | "auto";
-  autoCommitDelayMs: number;
-}
-
-export interface SqlEditorPendingTransactionState {
-  id: string;
-  tabId: string;
-  commitMode: "manual" | "auto";
-  autoCommitDelayMs: number;
-  createdAt: number;
-  autoCommitDueAt?: number | null;
-  statementCount?: number;
-  dbType?: string;
-  dbName?: string;
-  statements?: string[];
-  executionDurationMs?: number;
-  /** 事务所属连接；提交前按它做生产环境确认，见 PendingSqlEditorTransaction。 */
-  connectionId?: string;
-}
-
-interface AppState {
-  connections: SavedConnection[];
-  connectionTags: ConnectionTag[];
-  sidebarRootOrder: string[];
-  rootSortMode: ConnectionSortMode;
-  rootConnectionSortMode: ConnectionDisplaySortMode;
-  tabs: TabData[];
-  /** 主工作区已拆出的浮动窗口（会话态，不持久化） */
-  detachedWorkbenchWindows: DetachedWorkbenchWindow[];
-  /** SQL 结果区已拆出的浮动窗口（会话态，不持久化） */
-  detachedQueryResultWindows: DetachedQueryResultWindow[];
-  activeTabId: string | null;
-  activeContext: ActiveContext | null;
-  savedQueries: SavedQuery[];
-  savedQueryGroups: SavedQueryGroup[];
-  externalSQLDirectories: ExternalSQLDirectory[];
-  recentConnectionTargets: RecentConnectionTarget[];
-  recentSQLFiles: RecentSQLFile[];
-  pinnedConnectionTypes: string[];
-  theme: ThemeMode;
-  themePreference: ThemePreference;
-  /** Built-in brand mascot icon id (01-10), used in title bar / about / favicon. */
-  brandIconId: string;
-  languagePreference: LanguagePreference;
-  appearance: AppearanceSettings;
-  uiScale: number;
-  fontSize: number;
-  /** Legacy persisted name; true means maximise the startup window on every desktop platform. */
-  startupFullscreen: boolean;
-  /** 启动后与定时静默检查更新；默认开启 */
-  autoCheckForUpdates: boolean;
-  /** 自动检查更新间隔（分钟），默认 30 */
-  autoCheckForUpdatesIntervalMinutes: number;
-  sqlFormatOptions: { keywordCase: "upper" | "lower" };
-  queryOptions: QueryOptions;
-  dataEditTransactionOptions: DataEditTransactionOptions;
-  sqlEditorTransactionOptions: SqlEditorTransactionOptions;
-  sqlEditorPendingTransactions: Record<string, SqlEditorPendingTransactionState>;
-  shortcutOptions: ShortcutOptions;
-  sqlSnippets: SqlSnippet[];
-  sqlLogs: SqlLog[];
-  tableExportHistories: Record<string, TableExportHistoryEntry[]>;
-  tableAccessCount: Record<string, number>;
-  tableSortPreference: Record<string, SidebarTableSortPreference>;
-  sidebarTreeOrders: SidebarTreeOrders;
-  tableDesignerSchemaByConnection: Record<string, string>;
-  tableColumnOrders: Record<string, string[]>;
-  enableColumnOrderMemory: boolean;
-  /** 数据表横向滚动时左侧固定的数据列（按表维度记忆；勾选列/行号列始终固定） */
-  tablePinnedLeftColumns: Record<string, string[]>;
-  tableHiddenColumns: Record<string, string[]>;
-  enableHiddenColumnMemory: boolean;
-  pinnedSidebarTables: string[];
-  pinnedSidebarDatabases: string[];
-  windowBounds: { width: number; height: number; x: number; y: number; dpi?: number } | null;
-  windowState: "normal" | "fullscreen" | "maximized";
-  sidebarWidth: number;
-
-  jvmDiagnosticDrafts: Record<string, JVMDiagnosticCommandDraft>;
-  jvmDiagnosticOutputs: Record<string, JVMDiagnosticEventChunk[]>;
-  setJVMDiagnosticDraft: (
-    tabId: string,
-    draft: Partial<JVMDiagnosticCommandDraft>,
-  ) => void;
-  appendJVMDiagnosticOutput: (
-    tabId: string,
-    chunks: JVMDiagnosticEventChunk[],
-  ) => void;
-  clearJVMDiagnosticOutput: (tabId: string) => void;
-
-  addConnection: (conn: SavedConnection) => void;
-  updateConnection: (conn: SavedConnection) => void;
-  removeConnection: (id: string) => void;
-  replaceConnections: (connections: SavedConnection[]) => void;
-  replaceConnectionSidebarLayout: (
-    layout: ConnectionSidebarLayoutInput,
-  ) => void;
-
-  addConnectionTag: (tag: ConnectionTag) => void;
-  updateConnectionTag: (tag: ConnectionTag) => void;
-  removeConnectionTag: (id: string) => void;
-  removeConnectionTagTree: (id: string) => void;
-  moveConnectionToTag: (
-    connectionId: string,
-    targetTagId: string | null,
-    targetToken?: string | null,
-    insertBefore?: boolean,
-  ) => void;
-  moveConnectionTag: (
-    tagId: string,
-    targetParentTagId: string | null,
-    targetToken?: string | null,
-    insertBefore?: boolean,
-  ) => void;
-  reorderConnections: (
-    connectionId: string,
-    targetConnectionId: string,
-    targetTagId: string | null,
-    insertBefore?: boolean,
-  ) => void;
-  reorderTags: (tagIds: string[]) => void;
-  reorderSidebarRoot: (
-    sourceToken: string,
-    targetToken: string,
-    insertBefore: boolean,
-  ) => void;
-  setConnectionDisplaySortMode: (tagId: string | null, mode: ConnectionDisplaySortMode) => void;
-  duplicateConnectionTag: (id: string) => string | null;
-  moveConnectionsToTag: (ids: string[], targetTagId: string | null) => void;
-
-  addTab: (tab: TabData) => void;
-  updateQueryTabDraft: (
-    id: string,
-    draft: Partial<
-      Pick<
-        TabData,
-        | "query"
-        | "connectionId"
-        | "dbName"
-        | "schemaName"
-        | "title"
-        | "resultPanelVisible"
-        | "formatRestoreSnapshot"
-      >
-    >,
-  ) => void;
-  closeTab: (id: string) => void;
-  closeOtherTabs: (id: string) => void;
-  closeTabsToLeft: (id: string) => void;
-  closeTabsToRight: (id: string) => void;
-  closeTabsByConnection: (connectionId: string) => void;
-  closeTabsByDatabase: (connectionId: string, dbName: string) => void;
-  moveTab: (sourceId: string, targetId: string) => void;
-  closeAllTabs: () => void;
-  setActiveTab: (id: string) => void;
-  setActiveContext: (
-    context: ActiveContext | null,
-  ) => void;
-  detachWorkbenchTab: (
-    tabId: string,
-    preferred?: Partial<Pick<DetachedWindowBounds, "x" | "y" | "width" | "height">>,
-  ) => void;
-  attachWorkbenchTab: (tabId: string) => void;
-  updateDetachedWorkbenchBounds: (
-    tabId: string,
-    bounds: Partial<Pick<DetachedWindowBounds, "x" | "y" | "width" | "height">>,
-  ) => void;
-  focusDetachedWorkbenchTab: (tabId: string) => void;
-  isWorkbenchTabDetached: (tabId: string) => boolean;
-  detachQueryResultWindow: (
-    windowState: Omit<DetachedQueryResultWindow, keyof DetachedWindowBounds> &
-      Partial<Pick<DetachedWindowBounds, "x" | "y" | "width" | "height">>,
-  ) => void;
-  attachQueryResultWindow: (id: string) => DetachedQueryResultWindow | null;
-  closeDetachedQueryResultWindow: (id: string) => void;
-  updateDetachedQueryResultBounds: (
-    id: string,
-    bounds: Partial<Pick<DetachedWindowBounds, "x" | "y" | "width" | "height">>,
-  ) => void;
-  focusDetachedQueryResultWindow: (id: string) => void;
-  closeDetachedQueryResultWindowsBySourceTab: (sourceQueryTabId: string) => void;
-
-  replaceSavedQueries: (queries: SavedQuery[]) => void;
-  replaceSavedQueryGroups: (groups: SavedQueryGroup[]) => void;
-  reloadSavedQueryGroups: () => Promise<SavedQueryGroup[]>;
-  saveSavedQueryGroup: (group: SavedQueryGroup) => Promise<SavedQueryGroup>;
-  deleteSavedQueryGroup: (id: string) => Promise<void>;
-  moveSavedQueryToGroup: (queryId: string, groupId?: string | null) => Promise<void>;
-  moveSavedQueryGroup: (groupId: string, parentGroupId?: string | null) => Promise<void>;
-  saveQuery: (query: SavedQuery) => Promise<SavedQuery>;
-  deleteQuery: (id: string) => Promise<void>;
-  saveExternalSQLDirectory: (directory: ExternalSQLDirectory) => void;
-  deleteExternalSQLDirectory: (id: string) => void;
-  updateRecentSQLFilePath: (previousPath: string, nextPath: string) => void;
-  removeRecentSQLFilesByPath: (filePath: string) => void;
-  moveRecentSQLFilesByDirectory: (previousDirectoryPath: string, nextDirectoryPath: string) => void;
-  removeRecentSQLFilesByDirectory: (directoryPath: string) => void;
-
-  setTheme: (theme: ThemeMode) => void;
-  setThemePreference: (themePreference: ThemePreference) => void;
-  setLanguagePreference: (languagePreference: LanguagePreference) => void;
-  setAppearance: (appearance: Partial<AppearanceSettings>) => void;
-  setRedisDbAlias: (
-    connectionId: string,
-    dbIndex: number,
-    alias: string,
-  ) => void;
-  setUiScale: (scale: number) => void;
-  setFontSize: (size: number) => void;
-  setStartupFullscreen: (enabled: boolean) => void;
-  setAutoCheckForUpdates: (enabled: boolean) => void;
-  setAutoCheckForUpdatesIntervalMinutes: (minutes: number) => void;
-  setSqlFormatOptions: (options: { keywordCase: "upper" | "lower" }) => void;
-  setQueryOptions: (options: Partial<QueryOptions>) => void;
-  setDataEditTransactionOptions: (
-    options: Partial<DataEditTransactionOptions>,
-  ) => void;
-  setSqlEditorTransactionOptions: (
-    options: Partial<SqlEditorTransactionOptions>,
-  ) => void;
-  setSqlEditorPendingTransaction: (
-    tabId: string,
-    transaction: Omit<SqlEditorPendingTransactionState, "tabId"> | null,
-  ) => void;
-  updateShortcut: (
-    action: ShortcutAction,
-    binding: Partial<ShortcutPlatformBinding>,
-    platform?: ShortcutPlatform,
-  ) => void;
-  resetShortcutOptions: () => void;
-  saveSqlSnippet: (snippet: SqlSnippet) => void;
-  deleteSqlSnippet: (id: string) => void;
-  resetBuiltinSqlSnippet: (id: string) => void;
-
-  addSqlLog: (log: SqlLog) => void;
-  hideSqlLogFromRecent: (id: string) => void;
-  clearRecentSqlLogs: () => void;
-  clearSqlLogs: () => void;
-  upsertTableExportHistory: (
-    historyKey: string,
-    entry: TableExportHistoryEntry,
-  ) => void;
-
-  recordTableAccess: (
-    connectionId: string,
-    dbName: string,
-    tableName: string,
-  ) => void;
-  setTableSortPreference: (
-    connectionId: string,
-    dbName: string,
-    sortBy: SidebarTableSortPreference,
-  ) => void;
-  updateSidebarTreeOrders: (updates: SidebarTreeOrderUpdates) => void;
-  setTableDesignerSchema: (connectionId: string, schemaName: string) => void;
-  setSidebarTablePinned: (
-    connectionId: string,
-    dbName: string,
-    tableName: string,
-    schemaName: string | undefined,
-    pinned: boolean,
-  ) => void;
-  setSidebarDatabasePinned: (
-    connectionId: string,
-    dbName: string,
-    pinned: boolean,
-  ) => void;
-  setConnectionTypePinned: (dbType: string, pinned: boolean) => void;
-  setTableColumnOrder: (
-    connectionId: string,
-    dbName: string,
-    tableName: string,
-    order: string[],
-  ) => void;
-  setEnableColumnOrderMemory: (enabled: boolean) => void;
-  clearTableColumnOrder: (
-    connectionId: string,
-    dbName: string,
-    tableName: string,
-  ) => void;
-  setTablePinnedLeftColumns: (
-    connectionId: string,
-    dbName: string,
-    tableName: string,
-    columns: string[],
-  ) => void;
-  clearTablePinnedLeftColumns: (
-    connectionId: string,
-    dbName: string,
-    tableName: string,
-  ) => void;
-
-  setTableHiddenColumns: (
-    connectionId: string,
-    dbName: string,
-    tableName: string,
-    hiddenColumns: string[],
-  ) => void;
-  setEnableHiddenColumnMemory: (enabled: boolean) => void;
-  clearTableHiddenColumns: (
-    connectionId: string,
-    dbName: string,
-    tableName: string,
-  ) => void;
-  setWindowBounds: (bounds: {
-    width: number;
-    height: number;
-    x: number;
-    y: number;
-    dpi?: number;
-  }) => void;
-  setWindowState: (state: "normal" | "fullscreen" | "maximized") => void;
-  setSidebarWidth: (width: number) => void;
-
-}
-
-
-const sanitizeSqlSnippets = (value: unknown): SqlSnippet[] => {
-  if (!Array.isArray(value)) return DEFAULT_SQL_SNIPPETS;
-  const result: SqlSnippet[] = [];
-  const seenIds = new Set<string>();
-  value.forEach((entry, index) => {
-    if (!entry || typeof entry !== "object") return;
-    const raw = entry as Record<string, unknown>;
-    const prefix = toTrimmedString(raw.prefix)
-      .toLowerCase()
-      .replace(/[^a-z0-9_]/g, "")
-      .slice(0, 20);
-    const body = typeof raw.body === "string" ? raw.body : "";
-    if (!prefix || !body.trim()) return;
-    const id = toTrimmedString(raw.id, `snippet-${index + 1}`) || `snippet-${index + 1}`;
-    const fallbackName = indexedStoreFallback(
-      "store.fallback.sql_snippet_name",
-      index,
-    );
-    if (seenIds.has(id)) return;
-    seenIds.add(id);
-    result.push({
-      id,
-      prefix,
-      name: toTrimmedString(raw.name, fallbackName) || fallbackName,
-      description: toTrimmedString(raw.description) || undefined,
-      syntaxHelp: toTrimmedString(raw.syntaxHelp) || undefined,
-      body,
-      isBuiltin: raw.isBuiltin === true,
-      createdAt: Number.isFinite(Number(raw.createdAt))
-        ? Number(raw.createdAt)
-        : Date.now(),
-    });
-  });
-  return result;
-};
-
-const resolveExternalSQLDirectoryName = (name: unknown, path: string): string => {
-  const explicitName = toTrimmedString(name);
-  if (explicitName) return explicitName;
-  const pathSegment = path.split(/[\\/]/).filter(Boolean).pop();
-  return pathSegment || translate("sidebar.sql_directory.default_name");
-};
-
-const sanitizeExternalSQLFileBindings = (
-  value: unknown,
-): NonNullable<ExternalSQLDirectory["fileBindings"]> => {
-  if (!Array.isArray(value)) return [];
-  const bindings = new Map<string, NonNullable<ExternalSQLDirectory["fileBindings"]>[number]>();
-  value.forEach((entry) => {
-    if (!entry || typeof entry !== "object") return;
-    const raw = entry as Record<string, unknown>;
-    const filePath = normalizeExternalSQLPath(toTrimmedString(raw.filePath));
-    const connectionId = toTrimmedString(raw.connectionId);
-    const dbName = toTrimmedString(raw.dbName);
-    // dbName intentionally stays optional for a file binding: an empty value
-    // means "connect to this host without selecting a default database".
-    if (!filePath || !connectionId) return;
-    bindings.set(filePath, { filePath, connectionId, dbName });
-  });
-  return [...bindings.values()];
-};
-
-const sanitizeExternalSQLDirectories = (
-  value: unknown,
-): ExternalSQLDirectory[] => {
-  if (!Array.isArray(value)) return [];
-  const result: ExternalSQLDirectory[] = [];
-  const seenDirectoryIds = new Set<string>();
-  value.forEach((entry) => {
-    if (!entry || typeof entry !== "object") return;
-    const raw = entry as Record<string, unknown>;
-    const path = toTrimmedString(raw.path);
-    if (!path) return;
-    const connectionId = toTrimmedString(raw.connectionId);
-    const dbName = toTrimmedString(raw.dbName);
-    const fileBindings = sanitizeExternalSQLFileBindings(raw.fileBindings);
-    const id =
-      toTrimmedString(
-        raw.id,
-        buildExternalSQLDirectoryId(connectionId, dbName, path),
-      ) || buildExternalSQLDirectoryId(connectionId, dbName, path);
-    if (seenDirectoryIds.has(id)) return;
-    seenDirectoryIds.add(id);
-    result.push({
-      id,
-      name: resolveExternalSQLDirectoryName(raw.name, path),
-      path,
-      ...(connectionId ? { connectionId } : {}),
-      ...(dbName ? { dbName } : {}),
-      ...(fileBindings.length > 0 ? { fileBindings } : {}),
-      createdAt: Number.isFinite(Number(raw.createdAt))
-        ? Number(raw.createdAt)
-        : Date.now(),
-    });
-  });
-  return result;
-};
-
-const normalizeRecentTargetTimestamp = (value: unknown): number => {
-  const timestamp = Number(value);
-  return Number.isFinite(timestamp) && timestamp > 0
-    ? Math.trunc(timestamp)
-    : 0;
-};
-
-const buildRecentConnectionTargetKey = (
-  connectionId: string,
-  dbName?: string,
-): string => `${connectionId}::${String(dbName || '')}`;
-
-const buildRecentSQLFileKey = (
-  connectionId: string,
-  dbName: string | undefined,
-  filePath: string,
-): string => [
-  connectionId,
-  String(dbName || ''),
-  filePath.replace(/\\/g, '/'),
-].join('::');
-
-const sanitizeRecentConnectionTargets = (
-  value: unknown,
-): RecentConnectionTarget[] => {
-  if (!Array.isArray(value)) return [];
-
-  const candidates = value.flatMap((entry): RecentConnectionTarget[] => {
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
-    const raw = entry as Record<string, unknown>;
-    const connectionId = toTrimmedString(raw.connectionId);
-    if (!connectionId || connectionId.length > 256) return [];
-    const dbName = toTrimmedString(raw.dbName).slice(0, MAX_RECENT_TARGET_DATABASE_LENGTH);
-    return [{
-      connectionId,
-      ...(dbName ? { dbName } : {}),
-      openedAt: normalizeRecentTargetTimestamp(raw.openedAt),
-    }];
-  }).sort((left, right) => right.openedAt - left.openedAt);
-
-  const seen = new Set<string>();
-  return candidates.filter((target) => {
-    const key = buildRecentConnectionTargetKey(target.connectionId, target.dbName);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).slice(0, MAX_RECENT_WORKBENCH_TARGETS);
-};
-
-const resolveRecentSQLFileName = (filePath: string, title: unknown): string => {
-  const fallbackName = filePath.split(/[\\/]/).filter(Boolean).pop() || filePath;
-  return (toTrimmedString(title) || fallbackName).slice(0, MAX_RECENT_SQL_FILE_NAME_LENGTH);
-};
-
-const normalizeRecentSQLPath = (value: unknown): string => {
-  const normalized = toTrimmedString(value).replace(/\\/g, '/');
-  return normalized === '/' ? normalized : normalized.replace(/\/+$/, '');
-};
-
-const isRecentSQLPathInDirectory = (filePath: string, directoryPath: string): boolean => {
-  const normalizedFilePath = normalizeRecentSQLPath(filePath);
-  const normalizedDirectoryPath = normalizeRecentSQLPath(directoryPath);
-  if (!normalizedDirectoryPath) return false;
-  if (normalizedDirectoryPath === '/') return normalizedFilePath.startsWith('/');
-  return normalizedFilePath === normalizedDirectoryPath
-    || normalizedFilePath.startsWith(`${normalizedDirectoryPath}/`);
-};
-
-const relocateRecentSQLFilePath = (
-  filePath: string,
-  previousDirectoryPath: string,
-  nextDirectoryPath: string,
-): string => {
-  const normalizedPreviousDirectoryPath = normalizeRecentSQLPath(previousDirectoryPath);
-  const normalizedFilePath = normalizeRecentSQLPath(filePath);
-  const normalizedNextDirectoryPath = normalizeRecentSQLPath(nextDirectoryPath);
-  if (!normalizedPreviousDirectoryPath || !normalizedNextDirectoryPath) return filePath;
-  const suffix = normalizedFilePath.slice(normalizedPreviousDirectoryPath.length);
-  const rawNextDirectoryPath = toTrimmedString(nextDirectoryPath).replace(/[\\/]+$/, '');
-  const separator = rawNextDirectoryPath.includes('\\') ? '\\' : '/';
-  return `${rawNextDirectoryPath}${suffix.replace(/\//g, separator)}`;
-};
-
-const sanitizeRecentSQLFiles = (value: unknown): RecentSQLFile[] => {
-  if (!Array.isArray(value)) return [];
-
-  const candidates = value.flatMap((entry): RecentSQLFile[] => {
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
-    const raw = entry as Record<string, unknown>;
-    const connectionId = toTrimmedString(raw.connectionId);
-    const filePath = toTrimmedString(raw.filePath).slice(0, MAX_URI_LENGTH);
-    if (!connectionId || connectionId.length > 256 || !filePath) return [];
-    const dbName = toTrimmedString(raw.dbName).slice(0, MAX_RECENT_TARGET_DATABASE_LENGTH);
-    const fileName = resolveRecentSQLFileName(filePath, raw.fileName);
-    if (!fileName) return [];
-    return [{
-      filePath,
-      fileName,
-      connectionId,
-      ...(dbName ? { dbName } : {}),
-      openedAt: normalizeRecentTargetTimestamp(raw.openedAt),
-    }];
-  }).sort((left, right) => right.openedAt - left.openedAt);
-
-  const seen = new Set<string>();
-  return candidates.filter((file) => {
-    const key = buildRecentSQLFileKey(file.connectionId, file.dbName, file.filePath);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).slice(0, MAX_RECENT_SQL_FILES);
-};
-
-const prependRecentConnectionTarget = (
-  existing: RecentConnectionTarget[],
-  tab: Pick<TabData, 'connectionId' | 'dbName'>,
-): RecentConnectionTarget[] => {
-  const connectionId = toTrimmedString(tab.connectionId);
-  if (!connectionId) return existing;
-  const dbName = toTrimmedString(tab.dbName).slice(0, MAX_RECENT_TARGET_DATABASE_LENGTH);
-  const target: RecentConnectionTarget = {
-    connectionId,
-    ...(dbName ? { dbName } : {}),
-    openedAt: Date.now(),
-  };
-  const key = buildRecentConnectionTargetKey(target.connectionId, target.dbName);
-  return [
-    target,
-    ...existing.filter((item) => buildRecentConnectionTargetKey(item.connectionId, item.dbName) !== key),
-  ].slice(0, MAX_RECENT_WORKBENCH_TARGETS);
-};
-
-const prependRecentSQLFile = (
-  existing: RecentSQLFile[],
-  tab: Pick<TabData, 'connectionId' | 'dbName' | 'filePath' | 'title'>,
-): RecentSQLFile[] => {
-  const connectionId = toTrimmedString(tab.connectionId);
-  const filePath = toTrimmedString(tab.filePath).slice(0, MAX_URI_LENGTH);
-  if (!connectionId || !filePath) return existing;
-  const dbName = toTrimmedString(tab.dbName).slice(0, MAX_RECENT_TARGET_DATABASE_LENGTH);
-  const file: RecentSQLFile = {
-    filePath,
-    fileName: resolveRecentSQLFileName(filePath, tab.title),
-    connectionId,
-    ...(dbName ? { dbName } : {}),
-    openedAt: Date.now(),
-  };
-  const key = buildRecentSQLFileKey(file.connectionId, file.dbName, file.filePath);
-  return [
-    file,
-    ...existing.filter((item) => buildRecentSQLFileKey(item.connectionId, item.dbName, item.filePath) !== key),
-  ].slice(0, MAX_RECENT_SQL_FILES);
-};
-
-const resolveRecentWorkbenchEntries = (
-  state: Pick<AppState, 'recentConnectionTargets' | 'recentSQLFiles'>,
-  tab: TabData,
-): Pick<AppState, 'recentConnectionTargets' | 'recentSQLFiles'> => ({
-  recentConnectionTargets: prependRecentConnectionTarget(
-    state.recentConnectionTargets,
-    tab,
-  ),
-  recentSQLFiles: prependRecentSQLFile(state.recentSQLFiles, tab),
-});
-
-const sanitizeTableExportHistoryEntry = (
-  value: unknown,
-): TableExportHistoryEntry | null => {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-  const raw = value as Record<string, unknown>;
-  const jobId = toTrimmedString(raw.jobId);
-  if (!jobId) {
-    return null;
-  }
-  const normalizeCount = (input: unknown): number => {
-    const next = Number(input);
-    if (!Number.isFinite(next) || next < 0) {
-      return 0;
-    }
-    return Math.trunc(next);
-  };
-  const normalizeTimestamp = (input: unknown): number => {
-    const next = Number(input);
-    if (!Number.isFinite(next) || next <= 0) {
-      return 0;
-    }
-    return Math.trunc(next);
-  };
-  const statusRaw = toTrimmedString(raw.status).toLowerCase();
-  const status: TableExportHistoryEntry["status"] =
-    statusRaw === "start" ||
-    statusRaw === "running" ||
-    statusRaw === "finalizing" ||
-    statusRaw === "done" ||
-    statusRaw === "error"
-      ? statusRaw
-      : "idle";
-  return {
-    jobId,
-    targetName:
-      toTrimmedString(raw.targetName, translate("data_export.progress.value.target_fallback")) ||
-      translate("data_export.progress.value.target_fallback"),
-    startedAt: normalizeTimestamp(raw.startedAt),
-    finishedAt: normalizeTimestamp(raw.finishedAt),
-    format: toTrimmedString(raw.format).slice(0, 32),
-    scope: toTrimmedString(raw.scope).slice(0, 64),
-    scopeLabel: toTrimmedString(raw.scopeLabel).slice(0, 128),
-    strategyLabel: toTrimmedString(raw.strategyLabel).slice(0, 128),
-    status,
-    stage: toTrimmedString(raw.stage).slice(0, 256),
-    current: normalizeCount(raw.current),
-    total: normalizeCount(raw.total),
-    totalRowsKnown: raw.totalRowsKnown === true,
-    filePath: toTrimmedString(raw.filePath).slice(0, MAX_URI_LENGTH),
-    message: toTrimmedString(raw.message).slice(0, MAX_PERSISTED_SQL_LOG_MESSAGE_LENGTH),
-  };
-};
-
-const sanitizeTableExportHistories = (
-  value: unknown,
-): Record<string, TableExportHistoryEntry[]> => {
-  if (!value || typeof value !== "object") {
-    return {};
-  }
-  const raw = value as Record<string, unknown>;
-  const entries = Object.entries(raw)
-    .filter(([key, history]) => toTrimmedString(key) && Array.isArray(history))
-    .slice(0, MAX_TABLE_EXPORT_HISTORY_TARGETS);
-  const result: Record<string, TableExportHistoryEntry[]> = {};
-  entries.forEach(([key, history]) => {
-    const seenJobIds = new Set<string>();
-    const sanitizedHistory = (history as unknown[])
-      .map((entry) => sanitizeTableExportHistoryEntry(entry))
-      .filter((entry): entry is TableExportHistoryEntry => !!entry)
-      .filter((entry) => entry.status === "done" || entry.status === "error")
-      .filter((entry) => {
-        if (seenJobIds.has(entry.jobId)) {
-          return false;
-        }
-        seenJobIds.add(entry.jobId);
-        return true;
-      })
-      .sort((a, b) => {
-        const timeA = a.finishedAt || a.startedAt || 0;
-        const timeB = b.finishedAt || b.startedAt || 0;
-        return timeB - timeA;
-      })
-      .slice(0, MAX_TABLE_EXPORT_HISTORY_PER_TARGET);
-    if (sanitizedHistory.length > 0) {
-      result[toTrimmedString(key)] = sanitizedHistory;
-    }
-  });
-  return result;
-};
-
-const sanitizeQueryTabs = (value: unknown): TabData[] => {
-  const entries = Array.isArray(value) ? value : [];
-  const result: TabData[] = [];
-  const seenIds = new Set<string>();
-
-  entries.forEach((entry, index) => {
-    if (!entry || typeof entry !== "object") return;
-    const raw = entry as Record<string, unknown>;
-    if (raw.type !== "query") return;
-
-    let id = toTrimmedString(raw.id, `query-${index + 1}`) || `query-${index + 1}`;
-    const persistedDraft = getPersistedQueryTabDraftEntry(id);
-    const query =
-      typeof raw.query === "string" && raw.query.trim()
-        ? raw.query.slice(0, MAX_PERSISTED_QUERY_LENGTH)
-        : String(persistedDraft?.query || "").slice(
-            0,
-            MAX_PERSISTED_QUERY_LENGTH,
-          );
-    const filePath = toTrimmedString(raw.filePath, persistedDraft?.filePath);
-    const savedQueryId = toTrimmedString(
-      raw.savedQueryId,
-      persistedDraft?.savedQueryId,
-    );
-    const rawFormatRestoreSnapshot =
-      raw.formatRestoreSnapshot && typeof raw.formatRestoreSnapshot === "object"
-        ? (raw.formatRestoreSnapshot as Record<string, unknown>)
-        : null;
-    const formatRestoreQuery =
-      typeof rawFormatRestoreSnapshot?.query === "string"
-        ? rawFormatRestoreSnapshot.query.slice(0, MAX_PERSISTED_QUERY_LENGTH)
-        : "";
-    const formatRestoreCreatedAt = Number(rawFormatRestoreSnapshot?.createdAt);
-    if (!query.trim() && !filePath && !savedQueryId) return;
-
-    if (seenIds.has(id)) {
-      id = `${id}-${index + 1}`;
-    }
-    seenIds.add(id);
-
-    // object-edit 身份字段必须随 tab 持久化，否则重启/刷新后
-    // 侧栏定位按钮会因解析不到对象身份而禁用。
-    const isObjectEditTab = raw.queryMode === "object-edit";
-    const asViewKind = (value: unknown): TabData["viewKind"] =>
-      value === "view" || value === "materialized" ? value : undefined;
-    const asObjectType = (value: unknown): TabData["objectType"] =>
-      value === "view" || value === "materialized-view" || value === "table"
-        ? value
-        : undefined;
-    const objectEditIdentity = isObjectEditTab
-      ? {
-          routineName: toTrimmedString(raw.routineName).slice(0, 256) || undefined,
-          routineType: toTrimmedString(raw.routineType).slice(0, 64) || undefined,
-          viewName: toTrimmedString(raw.viewName).slice(0, 256) || undefined,
-          viewKind: asViewKind(raw.viewKind),
-          objectType: asObjectType(raw.objectType),
-          sequenceName: toTrimmedString(raw.sequenceName).slice(0, 256) || undefined,
-          packageName: toTrimmedString(raw.packageName).slice(0, 256) || undefined,
-          triggerName: toTrimmedString(raw.triggerName).slice(0, 256) || undefined,
-          triggerTableName:
-            toTrimmedString(raw.triggerTableName).slice(0, 256) || undefined,
-          eventName: toTrimmedString(raw.eventName).slice(0, 256) || undefined,
-          sidebarLocateKey:
-            toTrimmedString(raw.sidebarLocateKey).slice(0, 512) || undefined,
-          returnToTabId:
-            toTrimmedString(raw.returnToTabId).slice(0, 256) || undefined,
-        }
-      : undefined;
-
-    result.push({
-      id,
-      title:
-        toTrimmedString(
-          raw.title,
-          toTrimmedString(
-            persistedDraft?.title,
-            translate("sidebar.tab.new_query"),
-          ),
-        ) ||
-        translate("sidebar.tab.new_query"),
-      type: "query",
-      connectionId: toTrimmedString(
-        raw.connectionId,
-        persistedDraft?.connectionId,
-      ),
-      dbName: toTrimmedString(raw.dbName, persistedDraft?.dbName),
-      schemaName: toTrimmedString(raw.schemaName).slice(0, 256) || undefined,
-      query,
-      resultPanelVisible:
-        typeof raw.resultPanelVisible === "boolean"
-          ? raw.resultPanelVisible
-          : undefined,
-      queryMode: isObjectEditTab ? "object-edit" : undefined,
-      ...(objectEditIdentity || {}),
-      filePath: filePath || undefined,
-      savedQueryId: savedQueryId || undefined,
-      readOnly: raw.readOnly === true || persistedDraft?.readOnly === true,
-      formatRestoreSnapshot: formatRestoreQuery
-        ? {
-            query: formatRestoreQuery,
-            createdAt: Number.isFinite(formatRestoreCreatedAt)
-              ? formatRestoreCreatedAt
-              : Date.now(),
-          }
-        : undefined,
-    });
-  });
-
-  listPersistedQueryTabDraftEntries().forEach((entry) => {
-    if (seenIds.has(entry.tabId)) {
-      return;
-    }
-    const filePath = toTrimmedString(entry.filePath);
-    const savedQueryId = toTrimmedString(entry.savedQueryId);
-    if (!entry.query.trim() && !filePath && !savedQueryId) {
-      return;
-    }
-    seenIds.add(entry.tabId);
-    result.push({
-      id: entry.tabId,
-      title:
-        toTrimmedString(entry.title, translate("sidebar.tab.new_query")) ||
-        translate("sidebar.tab.new_query"),
-      type: "query",
-      connectionId: toTrimmedString(entry.connectionId),
-      dbName: toTrimmedString(entry.dbName) || undefined,
-      query: entry.query.slice(0, MAX_PERSISTED_QUERY_LENGTH),
-      filePath: filePath || undefined,
-      savedQueryId: savedQueryId || undefined,
-      readOnly: entry.readOnly === true,
-    });
-  });
-
-  return result.slice(0, MAX_PERSISTED_QUERY_TABS);
-};
-
-const sanitizeActiveTabId = (activeTabId: unknown, tabs: TabData[]): string | null => {
-  const id = toTrimmedString(activeTabId);
-  if (id && tabs.some((tab) => tab.id === id)) {
-    return id;
-  }
-  return tabs[0]?.id || null;
-};
-
-const resolveCloseTabActiveTabId = (
-  closedTab: TabData | undefined,
-  newTabs: TabData[],
-): string | null => {
-  const returnToTabId = toTrimmedString(closedTab?.returnToTabId);
-  if (returnToTabId && newTabs.some((tab) => tab.id === returnToTabId)) {
-    return returnToTabId;
-  }
-  return newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null;
-};
-
-const resolveActiveContextFromTab = (
-  tab: TabData | null | undefined,
-): ActiveContext | null => {
-  if (!tab) return null;
-  const connectionId = toTrimmedString(tab.connectionId);
-  if (!connectionId) return null;
-  const schemaName = toTrimmedString(tab.schemaName);
-  const tableName = toTrimmedString(
-    tab.tableName
-    || tab.viewName
-    || tab.triggerName
-    || tab.eventName
-    || tab.routineName
-    || tab.sequenceName
-    || tab.packageName,
-  );
-  return {
-    connectionId,
-    dbName: toTrimmedString(tab.dbName),
-    ...(schemaName ? { schemaName } : {}),
-    ...(tableName ? { tableName } : {}),
-  };
-};
-
-const activeContextMatchesTab = (
-  context: ActiveContext | null | undefined,
-  tab: TabData | null | undefined,
-): boolean => {
-  const tabContext = resolveActiveContextFromTab(tab);
-  if (!context || !tabContext) return false;
-  return (
-    context.connectionId === tabContext.connectionId
-    && context.dbName === tabContext.dbName
-    && toTrimmedString(context.schemaName) === toTrimmedString(tabContext.schemaName)
-    && toTrimmedString(context.tableName) === toTrimmedString(tabContext.tableName)
-  );
-};
-
-const resolveActiveContextForTabId = (
-  tabs: TabData[],
-  activeTabId: string | null | undefined,
-  fallbackContext: ActiveContext | null,
-): ActiveContext | null => {
-  const normalizedActiveTabId = toTrimmedString(activeTabId);
-  if (normalizedActiveTabId) {
-    const activeTab = tabs.find((tab) => tab.id === normalizedActiveTabId);
-    const contextFromTab = resolveActiveContextFromTab(activeTab);
-    if (contextFromTab) {
-      return contextFromTab;
-    }
-  }
-  return fallbackContext;
-};
-
-const isRunningDataImportTab = (tab: TabData | undefined): boolean => (
-  tab?.type === "data-import" && tab.dataImportRunning === true
-);
 
 type SqlLogSanitizeOptions = {
   limit: number;
@@ -2898,41 +745,6 @@ const appendRuntimeSqlLog = (existing: SqlLog[], entry: SqlLog): SqlLog[] => {
     : nextLogs;
 };
 
-const hasLegacyConnectionSecrets = (
-  connections: SavedConnection[],
-): boolean => {
-  return connections.some((connection) => {
-    const config =
-      connection?.config && typeof connection.config === "object"
-        ? (connection.config as unknown as Record<string, unknown>)
-        : {};
-    const ssh =
-      config.ssh && typeof config.ssh === "object"
-        ? (config.ssh as Record<string, unknown>)
-        : {};
-    const proxy =
-      config.proxy && typeof config.proxy === "object"
-        ? (config.proxy as Record<string, unknown>)
-        : {};
-    const httpTunnel =
-      config.httpTunnel && typeof config.httpTunnel === "object"
-        ? (config.httpTunnel as Record<string, unknown>)
-        : {};
-
-    return (
-      toTrimmedString(config.password) !== "" ||
-      toTrimmedString(ssh.password) !== "" ||
-      toTrimmedString(proxy.password) !== "" ||
-      toTrimmedString(httpTunnel.password) !== "" ||
-      toTrimmedString(config.mysqlReplicaPassword) !== "" ||
-      toTrimmedString(config.mongoReplicaPassword) !== "" ||
-      toTrimmedString(config.redisSentinelPassword) !== "" ||
-      toTrimmedString(config.uri) !== "" ||
-      toTrimmedString(config.dsn) !== ""
-    );
-  });
-};
-
 const sanitizeTheme = (value: unknown): ThemeMode =>
   value === "dark" ? "dark" : "light";
 
@@ -2957,220 +769,37 @@ const sanitizeLanguagePreference = (value: unknown): LanguagePreference => {
   return DEFAULT_LANGUAGE_PREFERENCE;
 };
 
-const sanitizeSqlFormatOptions = (
-  value: unknown,
-): { keywordCase: "upper" | "lower" } => {
-  const raw =
-    value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : {};
-  return { keywordCase: raw.keywordCase === "lower" ? "lower" : "upper" };
-};
-
-const sanitizeQueryOptions = (value: unknown): QueryOptions => {
-  const raw =
-    value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : {};
-  const maxRows = Number(raw.maxRows);
-  const wordWrap = raw.wordWrap === true;
-  const tableOverviewViewMode =
-    raw.tableOverviewViewMode === "card" ||
-    raw.tableOverviewViewMode === "list" ||
-    raw.tableOverviewViewMode === "table"
-      ? raw.tableOverviewViewMode
-      : undefined;
-  const showColumnComment =
-    typeof raw.showColumnComment === "boolean" ? raw.showColumnComment : true;
-  const showSidebarTableComment =
-    typeof raw.showSidebarTableComment === "boolean"
-      ? raw.showSidebarTableComment
-      : true;
-  const showColumnType =
-    typeof raw.showColumnType === "boolean" ? raw.showColumnType : true;
-  const alignNumericTemporalCellsRight =
-    typeof raw.alignNumericTemporalCellsRight === "boolean"
-      ? raw.alignNumericTemporalCellsRight
-      : false;
-  const showQueryResultsPanel =
-    typeof raw.showQueryResultsPanel === "boolean" ? raw.showQueryResultsPanel : false;
-  const queryEditorEditorHeightRatio = sanitizeQueryEditorEditorHeightRatio(
-    raw.queryEditorEditorHeightRatio,
-  );
-  if (!Number.isFinite(maxRows) || maxRows < 0) {
-    return {
-      maxRows: 5000,
-      wordWrap,
-      tableOverviewViewMode,
-      showColumnComment,
-      showSidebarTableComment: showSidebarTableComment,
-      showColumnType,
-      alignNumericTemporalCellsRight,
-      showQueryResultsPanel,
-      queryEditorEditorHeightRatio,
-    };
-  }
-  return {
-    maxRows: Math.min(50000, Math.trunc(maxRows)),
-    wordWrap,
-    tableOverviewViewMode,
-    showColumnComment,
-    showSidebarTableComment: showSidebarTableComment,
-    showColumnType,
-    alignNumericTemporalCellsRight,
-    showQueryResultsPanel,
-    queryEditorEditorHeightRatio,
-  };
-};
-
-const DATA_EDIT_AUTO_COMMIT_DELAY_OPTIONS = new Set([3000, 5000, 10000, 30000]);
-const SQL_EDITOR_AUTO_COMMIT_DELAY_OPTIONS = new Set([0, 3000, 5000, 10000, 30000]);
-
-const sanitizeDataEditTransactionOptions = (
-  value: unknown,
-): DataEditTransactionOptions => {
-  const raw =
-    value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : {};
-  const autoCommitDelayMs = Number(raw.autoCommitDelayMs);
-  return {
-    commitMode: raw.commitMode === "auto" ? "auto" : "manual",
-    autoCommitDelayMs: DATA_EDIT_AUTO_COMMIT_DELAY_OPTIONS.has(autoCommitDelayMs)
-      ? autoCommitDelayMs
-      : 5000,
-  };
-};
-
-const sanitizeSqlEditorTransactionOptions = (
-  value: unknown,
-): SqlEditorTransactionOptions => {
-  const raw =
-    value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : {};
-  const autoCommitDelayMs = Number(raw.autoCommitDelayMs);
-  return {
-    commitMode: raw.commitMode === "auto" ? "auto" : "manual",
-    autoCommitDelayMs: SQL_EDITOR_AUTO_COMMIT_DELAY_OPTIONS.has(autoCommitDelayMs)
-      ? autoCommitDelayMs
-      : 0,
-  };
-};
-
-const sanitizeTableSortPreference = (
-  value: unknown,
-): Record<string, SidebarTableSortPreference> => {
-  const raw =
-    value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : {};
-  const result: Record<string, SidebarTableSortPreference> = {};
-  Object.entries(raw).forEach(([key, preference]) => {
-    result[key] = preference === "frequency" || preference === "manual" ? preference : "name";
-  });
-  return result;
-};
-
-const sanitizeTableDesignerSchemaByConnection = (
-  value: unknown,
-): Record<string, string> => {
-  const raw =
-    value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : {};
-  const result: Record<string, string> = {};
-  Object.entries(raw).forEach(([connectionId, schemaName]) => {
-    const safeConnectionId = toTrimmedString(connectionId);
-    const safeSchemaName = toTrimmedString(schemaName).slice(0, 256);
-    if (safeConnectionId && safeSchemaName) {
-      result[safeConnectionId] = safeSchemaName;
-    }
-  });
-  return result;
-};
-
-const sanitizeTableColumnOrders = (
-  value: unknown,
-): Record<string, string[]> => {
-  const raw =
-    value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : {};
-  const result: Record<string, string[]> = {};
-  Object.entries(raw).forEach(([key, orderArray]) => {
-    if (Array.isArray(orderArray)) {
-      result[key] = orderArray.map((col) => String(col));
-    }
-  });
-  return result;
-};
-
-const sanitizeTableHiddenColumns = (
-  value: unknown,
-): Record<string, string[]> => {
-  const raw =
-    value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : {};
-  const result: Record<string, string[]> = {};
-  Object.entries(raw).forEach(([key, hiddenArray]) => {
-    if (Array.isArray(hiddenArray)) {
-      result[key] = hiddenArray.map((col) => String(col));
-    }
-  });
-  return result;
-};
-
-const sanitizePinnedSidebarTables = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-  return Array.from(
-    new Set(
-      value
-        .map((entry) => toTrimmedString(entry))
-        .filter(Boolean),
-    ),
+const sanitizeV2SidebarRailScale = (value: unknown): number => {
+  return normalizeFloatInRange(
+    value,
+    DEFAULT_V2_SIDEBAR_RAIL_SCALE,
+    MIN_V2_SIDEBAR_RAIL_SCALE,
+    MAX_V2_SIDEBAR_RAIL_SCALE,
   );
 };
 
-const sanitizePinnedConnectionTypes = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-  return Array.from(
-    new Set(
-      value
-        .map((entry) => toTrimmedString(entry).toLowerCase())
-        .filter((entry) => /^[a-z0-9][a-z0-9_-]{0,63}$/.test(entry)),
-    ),
-  ).slice(0, 64);
+const sanitizeTabEnvironmentAccentThickness = (value: unknown): number => {
+  return normalizeIntegerInRange(
+    value,
+    DEFAULT_TAB_ENVIRONMENT_ACCENT_THICKNESS,
+    MIN_TAB_ENVIRONMENT_ACCENT_THICKNESS,
+    MAX_TAB_ENVIRONMENT_ACCENT_THICKNESS,
+  );
 };
 
-export const updatePinnedConnectionTypeKeys = (
-  pinnedTypes: unknown,
-  dbType: string,
-  pinned: boolean,
-): string[] => {
-  const current = sanitizePinnedConnectionTypes(pinnedTypes);
-  const normalizedType = toTrimmedString(dbType).toLowerCase();
-  if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(normalizedType)) {
-    return current;
-  }
-  const withoutCurrent = current.filter((entry) => entry !== normalizedType);
-  return pinned ? [normalizedType, ...withoutCurrent] : withoutCurrent;
-};
-
-const isLegacyDefaultTabDisplaySettings = (value: unknown): boolean => {
+const isLegacyDefaultAppearance = (value: Partial<AppearanceSettings> | undefined): boolean => {
   if (!value || typeof value !== "object") return false;
-  const raw = value as Partial<TabDisplaySettings>;
-  return raw.layout === "single"
-    && Array.isArray(raw.primaryElements)
-    && raw.primaryElements.length === 3
-    && raw.primaryElements[0] === "connection"
-    && raw.primaryElements[1] === "kind"
-    && raw.primaryElements[2] === "object"
-    && Array.isArray(raw.secondaryElements)
-    && raw.secondaryElements.length === 0
-    && raw.single === undefined
-    && raw.double === undefined;
+  const KEYS = ["opacity", "blur", "uiScale", "fontSize"] as const;
+  const DEFAULTS: Record<string, number> = {
+    opacity: 1,
+    blur: 0,
+    uiScale: 1,
+    fontSize: 14,
+  };
+  return KEYS.every((key) => {
+    const raw = (value as Record<string, unknown>)[key];
+    return raw === undefined || raw === DEFAULTS[key];
+  });
 };
 
 const sanitizeAppearance = (
@@ -3184,7 +813,7 @@ const sanitizeAppearance = (
   const sqlEditorTypographySettings = version < SQL_EDITOR_FONT_SIZE_SPLIT_VERSION
     ? migrateLegacySqlEditorTypographySettings(dataGridDisplaySettings)
     : sanitizeSqlEditorTypographySettings(appearance);
-  const nextAppearance = {
+  const nextAppearance: AppearanceSettings = {
     enabled:
       typeof appearance.enabled === "boolean"
         ? appearance.enabled
@@ -3197,12 +826,6 @@ const sanitizeAppearance = (
       typeof appearance.blur === "number"
         ? appearance.blur
         : DEFAULT_APPEARANCE.blur,
-    tableDoubleClickAction: sanitizeTableDoubleClickAction(
-      appearance.tableDoubleClickAction,
-    ),
-    queryTableCtrlClickAction: sanitizeQueryTableCtrlClickAction(
-      appearance.queryTableCtrlClickAction,
-    ),
     v2SidebarRailScale: sanitizeV2SidebarRailScale(
       appearance.v2SidebarRailScale,
     ),
@@ -3212,25 +835,11 @@ const sanitizeAppearance = (
     toolbarButtonColorOverrides: sanitizeToolbarButtonColorOverrides(
       appearance.toolbarButtonColorOverrides,
     ),
-    sidebarSingleDatabaseExpansion:
-      appearance.sidebarSingleDatabaseExpansion === true,
     customUIFontFamily: sanitizeFontFamilyInput(appearance.customUIFontFamily),
     customMonoFontFamily: sanitizeFontFamilyInput(appearance.customMonoFontFamily),
-    newQuerySqlTemplate: sanitizeNewQuerySqlTemplate(appearance.newQuerySqlTemplate),
-    autoAddTableAlias:
-      typeof appearance.autoAddTableAlias === "boolean"
-        ? appearance.autoAddTableAlias
-        : DEFAULT_APPEARANCE.autoAddTableAlias,
-    customTableAliasPrefixEnabled:
-      appearance.customTableAliasPrefixEnabled === true,
-    customTableAliasPrefix: normalizeTableAliasPrefix(
-      appearance.customTableAliasPrefix,
-    ),
     tabDisplay: version < TAB_DISPLAY_DEFAULT_MIGRATION_VERSION
-      && isLegacyDefaultTabDisplaySettings(appearance.tabDisplay)
       ? sanitizeTabDisplaySettings(DEFAULT_TAB_DISPLAY_SETTINGS)
       : sanitizeTabDisplaySettings(appearance.tabDisplay),
-    redisDbAliases: sanitizeRedisDbAliases(appearance.redisDbAliases),
     showDataTableVerticalBorders:
       dataGridDisplaySettings.showDataTableVerticalBorders,
     showDataTableRowNumber: dataGridDisplaySettings.showDataTableRowNumber,
@@ -3381,17 +990,98 @@ const runWithExplicitShortcutPersistence = (callback: () => void): void => {
   }
 };
 
+interface AppState {
+  connections: SavedConnection[];
+  tabs: TabData[];
+  /** 主工作区已拆出的浮动窗口（会话态，不持久化） */
+  detachedWorkbenchWindows: DetachedWorkbenchWindow[];
+  activeTabId: string | null;
+  theme: ThemeMode;
+  themePreference: ThemePreference;
+  /** Built-in brand mascot icon id (01-10), used in title bar / about / favicon. */
+  brandIconId: string;
+  languagePreference: LanguagePreference;
+  appearance: AppearanceSettings;
+  uiScale: number;
+  fontSize: number;
+  /** Legacy persisted name; true means maximise the startup window on every desktop platform. */
+  startupFullscreen: boolean;
+  /** 启动后与定时静默检查更新；默认开启 */
+  autoCheckForUpdates: boolean;
+  /** 自动检查更新间隔（分钟），默认 30 */
+  autoCheckForUpdatesIntervalMinutes: number;
+  shortcutOptions: ShortcutOptions;
+  sqlLogs: SqlLog[];
+  windowBounds: { width: number; height: number; x: number; y: number; dpi?: number } | null;
+  windowState: "normal" | "fullscreen" | "maximized";
+  sidebarWidth: number;
+
+  jvmDiagnosticDrafts: Record<string, JVMDiagnosticCommandDraft>;
+  jvmDiagnosticOutputs: Record<string, JVMDiagnosticEventChunk[]>;
+  setJVMDiagnosticDraft: (
+    tabId: string,
+    draft: Partial<JVMDiagnosticCommandDraft>,
+  ) => void;
+  appendJVMDiagnosticOutput: (
+    tabId: string,
+    chunks: JVMDiagnosticEventChunk[],
+  ) => void;
+  clearJVMDiagnosticOutput: (tabId: string) => void;
+
+  replaceConnections: (connections: SavedConnection[]) => void;
+
+  addTab: (tab: TabData) => void;
+  closeTab: (id: string) => void;
+  closeOtherTabs: (id: string) => void;
+  closeTabsToLeft: (id: string) => void;
+  closeTabsToRight: (id: string) => void;
+  moveTab: (sourceId: string, targetId: string) => void;
+  closeAllTabs: () => void;
+  setActiveTab: (id: string) => void;
+  detachWorkbenchTab: (
+    tabId: string,
+    preferred?: Partial<Pick<DetachedWindowBounds, "x" | "y" | "width" | "height">>,
+  ) => void;
+  attachWorkbenchTab: (tabId: string) => void;
+  updateDetachedWorkbenchBounds: (
+    tabId: string,
+    bounds: Partial<Pick<DetachedWindowBounds, "x" | "y" | "width" | "height">>,
+  ) => void;
+  focusDetachedWorkbenchTab: (tabId: string) => void;
+  isWorkbenchTabDetached: (tabId: string) => boolean;
+
+  setTheme: (theme: ThemeMode) => void;
+  setThemePreference: (themePreference: ThemePreference) => void;
+  setLanguagePreference: (languagePreference: LanguagePreference) => void;
+  setAppearance: (appearance: Partial<AppearanceSettings>) => void;
+  setUiScale: (scale: number) => void;
+  setFontSize: (size: number) => void;
+  setStartupFullscreen: (enabled: boolean) => void;
+  setAutoCheckForUpdates: (enabled: boolean) => void;
+  setAutoCheckForUpdatesIntervalMinutes: (minutes: number) => void;
+  updateShortcut: (
+    action: ShortcutAction,
+    binding: Partial<ShortcutPlatformBinding>,
+    platform?: ShortcutPlatform,
+  ) => void;
+  resetShortcutOptions: () => void;
+
+  addSqlLog: (log: SqlLog) => void;
+  clearSqlLogs: () => void;
+  setWindowBounds: (bounds: {
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+    dpi?: number;
+  }) => void;
+  setWindowState: (state: "normal" | "fullscreen" | "maximized") => void;
+  setSidebarWidth: (width: number) => void;
+}
+
 const PERSISTED_STATE_DEPENDENCY_KEYS = [
   "tabs",
   "activeTabId",
-  "connectionTags",
-  "sidebarRootOrder",
-  "rootSortMode",
-  "rootConnectionSortMode",
-  "externalSQLDirectories",
-  "recentConnectionTargets",
-  "recentSQLFiles",
-  "pinnedConnectionTypes",
   "theme",
   "themePreference",
   "brandIconId",
@@ -3402,25 +1092,8 @@ const PERSISTED_STATE_DEPENDENCY_KEYS = [
   "startupFullscreen",
   "autoCheckForUpdates",
   "autoCheckForUpdatesIntervalMinutes",
-  "sqlFormatOptions",
-  "queryOptions",
-  "dataEditTransactionOptions",
-  "sqlEditorTransactionOptions",
   "shortcutOptions",
   "sqlLogs",
-  "tableExportHistories",
-  "sqlSnippets",
-  "tableAccessCount",
-  "tableSortPreference",
-  "sidebarTreeOrders",
-  "tableDesignerSchemaByConnection",
-  "tableColumnOrders",
-  "enableColumnOrderMemory",
-  "tablePinnedLeftColumns",
-  "tableHiddenColumns",
-  "enableHiddenColumnMemory",
-  "pinnedSidebarTables",
-  "pinnedSidebarDatabases",
   "windowBounds",
   "windowState",
   "sidebarWidth",
@@ -3435,22 +1108,10 @@ type PersistedStateProjectionSource = Pick<
 const buildPersistedStateProjection = (
   state: PersistedStateProjectionSource,
 ): AppState => {
-  const tabs = sanitizeQueryTabs(state.tabs);
+  const tabs = sanitizeTabs(state.tabs);
   const partialState: Partial<AppState> = {
     tabs,
     activeTabId: sanitizeActiveTabId(state.activeTabId, tabs),
-    connectionTags: state.connectionTags,
-    sidebarRootOrder: state.sidebarRootOrder,
-    rootSortMode: state.rootSortMode,
-    rootConnectionSortMode: state.rootConnectionSortMode,
-    externalSQLDirectories: state.externalSQLDirectories,
-    recentConnectionTargets: sanitizeRecentConnectionTargets(
-      state.recentConnectionTargets,
-    ),
-    recentSQLFiles: sanitizeRecentSQLFiles(state.recentSQLFiles),
-    pinnedConnectionTypes: sanitizePinnedConnectionTypes(
-      state.pinnedConnectionTypes,
-    ),
     theme: state.theme,
     themePreference: state.themePreference,
     brandIconId: sanitizeBrandIconIdLocal(state.brandIconId),
@@ -3462,39 +1123,17 @@ const buildPersistedStateProjection = (
     autoCheckForUpdates: state.autoCheckForUpdates,
     autoCheckForUpdatesIntervalMinutes:
       state.autoCheckForUpdatesIntervalMinutes,
-    sqlFormatOptions: state.sqlFormatOptions,
-    queryOptions: state.queryOptions,
-    dataEditTransactionOptions: state.dataEditTransactionOptions,
-    sqlEditorTransactionOptions: state.sqlEditorTransactionOptions,
     shortcutOptions: resolveShortcutOptionsForPersistence(state.shortcutOptions),
     sqlLogs: sanitizePersistedSqlLogs(state.sqlLogs),
-    tableExportHistories: sanitizeTableExportHistories(
-      state.tableExportHistories,
-    ),
-    sqlSnippets: state.sqlSnippets,
-    tableAccessCount: sanitizeTableAccessCount(state.tableAccessCount),
-    tableSortPreference: state.tableSortPreference,
-    sidebarTreeOrders: state.sidebarTreeOrders,
-    tableDesignerSchemaByConnection: sanitizeTableDesignerSchemaByConnection(
-      state.tableDesignerSchemaByConnection,
-    ),
-    tableColumnOrders: state.tableColumnOrders,
-    enableColumnOrderMemory: state.enableColumnOrderMemory,
-    tablePinnedLeftColumns: state.tablePinnedLeftColumns,
-    tableHiddenColumns: state.tableHiddenColumns,
-    enableHiddenColumnMemory: state.enableHiddenColumnMemory,
-    pinnedSidebarTables: state.pinnedSidebarTables,
-    pinnedSidebarDatabases: state.pinnedSidebarDatabases,
     windowBounds: state.windowBounds,
     windowState: state.windowState,
     sidebarWidth: state.sidebarWidth,
   };
 
-  if (hasLegacyConnectionSecrets(state.connections)) {
+  if (state.connections.length > 0) {
     partialState.connections = state.connections;
   }
 
-  // AI 会话数据已迁移到后端文件持久化（~/.gonavi/sessions/），不再写入 localStorage
   return partialState as AppState;
 };
 
@@ -3526,7 +1165,7 @@ const createMemoizedPersistedStateProjection = () => {
         changedDependencyIndex >= 0
         && PERSISTED_STATE_DEPENDENCY_KEYS[changedDependencyIndex] === "activeTabId"
       ) {
-        // Tab switches keep the query-tab payload unchanged; reuse its sanitized SQL snapshot.
+        // Tab switches keep the tab payload unchanged.
         previousDependencies[changedDependencyIndex] = state.activeTabId;
         previousProjection = {
           ...previousProjection,
@@ -3568,21 +1207,9 @@ export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       connections: [],
-      connectionTags: [],
-      sidebarRootOrder: [],
-      rootSortMode: 'manual',
-      rootConnectionSortMode: 'createdAt',
       tabs: [],
       detachedWorkbenchWindows: [],
-      detachedQueryResultWindows: [],
       activeTabId: null,
-      activeContext: null,
-      savedQueries: [],
-      savedQueryGroups: [],
-      externalSQLDirectories: [],
-      recentConnectionTargets: [],
-      recentSQLFiles: [],
-      pinnedConnectionTypes: [],
       theme: "light",
       themePreference: "light",
       brandIconId: DEFAULT_BRAND_ICON_ID,
@@ -3594,41 +1221,8 @@ export const useStore = create<AppState>()(
       autoCheckForUpdates: DEFAULT_AUTO_CHECK_FOR_UPDATES,
       autoCheckForUpdatesIntervalMinutes:
         DEFAULT_AUTO_CHECK_FOR_UPDATES_INTERVAL_MINUTES,
-      sqlFormatOptions: { keywordCase: "upper" },
-      queryOptions: {
-        maxRows: 5000,
-        wordWrap: false,
-        showColumnComment: true,
-        showSidebarTableComment: false,
-        showColumnType: true,
-        alignNumericTemporalCellsRight: false,
-        showQueryResultsPanel: false,
-        queryEditorEditorHeightRatio: DEFAULT_QUERY_EDITOR_EDITOR_HEIGHT_RATIO,
-      },
-      dataEditTransactionOptions: {
-        commitMode: "manual",
-        autoCommitDelayMs: 5000,
-      },
-      sqlEditorTransactionOptions: {
-        commitMode: "manual",
-        autoCommitDelayMs: 0,
-      },
-      sqlEditorPendingTransactions: {},
       shortcutOptions: cloneShortcutOptions(DEFAULT_SHORTCUT_OPTIONS),
-      sqlSnippets: DEFAULT_SQL_SNIPPETS,
       sqlLogs: [],
-      tableExportHistories: {},
-      tableAccessCount: {},
-      tableSortPreference: {},
-      sidebarTreeOrders: {},
-      tableDesignerSchemaByConnection: {},
-      tableColumnOrders: {},
-      enableColumnOrderMemory: true,
-      tablePinnedLeftColumns: {},
-      tableHiddenColumns: {},
-      enableHiddenColumnMemory: true,
-      pinnedSidebarTables: [],
-      pinnedSidebarDatabases: [],
       windowBounds: null,
       windowState: "normal" as const,
       sidebarWidth: 330,
@@ -3636,836 +1230,33 @@ export const useStore = create<AppState>()(
       jvmDiagnosticDrafts: {},
       jvmDiagnosticOutputs: {},
 
-      addConnection: (conn) =>
-        set((state) => {
-          const sanitized = sanitizeSavedConnection(
-            conn,
-            state.connections.length,
-          );
-          if (!sanitized) {
-            return { connections: state.connections };
-          }
-          return { connections: [...state.connections, sanitized] };
-        }),
-      updateConnection: (conn) =>
-        set((state) => {
-          const sanitized = sanitizeSavedConnection(
-            conn,
-            state.connections.length,
-          );
-          if (!sanitized) {
-            return { connections: state.connections };
-          }
-          return {
-            connections: state.connections.map((c) =>
-              c.id === conn.id ? sanitized : c,
-            ),
-          };
-        }),
-      removeConnection: (id) =>
-        set((state) => {
-          const nextConnections = state.connections.filter((c) => c.id !== id);
-          const connectionToken = buildSidebarRootConnectionToken(id);
-          const nextTags = state.connectionTags.map((tag) => ({
-            ...tag,
-            connectionIds: tag.connectionIds.filter((cid) => cid !== id),
-            childOrder: sanitizeSidebarItemOrder(tag.childOrder).filter(
-              (token) => token !== connectionToken,
-            ),
-          }));
-          const normalized = normalizeConnectionTagTreeState(
-            nextTags,
-            state.sidebarRootOrder.filter(
-              (token) => token !== connectionToken,
-            ),
-            nextConnections,
-          );
-          const nextDesignerSchemas = { ...state.tableDesignerSchemaByConnection };
-          delete nextDesignerSchemas[id];
-          return {
-            connections: nextConnections,
-            connectionTags: normalized.connectionTags,
-            recentConnectionTargets: state.recentConnectionTargets.filter(
-              (target) => target.connectionId !== id,
-            ),
-            recentSQLFiles: state.recentSQLFiles.filter(
-              (file) => file.connectionId !== id,
-            ),
-            tableAccessCount: removeConnectionTableAccessCounts(
-              state.tableAccessCount,
-              id,
-              nextConnections.map((connection) => connection.id),
-            ),
-            tableDesignerSchemaByConnection: nextDesignerSchemas,
-            sidebarRootOrder: normalized.sidebarRootOrder,
-          };
-        }),
       replaceConnections: (connections) =>
-        set((state) => {
-          const nextConnections = sanitizeConnections(connections);
-          const normalized = normalizeConnectionTagTreeState(
-            state.connectionTags,
-            state.sidebarRootOrder,
-            nextConnections,
-          );
-          const validConnectionIds = new Set(nextConnections.map((connection) => connection.id));
-          const nextDesignerSchemas = Object.fromEntries(
-            Object.entries(state.tableDesignerSchemaByConnection)
-              .filter(([connectionId]) => validConnectionIds.has(connectionId)),
-          );
-          return {
-            connections: nextConnections,
-            connectionTags: normalized.connectionTags,
-            sidebarRootOrder: normalized.sidebarRootOrder,
-            tableDesignerSchemaByConnection: nextDesignerSchemas,
-            shortcutOptions:
-              readPersistedShortcutOptions() ?? state.shortcutOptions,
-          };
-        }),
-      replaceConnectionSidebarLayout: (layout) =>
-        set((state) =>
-          ({ ...normalizeConnectionTagTreeState(
-            sanitizeConnectionTags(layout?.connectionTags),
-            sanitizeSidebarRootOrder(layout?.sidebarRootOrder),
-            state.connections,
-          ),
-          rootSortMode: 'manual',
-          rootConnectionSortMode: layout?.rootConnectionSortMode === 'manual' || layout?.rootConnectionSortMode === 'name' || layout?.rootConnectionSortMode === 'createdAt'
-            ? layout.rootConnectionSortMode
-            : layout?.rootSortMode === 'name' || layout?.rootSortMode === 'createdAt'
-              ? layout.rootSortMode
-              : 'createdAt',
-          }),
-        ),
-
-      setConnectionDisplaySortMode: (tagId, mode) =>
-        set((state) => {
-          const safeMode: ConnectionDisplaySortMode = mode === 'manual' || mode === 'name' ? mode : 'createdAt';
-          if (safeMode === 'manual') {
-            return materializeManualConnectionOrder(
-              state.connectionTags,
-              state.sidebarRootOrder,
-              state.connections,
-              state.rootConnectionSortMode,
-              tagId,
-            );
-          }
-          if (!tagId) return { rootConnectionSortMode: safeMode };
-          return {
-            connectionTags: state.connectionTags.map((tag) =>
-              tag.id === tagId ? { ...tag, connectionSortMode: safeMode } : tag,
-            ),
-          };
-        }),
-      duplicateConnectionTag: (id) => {
-        let duplicatedId: string | null = null;
-        set((state) => {
-          const source = state.connectionTags.find((tag) => tag.id === id);
-          if (!source) return state;
-          const descendants = new Set<string>();
-          const collect = (parent: string) => state.connectionTags.forEach((tag) => {
-            if (tag.parentTagId === parent && !descendants.has(tag.id)) {
-              descendants.add(tag.id); collect(tag.id);
-            }
-          });
-          collect(id);
-          const oldIds = [id, ...descendants];
-          const idMap = new Map(oldIds.map((oldId) => [oldId, `tag-${uuidv4()}`]));
-          duplicatedId = idMap.get(id) || null;
-          const copies = state.connectionTags.filter((tag) => oldIds.includes(tag.id)).map((tag) => ({
-            ...tag,
-            id: idMap.get(tag.id)!,
-            name: `${tag.name} - Copy`,
-            parentTagId: tag.parentTagId ? idMap.get(tag.parentTagId) : undefined,
-            childOrder: tag.childOrder?.map((token) => token.startsWith('tag:')
-              ? `tag:${idMap.get(token.slice(4)) || token.slice(4)}` : token),
-            sortMode: tag.sortMode || 'manual',
-            createdAt: Date.now(),
-          }));
-          const sourceParent = source.parentTagId;
-          const sourceToken = buildSidebarRootTagToken(id);
-          const newToken = buildSidebarRootTagToken(duplicatedId!);
-          const nextTags = [...state.connectionTags, ...copies];
-          if (!sourceParent) {
-            const order = [...state.sidebarRootOrder];
-            const index = order.indexOf(sourceToken);
-            order.splice(index < 0 ? order.length : index + 1, 0, newToken);
-            return { connectionTags: nextTags, sidebarRootOrder: order };
-          }
-          const parent = nextTags.find((tag) => tag.id === sourceParent);
-          if (!parent) return { connectionTags: nextTags };
-          const order = resolveConnectionTagChildOrder(sourceParent, nextTags);
-          const index = order.indexOf(sourceToken);
-          return { connectionTags: nextTags.map((tag) => tag.id === sourceParent
-            ? { ...tag, childOrder: (() => { const next = [...order]; next.splice(index < 0 ? next.length : index + 1, 0, newToken); return next; })() }
-            : tag) };
-        });
-        return duplicatedId;
-      },
-      moveConnectionsToTag: (ids, targetTagId) =>
-        set((state) => {
-          const selected = new Set(ids.filter((id) => state.connections.some((connection) => connection.id === id)));
-          if (!selected.size || (targetTagId && !state.connectionTags.some((tag) => tag.id === targetTagId))) return state;
-          let nextTags = state.connectionTags;
-          let nextRootOrder = state.sidebarRootOrder;
-          const connectionIDs = [...selected];
-          if (!targetTagId) connectionIDs.reverse();
-          connectionIDs.forEach((connectionId) => {
-            const moved = moveConnectionInTree(
-              nextTags,
-              nextRootOrder,
-              state.connections,
-              connectionId,
-              targetTagId,
-            );
-            if (moved) {
-              nextTags = moved.connectionTags;
-              nextRootOrder = moved.sidebarRootOrder;
-            }
-          });
-          if (nextTags === state.connectionTags && nextRootOrder === state.sidebarRootOrder) {
-            return state;
-          }
-          return { connectionTags: nextTags, sidebarRootOrder: nextRootOrder };
-        }),
-
-      addConnectionTag: (tag) =>
-        set((state) => {
-          const normalized = normalizeConnectionTagTreeState(
-            state.connectionTags,
-            state.sidebarRootOrder,
-            state.connections,
-          );
-          const tagId = toTrimmedString(tag.id);
-          if (
-            !tagId ||
-            normalized.connectionTags.some((candidate) => candidate.id === tagId)
-          ) {
-            return normalized;
-          }
-
-          const parentTagId = toTrimmedString(tag.parentTagId) || undefined;
-          const name = toTrimmedString(
-            tag.name,
-            indexedStoreFallback(
-              "store.fallback.connection_tag_name",
-              normalized.connectionTags.length,
-            ),
-          ) || indexedStoreFallback(
-            "store.fallback.connection_tag_name",
-            normalized.connectionTags.length,
-          );
-          if (normalized.connectionTags.some((candidate) =>
-            candidate.parentTagId === parentTagId
-            && candidate.name.trim().localeCompare(name.trim(), undefined, { sensitivity: "accent" }) === 0,
-          )) {
-            return normalized;
-          }
-
-          const directConnectionIds = sanitizeStringArray(tag.connectionIds, 256);
-          const directConnectionTokens = new Set(
-            directConnectionIds.map(buildSidebarRootConnectionToken),
-          );
-          const nextTags = normalizeConnectionTagTree([
-            ...normalized.connectionTags.map((candidate) => ({
-              ...candidate,
-              connectionIds: candidate.connectionIds.filter(
-                (connectionId) => !directConnectionIds.includes(connectionId),
-              ),
-              childOrder: sanitizeSidebarItemOrder(candidate.childOrder).filter(
-                (token) => !directConnectionTokens.has(token),
-              ),
-            })),
-            {
-              id: tagId,
-              name,
-              createdAt: Number.isFinite(Number(tag.createdAt)) && Number(tag.createdAt) > 0
-                ? Number(tag.createdAt)
-                : Date.now(),
-              parentTagId,
-              connectionIds: directConnectionIds,
-              childOrder: sanitizeSidebarItemOrder(tag.childOrder),
-            },
-          ]);
-          const addedTag = nextTags.find((candidate) => candidate.id === tagId);
-          const nextRootOrder = addedTag?.parentTagId
-            ? normalized.sidebarRootOrder
-            : insertSidebarRootTokenBeforeUngrouped(
-                resolveSidebarRootOrderTokens(
-                  normalized.sidebarRootOrder,
-                  nextTags,
-                  state.connections,
-                ).filter(
-                  (token) => token !== buildSidebarRootTagToken(tagId),
-                ),
-                buildSidebarRootTagToken(tagId),
-              );
-          return normalizeConnectionTagTreeState(
-            nextTags,
-            nextRootOrder,
-            state.connections,
-          );
-        }),
-      updateConnectionTag: (tag) =>
-        set((state) => {
-          const normalized = normalizeConnectionTagTreeState(
-            state.connectionTags,
-            state.sidebarRootOrder,
-            state.connections,
-          );
-          const existing = normalized.connectionTags.find(
-            (candidate) => candidate.id === tag.id,
-          );
-          if (!existing) return normalized;
-
-          const requestedConnectionIds = sanitizeStringArray(
-            tag.connectionIds,
-            256,
-          );
-          const requestedConnectionTokens = new Set(
-            requestedConnectionIds.map(buildSidebarRootConnectionToken),
-          );
-          const hasRequestedParent = Object.prototype.hasOwnProperty.call(
-            tag,
-            "parentTagId",
-          );
-          const requestedParentTagId = hasRequestedParent
-            ? toTrimmedString(tag.parentTagId) || undefined
-            : existing.parentTagId;
-          const requestedName = toTrimmedString(tag.name, existing.name) || existing.name;
-          if (normalized.connectionTags.some((candidate) =>
-            candidate.id !== tag.id
-            && candidate.parentTagId === requestedParentTagId
-            && candidate.name.trim().localeCompare(requestedName.trim(), undefined, { sensitivity: "accent" }) === 0,
-          )) return normalized;
-          const hasRequestedChildOrder = Object.prototype.hasOwnProperty.call(
-            tag,
-            "childOrder",
-          );
-          let nextTags: ConnectionTag[] = normalized.connectionTags.map((candidate) => {
-            if (candidate.id === tag.id) {
-              return {
-                ...candidate,
-                name: requestedName,
-                connectionIds: requestedConnectionIds,
-                childOrder: hasRequestedChildOrder
-                  ? sanitizeSidebarItemOrder(tag.childOrder)
-                  : candidate.childOrder,
-              };
-            }
-            return {
-              ...candidate,
-              connectionIds: candidate.connectionIds.filter(
-                (connectionId) => !requestedConnectionIds.includes(connectionId),
-              ),
-              childOrder: sanitizeSidebarItemOrder(candidate.childOrder).filter(
-                (token) => !requestedConnectionTokens.has(token),
-              ),
-            };
-          });
-          nextTags = normalizeConnectionTagTree(nextTags);
-
-          if (requestedParentTagId !== existing.parentTagId) {
-            const moved = moveConnectionTagInTree(
-              nextTags,
-              normalized.sidebarRootOrder,
-              state.connections,
-              tag.id,
-              requestedParentTagId ?? null,
-            );
-            if (moved) return moved;
-          }
-          return normalizeConnectionTagTreeState(
-            nextTags,
-            normalized.sidebarRootOrder,
-            state.connections,
-          );
-        }),
-      removeConnectionTag: (id) =>
-        set((state) => {
-          const normalized = normalizeConnectionTagTreeState(
-            state.connectionTags,
-            state.sidebarRootOrder,
-            state.connections,
-          );
-          const removedTag = normalized.connectionTags.find(
-            (tag) => tag.id === id,
-          );
-          if (!removedTag) return normalized;
-
-          const removedToken = buildSidebarRootTagToken(id);
-          const promotedOrder = resolveConnectionTagChildOrder(
-            id,
-            normalized.connectionTags,
-          );
-          const parentTagId = removedTag.parentTagId;
-          let nextTags: ConnectionTag[] = normalized.connectionTags
-            .filter((tag) => tag.id !== id)
-            .map((tag) => {
-              const isDirectChild = tag.parentTagId === id;
-              const isParent = parentTagId && tag.id === parentTagId;
-              return {
-                ...tag,
-                parentTagId: isDirectChild ? parentTagId : tag.parentTagId,
-                connectionIds: isParent
-                  ? [...tag.connectionIds, ...removedTag.connectionIds]
-                  : tag.connectionIds,
-              };
-            });
-          let nextRootOrder = normalized.sidebarRootOrder;
-
-          if (parentTagId) {
-            const parentOrder = resolveConnectionTagChildOrder(
-              parentTagId,
-              normalized.connectionTags,
-            );
-            nextTags = setConnectionTagChildOrder(
-              nextTags,
-              parentTagId,
-              replaceSidebarItemToken(
-                parentOrder,
-                removedToken,
-                promotedOrder,
-              ),
-            );
-          } else {
-            nextRootOrder = replaceSidebarItemToken(
-              normalized.sidebarRootOrder,
-              removedToken,
-              promotedOrder,
-            );
-          }
-
-          return normalizeConnectionTagTreeState(
-            nextTags,
-            nextRootOrder,
-            state.connections,
-          );
-        }),
-      removeConnectionTagTree: (id) =>
-        set((state) => {
-          const normalized = normalizeConnectionTagTreeState(
-            state.connectionTags,
-            state.sidebarRootOrder,
-            state.connections,
-          );
-          const removedIds = new Set<string>();
-          const pending = [id];
-          while (pending.length) {
-            const current = pending.pop();
-            if (!current || removedIds.has(current)) continue;
-            removedIds.add(current);
-            normalized.connectionTags.forEach((tag) => {
-              if (tag.parentTagId === current) pending.push(tag.id);
-            });
-          }
-          if (!removedIds.size || !removedIds.has(id)) return normalized;
-          const removedTokens = new Set([...removedIds].map(buildSidebarRootTagToken));
-          return normalizeConnectionTagTreeState(
-            normalized.connectionTags.filter((tag) => !removedIds.has(tag.id)),
-            normalized.sidebarRootOrder.filter((token) => !removedTokens.has(token)),
-            state.connections,
-          );
-        }),
-      moveConnectionToTag: (
-        connectionId,
-        targetTagId,
-        targetToken,
-        insertBefore = false,
-      ) =>
-        set((state) => {
-          const base = targetToken
-            ? materializeManualConnectionOrder(
-                state.connectionTags,
-                state.sidebarRootOrder,
-                state.connections,
-                state.rootConnectionSortMode,
-                targetTagId,
-              )
-            : {
-                connectionTags: state.connectionTags,
-                sidebarRootOrder: state.sidebarRootOrder,
-                rootConnectionSortMode: state.rootConnectionSortMode,
-              };
-          const moved = moveConnectionInTree(
-            base.connectionTags,
-            base.sidebarRootOrder,
-            state.connections,
-            connectionId,
-            targetTagId,
-            targetToken,
-            insertBefore,
-          );
-          if (!moved) return { connectionTags: state.connectionTags, sidebarRootOrder: state.sidebarRootOrder };
-          if (!targetToken) return moved;
-          return { ...moved, rootConnectionSortMode: base.rootConnectionSortMode };
-        }),
-      moveConnectionTag: (
-        tagId,
-        targetParentTagId,
-        targetToken,
-        insertBefore = false,
-      ) =>
-        set((state) => {
-          const moved = moveConnectionTagInTree(
-            state.connectionTags,
-            state.sidebarRootOrder,
-            state.connections,
-            tagId,
-            targetParentTagId,
-            targetToken,
-            insertBefore,
-          );
-          return moved || {
-            connectionTags: state.connectionTags,
-            sidebarRootOrder: state.sidebarRootOrder,
-          };
-        }),
-      reorderConnections: (
-        connectionId,
-        targetConnectionId,
-        targetTagId,
-        insertBefore = false,
-      ) =>
-        set((state) => {
-          const sortMode = targetTagId
-            ? state.connectionTags.find((tag) => tag.id === targetTagId)?.sortMode || 'manual'
-            : state.rootSortMode;
-          if (sortMode !== 'manual') {
-            return {
-              connections: state.connections,
-              connectionTags: state.connectionTags,
-              sidebarRootOrder: state.sidebarRootOrder,
-            };
-          }
-          if (
-            !connectionId ||
-            !targetConnectionId ||
-            connectionId === targetConnectionId ||
-            !state.connections.some(
-              (connection) => connection.id === targetConnectionId,
-            )
-          ) {
-            return {
-              connections: state.connections,
-              connectionTags: state.connectionTags,
-            };
-          }
-          const moved = moveConnectionInTree(
-            state.connectionTags,
-            state.sidebarRootOrder,
-            state.connections,
-            connectionId,
-            targetTagId,
-            buildSidebarRootConnectionToken(targetConnectionId),
-            insertBefore,
-          );
-          if (!moved) {
-            return {
-              connections: state.connections,
-              connectionTags: state.connectionTags,
-              sidebarRootOrder: state.sidebarRootOrder,
-            };
-          }
-          const nextConnections = targetTagId
-            ? state.connections
-            : orderUngroupedConnectionsBySidebarRootOrder(
-                state.connections,
-                moved.connectionTags,
-                moved.sidebarRootOrder,
-              );
-          return {
-            connections: nextConnections,
-            connectionTags: moved.connectionTags,
-            sidebarRootOrder: resolveSidebarRootOrderTokens(
-              moved.sidebarRootOrder,
-              moved.connectionTags,
-              nextConnections,
-            ),
-          };
-        }),
-      reorderTags: (tagIds) =>
-        set((state) => {
-          const normalized = normalizeConnectionTagTreeState(
-            state.connectionTags,
-            state.sidebarRootOrder,
-            state.connections,
-          );
-          const rootTagIds = new Set(
-            normalized.connectionTags
-              .filter((tag) => !tag.parentTagId)
-              .map((tag) => tag.id),
-          );
-          const requestedTagTokens = Array.from(
-            new Set(
-              tagIds
-                .filter((id) => rootTagIds.has(id))
-                .map(buildSidebarRootTagToken),
-            ),
-          );
-          const orderedRootOrder = [
-            ...requestedTagTokens,
-            ...normalized.sidebarRootOrder.filter(
-              (token) =>
-                isSidebarRootTagToken(token) &&
-                !requestedTagTokens.includes(token),
-            ),
-            ...normalized.sidebarRootOrder.filter(
-              (token) => !isSidebarRootTagToken(token),
-            ),
-          ];
-          return normalizeConnectionTagTreeState(
-            normalized.connectionTags,
-            orderedRootOrder,
-            state.connections,
-          );
-        }),
-      reorderSidebarRoot: (sourceToken, targetToken, insertBefore) =>
-        set((state) => {
-          const normalized = normalizeConnectionTagTreeState(
-            state.connectionTags,
-            state.sidebarRootOrder,
-            state.connections,
-          );
-          const nextRootOrder = moveSidebarRootToken(
-            normalized.sidebarRootOrder,
-            sourceToken,
-            targetToken,
-            insertBefore,
-          );
-          return normalizeConnectionTagTreeState(
-            normalized.connectionTags,
-            nextRootOrder,
-            state.connections,
-          );
-        }),
+        set((state) => ({
+          connections: sanitizeConnections(connections),
+          shortcutOptions:
+            readPersistedShortcutOptions() ?? state.shortcutOptions,
+        })),
 
       addTab: (tab) =>
         set((state) => {
-          const incomingTab =
-            tab.type === "query" && tab.resultPanelVisible === undefined
-              ? {
-                  ...tab,
-                  resultPanelVisible: state.queryOptions.showQueryResultsPanel,
-                }
-              : tab;
-          const recentWorkbenchEntries = resolveRecentWorkbenchEntries(
-            state,
-            incomingTab,
-          );
-          const index = state.tabs.findIndex((t) => t.id === incomingTab.id);
+          const index = state.tabs.findIndex((t) => t.id === tab.id);
           if (index !== -1) {
-            // Update existing tab with new data (e.g. switch initialTab)
+            // Update existing tab with new data (e.g. switch target service).
             const newTabs = [...state.tabs];
-            newTabs[index] = { ...newTabs[index], ...incomingTab };
+            newTabs[index] = { ...newTabs[index], ...tab };
             return {
               tabs: newTabs,
-              ...recentWorkbenchEntries,
-              activeTabId: incomingTab.id,
-              activeContext: resolveActiveContextForTabId(
-                newTabs,
-                incomingTab.id,
-                state.activeContext,
-              ),
+              activeTabId: tab.id,
             };
           }
-          // 语义去重：对表相关标签页按 connectionId+dbName+tableName 匹配已有 Tab
-          if (
-            (
-              incomingTab.type === "table" ||
-              incomingTab.type === "design" ||
-              incomingTab.type === "table-export"
-            ) &&
-            incomingTab.tableName &&
-            incomingTab.connectionId &&
-            incomingTab.dbName
-          ) {
-            const semanticIndex = state.tabs.findIndex(
-              (t) =>
-                t.type === incomingTab.type &&
-                t.connectionId === incomingTab.connectionId &&
-                t.dbName === incomingTab.dbName &&
-                toTrimmedString(t.schemaName) === toTrimmedString(incomingTab.schemaName) &&
-                t.tableName === incomingTab.tableName,
-            );
-            if (semanticIndex !== -1) {
-              const existingTab = state.tabs[semanticIndex];
-              const newTabs = [...state.tabs];
-              newTabs[semanticIndex] = {
-                ...existingTab,
-                ...incomingTab,
-                id: existingTab.id,
-              };
-              return {
-                tabs: newTabs,
-                ...recentWorkbenchEntries,
-                activeTabId: existingTab.id,
-                activeContext: resolveActiveContextForTabId(
-                  newTabs,
-                  existingTab.id,
-                  state.activeContext,
-                ),
-              };
-            }
-          }
-          // 语义去重：对 query 类型按 savedQueryId 匹配已有 Tab（避免保存后重复打开）
-          if (incomingTab.type === "query" && incomingTab.savedQueryId) {
-            const savedQueryIndex = state.tabs.findIndex(
-              (t) =>
-                t.type === "query" &&
-                (t.savedQueryId === incomingTab.savedQueryId ||
-                  t.id === incomingTab.savedQueryId),
-            );
-            if (savedQueryIndex !== -1) {
-              const existingTab = state.tabs[savedQueryIndex];
-              const newTabs = [...state.tabs];
-              newTabs[savedQueryIndex] = {
-                ...existingTab,
-                ...incomingTab,
-                id: existingTab.id,
-              };
-              return {
-                tabs: newTabs,
-                ...recentWorkbenchEntries,
-                activeTabId: existingTab.id,
-                activeContext: resolveActiveContextForTabId(
-                  newTabs,
-                  existingTab.id,
-                  state.activeContext,
-                ),
-              };
-            }
-          }
-          const nextTabs = [...state.tabs, incomingTab];
           return {
-            tabs: nextTabs,
-            ...recentWorkbenchEntries,
-            activeTabId: incomingTab.id,
-            activeContext: resolveActiveContextForTabId(
-              nextTabs,
-              incomingTab.id,
-              state.activeContext,
-            ),
-          };
-        }),
-
-      updateQueryTabDraft: (id, draft) =>
-        set((state) => {
-          const tabId = toTrimmedString(id);
-          if (!tabId) return state;
-
-          const previousTab = state.tabs.find((tab) => tab.id === tabId);
-          let changed = false;
-          let contextChangedTab: TabData | null = null;
-          const nextTabs = state.tabs.map((tab) => {
-            if (tab.id !== tabId || tab.type !== "query") return tab;
-            const nextTab: TabData = { ...tab };
-            let connectionContextChanged = false;
-
-            if (draft.query !== undefined) {
-              const nextQuery = typeof draft.query === "string" ? draft.query.slice(0, MAX_PERSISTED_QUERY_LENGTH) : "";
-              if (nextTab.query !== nextQuery) {
-                nextTab.query = nextQuery;
-                changed = true;
-              }
-            }
-            if (draft.connectionId !== undefined) {
-              const nextConnectionId = toTrimmedString(draft.connectionId);
-              if (nextTab.connectionId !== nextConnectionId) {
-                nextTab.connectionId = nextConnectionId;
-                changed = true;
-                connectionContextChanged = true;
-              }
-            }
-            if (draft.dbName !== undefined) {
-              const nextDbName = toTrimmedString(draft.dbName);
-              if ((nextTab.dbName || "") !== nextDbName) {
-                nextTab.dbName = nextDbName;
-                changed = true;
-                connectionContextChanged = true;
-              }
-            }
-            if (draft.schemaName !== undefined) {
-              const nextSchemaName = toTrimmedString(draft.schemaName).slice(0, 256);
-              if ((nextTab.schemaName || "") !== nextSchemaName) {
-                nextTab.schemaName = nextSchemaName || undefined;
-                changed = true;
-              }
-            }
-            if (draft.title !== undefined) {
-              const nextTitle = toTrimmedString(draft.title, nextTab.title) || nextTab.title;
-              if (nextTab.title !== nextTitle) {
-                nextTab.title = nextTitle;
-                changed = true;
-              }
-            }
-            if (draft.resultPanelVisible !== undefined) {
-              const nextResultPanelVisible = draft.resultPanelVisible === true;
-              if (nextTab.resultPanelVisible !== nextResultPanelVisible) {
-                nextTab.resultPanelVisible = nextResultPanelVisible;
-                changed = true;
-              }
-            }
-            if (Object.prototype.hasOwnProperty.call(draft, "formatRestoreSnapshot")) {
-              const rawSnapshot = draft.formatRestoreSnapshot;
-              const nextSnapshot =
-                rawSnapshot && typeof rawSnapshot.query === "string"
-                  ? {
-                      query: rawSnapshot.query.slice(0, MAX_PERSISTED_QUERY_LENGTH),
-                      createdAt: Number.isFinite(Number(rawSnapshot.createdAt))
-                        ? Number(rawSnapshot.createdAt)
-                        : Date.now(),
-                    }
-                  : undefined;
-              const currentSnapshot = nextTab.formatRestoreSnapshot;
-              if (
-                currentSnapshot?.query !== nextSnapshot?.query ||
-                currentSnapshot?.createdAt !== nextSnapshot?.createdAt
-              ) {
-                if (nextSnapshot?.query) {
-                  nextTab.formatRestoreSnapshot = nextSnapshot;
-                } else {
-                  delete nextTab.formatRestoreSnapshot;
-                }
-                changed = true;
-              }
-            }
-
-            if (connectionContextChanged) {
-              contextChangedTab = nextTab;
-            }
-            return nextTab;
-          });
-
-          if (!changed) return state;
-          const nextActiveTab = nextTabs.find((tab) => tab.id === tabId);
-          const shouldSyncActiveContext = state.activeTabId === tabId
-            && Boolean(nextActiveTab)
-            && (
-              !state.activeContext
-              || activeContextMatchesTab(state.activeContext, previousTab)
-            );
-          return {
-            tabs: nextTabs,
-            ...(contextChangedTab
-              ? resolveRecentWorkbenchEntries(state, contextChangedTab)
-              : {}),
-            ...(shouldSyncActiveContext
-              ? { activeContext: resolveActiveContextFromTab(nextActiveTab) }
-              : {}),
+            tabs: [...state.tabs, tab],
+            activeTabId: tab.id,
           };
         }),
 
       closeTab: (id) =>
         set((state) => {
-          const closedTab = state.tabs.find((t) => t.id === id);
-          if (isRunningDataImportTab(closedTab)) {
-            return state;
-          }
-          if (closedTab?.type === "query") {
-            clearQueryTabDraft(closedTab.id);
-            clearQueryEditorResultSession(id);
-          }
           const newTabs = state.tabs.filter((t) => t.id !== id);
           let newActiveId = state.activeTabId;
           if (state.activeTabId === id) {
@@ -4477,22 +1268,14 @@ export const useStore = create<AppState>()(
                 ),
             );
             newActiveId =
-              resolveCloseTabActiveTabId(closedTab, dockedCandidates) ||
-              resolveCloseTabActiveTabId(closedTab, newTabs);
+              resolveCloseTabActiveTabId(dockedCandidates) ||
+              resolveCloseTabActiveTabId(newTabs);
           }
           return {
             tabs: newTabs,
             activeTabId: newActiveId,
-            activeContext: resolveActiveContextForTabId(
-              newTabs,
-              newActiveId,
-              state.activeContext,
-            ),
             detachedWorkbenchWindows: state.detachedWorkbenchWindows.filter(
               (windowState) => windowState.tabId !== id,
-            ),
-            detachedQueryResultWindows: state.detachedQueryResultWindows.filter(
-              (windowState) => windowState.sourceQueryTabId !== id,
             ),
           };
         }),
@@ -4501,25 +1284,13 @@ export const useStore = create<AppState>()(
         set((state) => {
           const keep = state.tabs.find((t) => t.id === id);
           if (!keep) return state;
-          state.tabs
-            .filter((tab) => tab.id !== id && tab.type === "query")
-            .forEach((tab) => {
-              clearQueryTabDraft(tab.id);
-              clearQueryEditorResultSession(tab.id);
-            });
-          const newTabs = state.tabs.filter(
-            (tab) => tab.id === id || isRunningDataImportTab(tab),
-          );
+          const newTabs = state.tabs.filter((tab) => tab.id === id);
           const keptIds = new Set(newTabs.map((tab) => tab.id));
           return {
             tabs: newTabs,
             activeTabId: id,
-            activeContext: resolveActiveContextFromTab(keep),
             detachedWorkbenchWindows: state.detachedWorkbenchWindows.filter(
               (windowState) => keptIds.has(windowState.tabId),
-            ),
-            detachedQueryResultWindows: state.detachedQueryResultWindows.filter(
-              (windowState) => keptIds.has(windowState.sourceQueryTabId),
             ),
           };
         }),
@@ -4528,15 +1299,8 @@ export const useStore = create<AppState>()(
         set((state) => {
           const index = state.tabs.findIndex((t) => t.id === id);
           if (index === -1) return state;
-          state.tabs
-            .slice(0, index)
-            .filter((tab) => tab.type === "query")
-            .forEach((tab) => {
-              clearQueryTabDraft(tab.id);
-              clearQueryEditorResultSession(tab.id);
-            });
           const newTabs = state.tabs.filter(
-            (tab, tabIndex) => tabIndex >= index || isRunningDataImportTab(tab),
+            (_tab, tabIndex) => tabIndex >= index,
           );
           const keptIds = new Set(newTabs.map((tab) => tab.id));
           const activeStillExists = state.activeTabId
@@ -4545,16 +1309,8 @@ export const useStore = create<AppState>()(
           return {
             tabs: newTabs,
             activeTabId: activeStillExists ? state.activeTabId : id,
-            activeContext: resolveActiveContextForTabId(
-              newTabs,
-              activeStillExists ? state.activeTabId : id,
-              state.activeContext,
-            ),
             detachedWorkbenchWindows: state.detachedWorkbenchWindows.filter(
               (windowState) => keptIds.has(windowState.tabId),
-            ),
-            detachedQueryResultWindows: state.detachedQueryResultWindows.filter(
-              (windowState) => keptIds.has(windowState.sourceQueryTabId),
             ),
           };
         }),
@@ -4563,15 +1319,8 @@ export const useStore = create<AppState>()(
         set((state) => {
           const index = state.tabs.findIndex((t) => t.id === id);
           if (index === -1) return state;
-          state.tabs
-            .slice(index + 1)
-            .filter((tab) => tab.type === "query")
-            .forEach((tab) => {
-              clearQueryTabDraft(tab.id);
-              clearQueryEditorResultSession(tab.id);
-            });
           const newTabs = state.tabs.filter(
-            (tab, tabIndex) => tabIndex <= index || isRunningDataImportTab(tab),
+            (_tab, tabIndex) => tabIndex <= index,
           );
           const keptIds = new Set(newTabs.map((tab) => tab.id));
           const activeStillExists = state.activeTabId
@@ -4580,123 +1329,8 @@ export const useStore = create<AppState>()(
           return {
             tabs: newTabs,
             activeTabId: activeStillExists ? state.activeTabId : id,
-            activeContext: resolveActiveContextForTabId(
-              newTabs,
-              activeStillExists ? state.activeTabId : id,
-              state.activeContext,
-            ),
             detachedWorkbenchWindows: state.detachedWorkbenchWindows.filter(
               (windowState) => keptIds.has(windowState.tabId),
-            ),
-            detachedQueryResultWindows: state.detachedQueryResultWindows.filter(
-              (windowState) => keptIds.has(windowState.sourceQueryTabId),
-            ),
-          };
-        }),
-
-      closeTabsByConnection: (connectionId) =>
-        set((state) => {
-          const targetConnectionId = String(connectionId || "").trim();
-          if (!targetConnectionId) return state;
-          state.tabs
-            .filter(
-              (tab) =>
-                tab.type === "query" &&
-                String(tab.connectionId || "").trim() === targetConnectionId,
-            )
-            .forEach((tab) => {
-              clearQueryTabDraft(tab.id);
-              clearQueryEditorResultSession(tab.id);
-            });
-          const newTabs = state.tabs.filter(
-            (tab) => (
-              isRunningDataImportTab(tab)
-              || String(tab.connectionId || "").trim() !== targetConnectionId
-            ),
-          );
-          const activeStillExists = state.activeTabId
-            ? newTabs.some((t) => t.id === state.activeTabId)
-            : false;
-          const nextActiveTabId = activeStillExists
-            ? state.activeTabId
-            : newTabs.length > 0
-              ? newTabs[newTabs.length - 1].id
-              : null;
-          const nextFallbackContext =
-            state.activeContext?.connectionId === targetConnectionId
-              ? null
-              : state.activeContext;
-          const keptIds = new Set(newTabs.map((tab) => tab.id));
-          return {
-            tabs: newTabs,
-            activeTabId: nextActiveTabId,
-            activeContext: resolveActiveContextForTabId(
-              newTabs,
-              nextActiveTabId,
-              nextFallbackContext,
-            ),
-            detachedWorkbenchWindows: state.detachedWorkbenchWindows.filter(
-              (windowState) => keptIds.has(windowState.tabId),
-            ),
-            detachedQueryResultWindows: state.detachedQueryResultWindows.filter(
-              (windowState) => keptIds.has(windowState.sourceQueryTabId),
-            ),
-          };
-        }),
-
-      closeTabsByDatabase: (connectionId, dbName) =>
-        set((state) => {
-          const targetConnectionId = String(connectionId || "").trim();
-          const targetDbName = String(dbName || "").trim();
-          if (!targetConnectionId || !targetDbName) return state;
-          state.tabs
-            .filter((tab) => {
-              if (tab.type !== "query") return false;
-              const sameConnection =
-                String(tab.connectionId || "").trim() === targetConnectionId;
-              const sameDb = String(tab.dbName || "").trim() === targetDbName;
-              return sameConnection && sameDb;
-            })
-            .forEach((tab) => {
-              clearQueryTabDraft(tab.id);
-              clearQueryEditorResultSession(tab.id);
-            });
-          const newTabs = state.tabs.filter((tab) => {
-            if (isRunningDataImportTab(tab)) return true;
-            const sameConnection =
-              String(tab.connectionId || "").trim() === targetConnectionId;
-            const sameDb = String(tab.dbName || "").trim() === targetDbName;
-            return !(sameConnection && sameDb);
-          });
-          const activeStillExists = state.activeTabId
-            ? newTabs.some((t) => t.id === state.activeTabId)
-            : false;
-          const nextActiveTabId = activeStillExists
-            ? state.activeTabId
-            : newTabs.length > 0
-              ? newTabs[newTabs.length - 1].id
-              : null;
-          const sameActiveContext =
-            state.activeContext &&
-            state.activeContext.connectionId === targetConnectionId &&
-            state.activeContext.dbName === targetDbName;
-          const nextFallbackContext = sameActiveContext
-            ? null
-            : state.activeContext;
-          const keptIds = new Set(newTabs.map((tab) => tab.id));
-          return {
-            tabs: newTabs,
-            activeTabId: nextActiveTabId,
-            activeContext: resolveActiveContextForTabId(
-              newTabs,
-              nextActiveTabId,
-              nextFallbackContext,
-            ),
-            detachedWorkbenchWindows: state.detachedWorkbenchWindows.filter(
-              (windowState) => keptIds.has(windowState.tabId),
-            ),
-            detachedQueryResultWindows: state.detachedQueryResultWindows.filter(
-              (windowState) => keptIds.has(windowState.sourceQueryTabId),
             ),
           };
         }),
@@ -4720,37 +1354,11 @@ export const useStore = create<AppState>()(
         }),
 
       closeAllTabs: () =>
-        set((state) => {
-          state.tabs
-            .filter((tab) => tab.type === "query")
-            .forEach((tab) => {
-              clearQueryTabDraft(tab.id);
-              clearQueryEditorResultSession(tab.id);
-            });
-          const newTabs = state.tabs.filter(isRunningDataImportTab);
-          const keptIds = new Set(newTabs.map((tab) => tab.id));
-          const activeStillExists = state.activeTabId
-            ? keptIds.has(state.activeTabId)
-            : false;
-          const nextActiveTabId = activeStillExists
-            ? state.activeTabId
-            : (newTabs[0]?.id || null);
-          return {
-            tabs: newTabs,
-            activeTabId: nextActiveTabId,
-            activeContext: resolveActiveContextForTabId(
-              newTabs,
-              nextActiveTabId,
-              null,
-            ),
-            detachedWorkbenchWindows: state.detachedWorkbenchWindows.filter(
-              (windowState) => keptIds.has(windowState.tabId),
-            ),
-            detachedQueryResultWindows: state.detachedQueryResultWindows.filter(
-              (windowState) => keptIds.has(windowState.sourceQueryTabId),
-            ),
-          };
-        }),
+        set((state) => ({
+          tabs: [],
+          activeTabId: null,
+          detachedWorkbenchWindows: [],
+        })),
 
       setActiveTab: (id) =>
         set((state) => {
@@ -4759,24 +1367,12 @@ export const useStore = create<AppState>()(
             (windowState) => windowState.tabId === tabId,
           );
           if (!isDetached) {
-            return {
-              activeTabId: tabId,
-              activeContext: resolveActiveContextForTabId(
-                state.tabs,
-                tabId,
-                state.activeContext,
-              ),
-            };
+            return { activeTabId: tabId };
           }
-          // Detached tab: keep active context, raise floating window
+          // Detached tab: keep docked state, raise floating window
           const zIndex = nextDetachedZIndex(state.detachedWorkbenchWindows);
           return {
             activeTabId: tabId,
-            activeContext: resolveActiveContextForTabId(
-              state.tabs,
-              tabId,
-              state.activeContext,
-            ),
             detachedWorkbenchWindows: state.detachedWorkbenchWindows.map(
               (windowState) =>
                 windowState.tabId === tabId
@@ -4785,7 +1381,6 @@ export const useStore = create<AppState>()(
             ),
           };
         }),
-      setActiveContext: (context) => set({ activeContext: context }),
 
       detachWorkbenchTab: (tabId, preferred) =>
         set((state) => {
@@ -4800,11 +1395,6 @@ export const useStore = create<AppState>()(
             const zIndex = nextDetachedZIndex(state.detachedWorkbenchWindows);
             return {
               activeTabId: id,
-              activeContext: resolveActiveContextForTabId(
-                state.tabs,
-                id,
-                state.activeContext,
-              ),
               detachedWorkbenchWindows: state.detachedWorkbenchWindows.map(
                 (windowState) =>
                   windowState.tabId === id
@@ -4817,21 +1407,14 @@ export const useStore = create<AppState>()(
             state.detachedWorkbenchWindows,
             preferred,
           );
-          const detachedTab = state.tabs.find((tab) => tab.id === id);
           return {
             detachedWorkbenchWindows: [
               ...state.detachedWorkbenchWindows,
               { tabId: id, ...bounds },
             ],
-            // Keep detached tab active so connection context and focus stay correct;
+            // Keep detached tab active so focus stays correct;
             // TabManager only renders docked tabs and falls back visually.
             activeTabId: id,
-            activeContext: resolveActiveContextFromTab(detachedTab) ||
-              resolveActiveContextForTabId(
-                state.tabs,
-                id,
-                state.activeContext,
-              ),
           };
         }),
 
@@ -4844,25 +1427,13 @@ export const useStore = create<AppState>()(
               (windowState) => windowState.tabId === id,
             )
           ) {
-            return {
-              activeTabId: id,
-              activeContext: resolveActiveContextForTabId(
-                state.tabs,
-                id,
-                state.activeContext,
-              ),
-            };
+            return { activeTabId: id };
           }
           return {
             detachedWorkbenchWindows: state.detachedWorkbenchWindows.filter(
               (windowState) => windowState.tabId !== id,
             ),
             activeTabId: id,
-            activeContext: resolveActiveContextForTabId(
-              state.tabs,
-              id,
-              state.activeContext,
-            ),
           };
         }),
 
@@ -4904,11 +1475,6 @@ export const useStore = create<AppState>()(
           const zIndex = nextDetachedZIndex(state.detachedWorkbenchWindows);
           return {
             activeTabId: id,
-            activeContext: resolveActiveContextForTabId(
-              state.tabs,
-              id,
-              state.activeContext,
-            ),
             detachedWorkbenchWindows: state.detachedWorkbenchWindows.map(
               (windowState) =>
                 windowState.tabId === id
@@ -4918,337 +1484,15 @@ export const useStore = create<AppState>()(
           };
         }),
 
-      isWorkbenchTabDetached: (tabId): boolean => {
-        const id = String(tabId || "").trim();
-        return get().detachedWorkbenchWindows.some(
-          (windowState) => windowState.tabId === id,
-        );
-      },
-
-      detachQueryResultWindow: (windowState) =>
-        set((state) => {
-          const id = String(windowState.id || "").trim();
-          if (!id) return state;
-          const existingIndex = state.detachedQueryResultWindows.findIndex(
-            (item) => item.id === id,
-          );
-          if (existingIndex >= 0) {
-            const zIndex = nextDetachedZIndex(state.detachedQueryResultWindows);
-            const next = [...state.detachedQueryResultWindows];
-            next[existingIndex] = {
-              ...next[existingIndex],
-              ...windowState,
-              zIndex,
-            };
-            return { detachedQueryResultWindows: next };
-          }
-          const bounds = createDefaultDetachedBounds(
-            state.detachedQueryResultWindows,
-            windowState,
-          );
-          return {
-            detachedQueryResultWindows: [
-              ...state.detachedQueryResultWindows,
-              {
-                id,
-                sourceQueryTabId: String(windowState.sourceQueryTabId || ""),
-                connectionId: String(windowState.connectionId || ""),
-                dbName: windowState.dbName,
-                title: String(windowState.title || id),
-                result: windowState.result,
-                ...bounds,
-              },
-            ],
-          };
-        }),
-
-      attachQueryResultWindow: (id) => {
-        const windowId = String(id || "").trim();
-        if (!windowId) return null;
-        const current = get().detachedQueryResultWindows;
-        const found =
-          current.find((windowState) => windowState.id === windowId) || null;
-        if (!found) return null;
-        set({
-          detachedQueryResultWindows: current.filter(
-            (windowState) => windowState.id !== windowId,
-          ),
-        });
-        return found;
-      },
-
-      closeDetachedQueryResultWindow: (id) =>
-        set((state) => ({
-          detachedQueryResultWindows: state.detachedQueryResultWindows.filter(
-            (windowState) => windowState.id !== String(id || "").trim(),
-          ),
-        })),
-
-      updateDetachedQueryResultBounds: (id, bounds) =>
-        set((state) => {
-          const windowId = String(id || "").trim();
-          if (!windowId) return state;
-          return {
-            detachedQueryResultWindows: state.detachedQueryResultWindows.map(
-              (windowState) =>
-                windowState.id === windowId
-                  ? {
-                      ...windowState,
-                      ...(bounds.x !== undefined ? { x: bounds.x } : {}),
-                      ...(bounds.y !== undefined ? { y: bounds.y } : {}),
-                      ...(bounds.width !== undefined
-                        ? { width: bounds.width }
-                        : {}),
-                      ...(bounds.height !== undefined
-                        ? { height: bounds.height }
-                        : {}),
-                    }
-                  : windowState,
-            ),
-          };
-        }),
-
-      focusDetachedQueryResultWindow: (id) =>
-        set((state) => {
-          const windowId = String(id || "").trim();
-          if (
-            !windowId ||
-            !state.detachedQueryResultWindows.some(
-              (windowState) => windowState.id === windowId,
-            )
-          ) {
-            return state;
-          }
-          const zIndex = nextDetachedZIndex(state.detachedQueryResultWindows);
-          return {
-            detachedQueryResultWindows: state.detachedQueryResultWindows.map(
-              (windowState) =>
-                windowState.id === windowId
-                  ? { ...windowState, zIndex }
-                  : windowState,
-            ),
-          };
-        }),
-
-      closeDetachedQueryResultWindowsBySourceTab: (sourceQueryTabId) =>
-        set((state) => {
-          const sourceId = String(sourceQueryTabId || "").trim();
-          if (!sourceId) return state;
-          return {
-            detachedQueryResultWindows: state.detachedQueryResultWindows.filter(
-              (windowState) => windowState.sourceQueryTabId !== sourceId,
-            ),
-          };
-        }),
-
-      replaceSavedQueries: (queries) =>
-        set({ savedQueries: sanitizeSavedQueries(queries) }),
-
-      replaceSavedQueryGroups: (groups) =>
-        set((state) => ({
-          savedQueryGroups: normalizeSavedQueryGroups(
-            groups,
-            state.savedQueries.map((query) => query.id),
-          ),
-        })),
-
-      reloadSavedQueryGroups: async () => {
-        const groups = await getSavedQueryGroupsFromBackend(
-          resolveSavedQueryBackend(),
-        );
-        const normalized = normalizeSavedQueryGroups(
-          groups,
-          get().savedQueries.map((query) => query.id),
-        );
-        set({ savedQueryGroups: normalized });
-        return normalized;
-      },
-
-      saveSavedQueryGroup: async (group) => {
-        const saved = await saveSavedQueryGroupToBackend(
-          resolveSavedQueryBackend(),
-          group,
-        );
-        // The backend normalizes ownership and mixed child order. Reload after
-        // every write rather than applying an optimistic local patch.
-        await get().reloadSavedQueryGroups();
-        return saved;
-      },
-
-      deleteSavedQueryGroup: async (id) => {
-        await deleteSavedQueryGroupFromBackend(resolveSavedQueryBackend(), id);
-        await get().reloadSavedQueryGroups();
-      },
-
-      moveSavedQueryToGroup: async (queryId, groupId) => {
-        await moveSavedQueryToGroupInBackend(
-          resolveSavedQueryBackend(),
-          queryId,
-          groupId,
-        );
-        await get().reloadSavedQueryGroups();
-      },
-
-      moveSavedQueryGroup: async (groupId, parentGroupId) => {
-        await moveSavedQueryGroupInBackend(
-          resolveSavedQueryBackend(),
-          groupId,
-          parentGroupId,
-        );
-        await get().reloadSavedQueryGroups();
-      },
-
-      saveQuery: async (query) => {
-        const saved = await saveSavedQueryToBackend(
-          resolveSavedQueryBackend(),
-          query,
-        );
-        set((state) => {
-          const existing = state.savedQueries.find((q) => q.id === saved.id);
-          if (existing) {
-            return {
-              savedQueries: state.savedQueries.map((q) =>
-                q.id === saved.id ? saved : q,
-              ),
-            };
-          }
-          return { savedQueries: [...state.savedQueries, saved] };
-        });
-        return saved;
-      },
-
-      deleteQuery: async (id) => {
-        await deleteSavedQueryFromBackend(resolveSavedQueryBackend(), id);
-        const groups = await getSavedQueryGroupsFromBackend(
-          resolveSavedQueryBackend(),
-        );
-        set((state) => ({
-          savedQueries: state.savedQueries.filter((q) => q.id !== id),
-          savedQueryGroups: normalizeSavedQueryGroups(
-            groups,
-            state.savedQueries
-              .filter((query) => query.id !== id)
-              .map((query) => query.id),
-          ),
-        }));
-      },
-
-      saveExternalSQLDirectory: (directory) =>
-        set((state) => {
-          const path = toTrimmedString(directory.path);
-          if (!path) {
-            return state;
-          }
-          const connectionId = toTrimmedString(directory.connectionId);
-          const dbName = toTrimmedString(directory.dbName);
-          const fileBindings = sanitizeExternalSQLFileBindings(directory.fileBindings);
-          const nextDirectory: ExternalSQLDirectory = {
-            id:
-              toTrimmedString(
-                directory.id,
-                buildExternalSQLDirectoryId(connectionId, dbName, path),
-              ) || buildExternalSQLDirectoryId(connectionId, dbName, path),
-            name: resolveExternalSQLDirectoryName(directory.name, path),
-            path,
-            ...(connectionId ? { connectionId } : {}),
-            ...(dbName ? { dbName } : {}),
-            ...(fileBindings.length > 0 ? { fileBindings } : {}),
-            createdAt: Number.isFinite(Number(directory.createdAt))
-              ? Number(directory.createdAt)
-              : Date.now(),
-          };
-          const existingIndex = state.externalSQLDirectories.findIndex(
-            (item) => item.id === nextDirectory.id,
-          );
-          if (existingIndex === -1) {
-            return {
-              externalSQLDirectories: [
-                ...state.externalSQLDirectories,
-                nextDirectory,
-              ],
-            };
-          }
-          return {
-            externalSQLDirectories: state.externalSQLDirectories.map(
-              (item, index) => (index === existingIndex ? nextDirectory : item),
-            ),
-          };
-        }),
-
-      deleteExternalSQLDirectory: (id) =>
-        set((state) => ({
-          externalSQLDirectories: state.externalSQLDirectories.filter(
-            (item) => item.id !== id,
-          ),
-        })),
-
-      updateRecentSQLFilePath: (previousPath, nextPath) =>
-        set((state) => {
-          const previousKey = normalizeRecentSQLPath(previousPath);
-          const normalizedNextPath = toTrimmedString(nextPath);
-          if (!previousKey || !normalizedNextPath) return state;
-          return {
-            recentSQLFiles: sanitizeRecentSQLFiles(state.recentSQLFiles.map((file) => (
-              normalizeRecentSQLPath(file.filePath) === previousKey
-                ? {
-                    ...file,
-                    filePath: normalizedNextPath,
-                    fileName: resolveRecentSQLFileName(normalizedNextPath, undefined),
-                  }
-                : file
-            ))),
-          };
-        }),
-
-      removeRecentSQLFilesByPath: (filePath) =>
-        set((state) => {
-          const pathKey = normalizeRecentSQLPath(filePath);
-          if (!pathKey) return state;
-          return {
-            recentSQLFiles: state.recentSQLFiles.filter(
-              (file) => normalizeRecentSQLPath(file.filePath) !== pathKey,
-            ),
-          };
-        }),
-
-      moveRecentSQLFilesByDirectory: (previousDirectoryPath, nextDirectoryPath) =>
-        set((state) => {
-          const previousPath = normalizeRecentSQLPath(previousDirectoryPath);
-          const nextPath = normalizeRecentSQLPath(nextDirectoryPath);
-          if (!previousPath || !nextPath) return state;
-          return {
-            recentSQLFiles: sanitizeRecentSQLFiles(state.recentSQLFiles.map((file) => {
-              if (!isRecentSQLPathInDirectory(file.filePath, previousPath)) return file;
-              const filePath = relocateRecentSQLFilePath(
-                file.filePath,
-                previousDirectoryPath,
-                nextDirectoryPath,
-              );
-              return {
-                ...file,
-                filePath,
-                fileName: resolveRecentSQLFileName(filePath, undefined),
-              };
-            })),
-          };
-        }),
-
-      removeRecentSQLFilesByDirectory: (directoryPath) =>
-        set((state) => ({
-          recentSQLFiles: state.recentSQLFiles.filter(
-            (file) => !isRecentSQLPathInDirectory(file.filePath, directoryPath),
-          ),
-        })),
+      isWorkbenchTabDetached: (tabId) =>
+        get().detachedWorkbenchWindows.some(
+          (windowState) => windowState.tabId === String(tabId || "").trim(),
+        ),
 
       setTheme: (theme) => set({ theme }),
-      setThemePreference: (themePreference) =>
-        set({
-          themePreference: sanitizeThemePreference(themePreference),
-        }),
+      setThemePreference: (themePreference) => set({ themePreference }),
       setLanguagePreference: (languagePreference) =>
-        set({
-          languagePreference: sanitizeLanguagePreference(languagePreference),
-        }),
+        set({ languagePreference }),
       setAppearance: (appearance) =>
         set((state) => ({
           appearance: sanitizeAppearance(
@@ -5256,76 +1500,18 @@ export const useStore = create<AppState>()(
             PERSIST_VERSION,
           ),
         })),
-      setRedisDbAlias: (connectionId, dbIndex, alias) =>
-        set((state) => ({
-          appearance: sanitizeAppearance(
-            {
-              ...state.appearance,
-              redisDbAliases: applyRedisDbAlias(
-                state.appearance.redisDbAliases,
-                connectionId,
-                dbIndex,
-                alias,
-              ),
-            },
-            PERSIST_VERSION,
-          ),
-        })),
       setUiScale: (scale) => set({ uiScale: sanitizeUiScale(scale) }),
       setFontSize: (size) => set({ fontSize: sanitizeFontSize(size) }),
-      setStartupFullscreen: (enabled) => {
-        const nextValue = !!enabled;
-        set({ startupFullscreen: nextValue });
-        writePersistedStatePatch({ startupFullscreen: nextValue });
-      },
-      setAutoCheckForUpdates: (enabled) => {
-        set({ autoCheckForUpdates: sanitizeAutoCheckForUpdates(enabled) });
-      },
-      setAutoCheckForUpdatesIntervalMinutes: (minutes) => {
+      setStartupFullscreen: (enabled) =>
+        set({ startupFullscreen: sanitizeStartupFullscreen(enabled) }),
+      setAutoCheckForUpdates: (enabled) =>
+        set({ autoCheckForUpdates: sanitizeAutoCheckForUpdates(enabled) }),
+      setAutoCheckForUpdatesIntervalMinutes: (minutes) =>
         set({
           autoCheckForUpdatesIntervalMinutes:
             sanitizeAutoCheckForUpdatesIntervalMinutes(minutes),
-        });
-      },
-      setSqlFormatOptions: (options) => set({ sqlFormatOptions: options }),
-      setQueryOptions: (options) =>
-        set((state) => ({
-          queryOptions: sanitizeQueryOptions({
-            ...state.queryOptions,
-            ...options,
-          }),
-        })),
-      setDataEditTransactionOptions: (options) =>
-        set((state) => ({
-          dataEditTransactionOptions: sanitizeDataEditTransactionOptions({
-            ...state.dataEditTransactionOptions,
-            ...options,
-          }),
-        })),
-      setSqlEditorTransactionOptions: (options) =>
-        set((state) => ({
-          sqlEditorTransactionOptions: sanitizeSqlEditorTransactionOptions({
-            ...state.sqlEditorTransactionOptions,
-            ...options,
-          }),
-        })),
-      setSqlEditorPendingTransaction: (tabId, transaction) =>
-        set((state) => {
-          const safeTabId = String(tabId || "").trim();
-          if (!safeTabId) {
-            return {};
-          }
-          const next = { ...state.sqlEditorPendingTransactions };
-          if (!transaction) {
-            delete next[safeTabId];
-            return { sqlEditorPendingTransactions: next };
-          }
-          next[safeTabId] = {
-            ...transaction,
-            tabId: safeTabId,
-          };
-          return { sqlEditorPendingTransactions: next };
         }),
+
       updateShortcut: (action, binding, platform) => {
         runWithExplicitShortcutPersistence(() => {
           const targetPlatform = platform ?? getShortcutPlatform();
@@ -5343,237 +1529,15 @@ export const useStore = create<AppState>()(
           }));
         });
       },
-      resetShortcutOptions: () => {
-        runWithExplicitShortcutPersistence(() => {
-          set({
-            shortcutOptions: cloneShortcutOptions(DEFAULT_SHORTCUT_OPTIONS),
-          });
-        });
-      },
 
-      saveSqlSnippet: (snippet) =>
-        set((state) => {
-          const existing = state.sqlSnippets.findIndex((s) => s.id === snippet.id);
-          if (existing >= 0) {
-            const updated = [...state.sqlSnippets];
-            updated[existing] = snippet;
-            return { sqlSnippets: updated };
-          }
-          return { sqlSnippets: [...state.sqlSnippets, snippet] };
-        }),
-      deleteSqlSnippet: (id) =>
-        set((state) => ({
-          sqlSnippets: state.sqlSnippets.filter(
-            (s) => s.id !== id || s.isBuiltin,
-          ),
-        })),
-      resetBuiltinSqlSnippet: (id) =>
-        set((state) => {
-          const original = BUILTIN_SNIPPET_MAP[id];
-          if (!original) return state;
-          return {
-            sqlSnippets: state.sqlSnippets.map((s) =>
-              s.id === id ? { ...original } : s,
-            ),
-          };
-        }),
+      resetShortcutOptions: () =>
+        runWithExplicitShortcutPersistence(() =>
+          set({ shortcutOptions: cloneShortcutOptions(DEFAULT_SHORTCUT_OPTIONS) }),
+        ),
 
       addSqlLog: (log) =>
         set((state) => ({ sqlLogs: appendRuntimeSqlLog(state.sqlLogs, log) })),
-      hideSqlLogFromRecent: (id) =>
-        set((state) => ({
-          sqlLogs: state.sqlLogs.map((log) => (
-            log.id === id ? { ...log, hiddenFromRecent: true } : log
-          )),
-        })),
-      clearRecentSqlLogs: () =>
-        set((state) => ({
-          sqlLogs: state.sqlLogs.map((log) => (
-            log.hiddenFromRecent ? log : { ...log, hiddenFromRecent: true }
-          )),
-        })),
       clearSqlLogs: () => set({ sqlLogs: [] }),
-      upsertTableExportHistory: (historyKey, entry) =>
-        set((state) => {
-          const safeHistoryKey = toTrimmedString(historyKey);
-          const safeEntry = sanitizeTableExportHistoryEntry(entry);
-          if (
-            !safeHistoryKey
-            || !safeEntry
-            || (safeEntry.status !== "done" && safeEntry.status !== "error")
-          ) {
-            return state;
-          }
-          const existingEntries = state.tableExportHistories[safeHistoryKey] || [];
-          const existingIndex = existingEntries.findIndex(
-            (item) => item.jobId === safeEntry.jobId,
-          );
-          const nextEntries =
-            existingIndex >= 0
-              ? existingEntries.map((item, index) =>
-                  index === existingIndex ? { ...item, ...safeEntry } : item,
-                )
-              : [safeEntry, ...existingEntries];
-          const trimmedEntries = nextEntries.slice(0, MAX_TABLE_EXPORT_HISTORY_PER_TARGET);
-          const unchanged =
-            existingEntries.length === trimmedEntries.length &&
-            existingEntries.every((item, index) =>
-              JSON.stringify(item) === JSON.stringify(trimmedEntries[index]),
-            );
-          if (unchanged) {
-            return state;
-          }
-          return {
-            tableExportHistories: {
-              ...state.tableExportHistories,
-              [safeHistoryKey]: trimmedEntries,
-            },
-          };
-        }),
-
-      recordTableAccess: (connectionId, dbName, tableName) =>
-        set((state) => {
-          return {
-            tableAccessCount: incrementTableAccessCount(
-              state.tableAccessCount,
-              connectionId,
-              dbName,
-              tableName,
-            ),
-          };
-        }),
-
-      setTableSortPreference: (connectionId, dbName, sortBy) =>
-        set((state) => {
-          const key = `${connectionId}-${dbName}`;
-          return {
-            tableSortPreference: {
-              ...state.tableSortPreference,
-              [key]: sortBy,
-            },
-          };
-        }),
-
-      updateSidebarTreeOrders: (updates) =>
-        set((state) => ({
-          sidebarTreeOrders: applySidebarTreeOrderUpdates(state.sidebarTreeOrders, updates),
-        })),
-
-      setTableDesignerSchema: (connectionId, schemaName) =>
-        set((state) => {
-          const safeConnectionId = toTrimmedString(connectionId);
-          const safeSchemaName = toTrimmedString(schemaName).slice(0, 256);
-          if (!safeConnectionId || !safeSchemaName) return state;
-          return {
-            tableDesignerSchemaByConnection: {
-              ...state.tableDesignerSchemaByConnection,
-              [safeConnectionId]: safeSchemaName,
-            },
-          };
-        }),
-
-      setSidebarTablePinned: (connectionId, dbName, tableName, schemaName, pinned) =>
-        set((state) => {
-          const key = buildSidebarTablePinKey(connectionId, dbName, tableName, schemaName);
-          if (!key) return state;
-          const current = new Set(state.pinnedSidebarTables);
-          if (pinned) {
-            current.add(key);
-          } else {
-            current.delete(key);
-          }
-          return { pinnedSidebarTables: Array.from(current) };
-        }),
-
-      setSidebarDatabasePinned: (connectionId, dbName, pinned) =>
-        set((state) => ({
-          pinnedSidebarDatabases: updateSidebarDatabasePinKeys(
-            state.pinnedSidebarDatabases,
-            connectionId,
-            dbName,
-            pinned,
-          ),
-        })),
-
-      setConnectionTypePinned: (dbType, pinned) =>
-        set((state) => ({
-          pinnedConnectionTypes: updatePinnedConnectionTypeKeys(
-            state.pinnedConnectionTypes,
-            dbType,
-            pinned,
-          ),
-        })),
-
-      setTableColumnOrder: (connectionId, dbName, tableName, order) =>
-        set((state) => {
-          const key = `${connectionId}-${dbName}-${tableName}`;
-          return {
-            tableColumnOrders: {
-              ...state.tableColumnOrders,
-              [key]: order,
-            },
-          };
-        }),
-
-      clearTableColumnOrder: (connectionId, dbName, tableName) =>
-        set((state) => {
-          const key = `${connectionId}-${dbName}-${tableName}`;
-          const newOrders = { ...state.tableColumnOrders };
-          delete newOrders[key];
-          return { tableColumnOrders: newOrders };
-        }),
-
-      setEnableColumnOrderMemory: (enabled) =>
-        set({ enableColumnOrderMemory: !!enabled }),
-
-      setTablePinnedLeftColumns: (connectionId, dbName, tableName, columns) =>
-        set((state) => {
-          const key = `${connectionId}-${dbName}-${tableName}`;
-          const normalized = Array.isArray(columns)
-            ? Array.from(new Set(columns.map((col) => String(col || "").trim()).filter(Boolean)))
-            : [];
-          if (normalized.length === 0) {
-            const next = { ...state.tablePinnedLeftColumns };
-            delete next[key];
-            return { tablePinnedLeftColumns: next };
-          }
-          return {
-            tablePinnedLeftColumns: {
-              ...state.tablePinnedLeftColumns,
-              [key]: normalized,
-            },
-          };
-        }),
-
-      clearTablePinnedLeftColumns: (connectionId, dbName, tableName) =>
-        set((state) => {
-          const key = `${connectionId}-${dbName}-${tableName}`;
-          const next = { ...state.tablePinnedLeftColumns };
-          delete next[key];
-          return { tablePinnedLeftColumns: next };
-        }),
-
-      setTableHiddenColumns: (connectionId, dbName, tableName, hiddenColumns) =>
-        set((state) => {
-          const key = `${connectionId}-${dbName}-${tableName}`;
-          return {
-            tableHiddenColumns: {
-              ...state.tableHiddenColumns,
-              [key]: hiddenColumns,
-            },
-          };
-        }),
-
-      clearTableHiddenColumns: (connectionId, dbName, tableName) =>
-        set((state) => {
-          const key = `${connectionId}-${dbName}-${tableName}`;
-          const newHidden = { ...state.tableHiddenColumns };
-          delete newHidden[key];
-          return { tableHiddenColumns: newHidden };
-        }),
-
-      setEnableHiddenColumnMemory: (enabled) =>
-        set({ enableHiddenColumnMemory: !!enabled }),
 
       setWindowBounds: (bounds) => {
         const dpi = bounds.dpi;
@@ -5600,7 +1564,6 @@ export const useStore = create<AppState>()(
 
       setSidebarWidth: (width) =>
         set({ sidebarWidth: sanitizeSidebarWidth(width) }),
-
 
       setJVMDiagnosticDraft: (tabId, draft) =>
         set((state) => ({
@@ -5645,49 +1608,14 @@ export const useStore = create<AppState>()(
         const state = unwrapPersistedAppState(
           persistedState,
         ) as Partial<AppState>;
-        captureLegacySavedQueriesSnapshot(state.savedQueries, state.connections);
-        const nextState: Partial<AppState> = { ...state };
-        // 缺失连接表示由启动阶段从后端加载，迁移时不能把它写成空数组，
-        // 否则会让持久化的侧栏根节点顺序提前丢失。
-        nextState.connections =
-          state.connections === undefined
-            ? undefined
-            : sanitizeConnections(state.connections);
-        const safeTabs = sanitizeQueryTabs(state.tabs);
+        const nextState: Partial<AppState> = {};
+        // 缺失连接表示由启动阶段从后端加载，迁移时不能把它写成空数组。
+        if (state.connections !== undefined) {
+          nextState.connections = sanitizeConnections(state.connections);
+        }
+        const safeTabs = sanitizeTabs(state.tabs);
         nextState.tabs = safeTabs;
         nextState.activeTabId = sanitizeActiveTabId(state.activeTabId, safeTabs);
-        if (version < 5) {
-          nextState.connectionTags = sanitizeConnectionTags(
-            state.connectionTags,
-          );
-        } else {
-          nextState.connectionTags = sanitizeConnectionTags(
-            state.connectionTags,
-          );
-        }
-        nextState.sidebarRootOrder = resolveHydratedSidebarRootOrderTokens(
-          state.sidebarRootOrder,
-          state.connectionTags === undefined ? undefined : nextState.connectionTags,
-          state.connections === undefined ? undefined : nextState.connections,
-        );
-        nextState.rootSortMode = 'manual';
-        nextState.rootConnectionSortMode = state.rootConnectionSortMode === 'manual' || state.rootConnectionSortMode === 'name' || state.rootConnectionSortMode === 'createdAt'
-          ? state.rootConnectionSortMode
-          : state.rootSortMode === 'name' || state.rootSortMode === 'createdAt'
-            ? state.rootSortMode
-            : 'createdAt';
-        delete nextState.savedQueries;
-        delete nextState.savedQueryGroups;
-        nextState.externalSQLDirectories = sanitizeExternalSQLDirectories(
-          state.externalSQLDirectories,
-        );
-        nextState.recentConnectionTargets = sanitizeRecentConnectionTargets(
-          state.recentConnectionTargets,
-        );
-        nextState.recentSQLFiles = sanitizeRecentSQLFiles(state.recentSQLFiles);
-        nextState.pinnedConnectionTypes = sanitizePinnedConnectionTypes(
-          state.pinnedConnectionTypes,
-        );
         nextState.theme = sanitizeTheme(state.theme);
         nextState.themePreference = sanitizeThemePreference(
           state.themePreference,
@@ -5710,59 +1638,11 @@ export const useStore = create<AppState>()(
           sanitizeAutoCheckForUpdatesIntervalMinutes(
             state.autoCheckForUpdatesIntervalMinutes,
           );
-        nextState.sqlFormatOptions = sanitizeSqlFormatOptions(
-          state.sqlFormatOptions,
-        );
-        nextState.queryOptions = sanitizeQueryOptions(state.queryOptions);
-        nextState.dataEditTransactionOptions =
-          sanitizeDataEditTransactionOptions(state.dataEditTransactionOptions);
-        nextState.sqlEditorTransactionOptions =
-          sanitizeSqlEditorTransactionOptions(state.sqlEditorTransactionOptions);
         nextState.shortcutOptions = sanitizePersistedShortcutOptions(
           state.shortcutOptions,
           version,
         );
         nextState.sqlLogs = sanitizeRuntimeSqlLogs(state.sqlLogs);
-        nextState.tableExportHistories = sanitizeTableExportHistories(
-          state.tableExportHistories,
-        );
-        const existingSnippets = sanitizeSqlSnippets(state.sqlSnippets);
-        const existingSnippetIds = new Set(existingSnippets.map((s) => s.id));
-        const missingSnippets = DEFAULT_SQL_SNIPPETS.filter(
-          (d) => !existingSnippetIds.has(d.id),
-        );
-        nextState.sqlSnippets =
-          missingSnippets.length > 0
-            ? [...existingSnippets, ...missingSnippets]
-            : existingSnippets;
-        nextState.tableAccessCount = sanitizeTableAccessCount(
-          state.tableAccessCount,
-        );
-        nextState.tableSortPreference = sanitizeTableSortPreference(
-          state.tableSortPreference,
-        );
-        nextState.sidebarTreeOrders = sanitizeSidebarTreeOrders(state.sidebarTreeOrders);
-        nextState.tableDesignerSchemaByConnection = sanitizeTableDesignerSchemaByConnection(
-          state.tableDesignerSchemaByConnection,
-        );
-        // 新增的列排序记忆状态不需要做版本特殊兼容，直接做基本的类型保护
-        const safeOrders = sanitizeTableColumnOrders(state.tableColumnOrders);
-        nextState.tableColumnOrders = safeOrders;
-        nextState.enableColumnOrderMemory =
-          state.enableColumnOrderMemory !== false;
-        nextState.tablePinnedLeftColumns = sanitizeTableColumnOrders(
-          state.tablePinnedLeftColumns,
-        );
-        const safeHidden = sanitizeTableHiddenColumns(state.tableHiddenColumns);
-        nextState.tableHiddenColumns = safeHidden;
-        nextState.enableHiddenColumnMemory =
-          state.enableHiddenColumnMemory !== false;
-        nextState.pinnedSidebarTables = sanitizePinnedSidebarTables(
-          state.pinnedSidebarTables,
-        );
-        nextState.pinnedSidebarDatabases = sanitizePinnedSidebarTables(
-          state.pinnedSidebarDatabases,
-        );
         nextState.windowBounds = sanitizeWindowBounds(state.windowBounds);
         nextState.windowState = sanitizeWindowState(state.windowState);
         nextState.sidebarWidth = sanitizeSidebarWidth(state.sidebarWidth);
@@ -5772,55 +1652,18 @@ export const useStore = create<AppState>()(
         const state = unwrapPersistedAppState(
           persistedState,
         ) as Partial<AppState>;
-        captureLegacySavedQueriesSnapshot(state.savedQueries, state.connections);
-        const safeTabs = sanitizeQueryTabs(state.tabs);
+        const safeTabs = sanitizeTabs(state.tabs);
         const persistedConnections =
           state.connections === undefined
             ? currentState.connections
             : sanitizeConnections(state.connections);
-        const persistedConnectionTags =
-          state.connectionTags === undefined
-            ? currentState.connectionTags
-            : sanitizeConnectionTags(state.connectionTags);
-        const persistedSidebarRootOrder =
-          state.sidebarRootOrder === undefined
-            ? currentState.sidebarRootOrder
-            : resolveHydratedSidebarRootOrderTokens(
-                state.sidebarRootOrder,
-                state.connectionTags === undefined
-                  ? undefined
-                  : persistedConnectionTags,
-                state.connections === undefined ? undefined : persistedConnections,
-              );
         return {
           ...currentState,
-          ...state,
           connections: persistedConnections,
-          connectionTags: persistedConnectionTags,
-          sidebarRootOrder: persistedSidebarRootOrder,
-          rootSortMode: 'manual',
-          rootConnectionSortMode: state.rootConnectionSortMode === 'manual' || state.rootConnectionSortMode === 'name' || state.rootConnectionSortMode === 'createdAt'
-            ? state.rootConnectionSortMode
-            : state.rootSortMode === 'name' || state.rootSortMode === 'createdAt'
-              ? state.rootSortMode
-              : currentState.rootConnectionSortMode,
           tabs: safeTabs,
           // Floating windows are session-only and must not be restored from disk.
           detachedWorkbenchWindows: [],
-
           activeTabId: sanitizeActiveTabId(state.activeTabId, safeTabs),
-          savedQueries: currentState.savedQueries,
-          savedQueryGroups: currentState.savedQueryGroups,
-          externalSQLDirectories: sanitizeExternalSQLDirectories(
-            state.externalSQLDirectories,
-          ),
-          recentConnectionTargets: sanitizeRecentConnectionTargets(
-            state.recentConnectionTargets,
-          ),
-          recentSQLFiles: sanitizeRecentSQLFiles(state.recentSQLFiles),
-          pinnedConnectionTypes: sanitizePinnedConnectionTypes(
-            state.pinnedConnectionTypes,
-          ),
           theme: sanitizeTheme(state.theme),
           themePreference: sanitizeThemePreference(
             state.themePreference,
@@ -5841,43 +1684,11 @@ export const useStore = create<AppState>()(
             sanitizeAutoCheckForUpdatesIntervalMinutes(
               state.autoCheckForUpdatesIntervalMinutes,
             ),
-          tableSortPreference: sanitizeTableSortPreference(
-            state.tableSortPreference,
-          ),
-          sidebarTreeOrders: sanitizeSidebarTreeOrders(state.sidebarTreeOrders),
-          tableDesignerSchemaByConnection: sanitizeTableDesignerSchemaByConnection(
-            state.tableDesignerSchemaByConnection,
-          ),
-          tableColumnOrders: sanitizeTableColumnOrders(state.tableColumnOrders),
-          enableColumnOrderMemory: state.enableColumnOrderMemory !== false,
-          tablePinnedLeftColumns: sanitizeTableColumnOrders(
-            state.tablePinnedLeftColumns,
-          ),
-          tableHiddenColumns: sanitizeTableHiddenColumns(
-            state.tableHiddenColumns,
-          ),
-          enableHiddenColumnMemory: state.enableHiddenColumnMemory !== false,
-          pinnedSidebarTables: sanitizePinnedSidebarTables(
-            state.pinnedSidebarTables,
-          ),
-          pinnedSidebarDatabases: sanitizePinnedSidebarTables(
-            state.pinnedSidebarDatabases,
-          ),
+          shortcutOptions: sanitizeShortcutOptions(state.shortcutOptions),
+          sqlLogs: sanitizeRuntimeSqlLogs(state.sqlLogs),
           windowBounds: sanitizeWindowBounds(state.windowBounds),
           windowState: sanitizeWindowState(state.windowState),
           sidebarWidth: sanitizeSidebarWidth(state.sidebarWidth),
-          sqlFormatOptions: sanitizeSqlFormatOptions(state.sqlFormatOptions),
-          queryOptions: sanitizeQueryOptions(state.queryOptions),
-          dataEditTransactionOptions: sanitizeDataEditTransactionOptions(
-            state.dataEditTransactionOptions,
-          ),
-          sqlEditorTransactionOptions: sanitizeSqlEditorTransactionOptions(
-            state.sqlEditorTransactionOptions,
-          ),
-          shortcutOptions: sanitizeShortcutOptions(state.shortcutOptions),
-          sqlLogs: sanitizeRuntimeSqlLogs(state.sqlLogs),
-          sqlSnippets: sanitizeSqlSnippets(state.sqlSnippets),
-          tableAccessCount: sanitizeTableAccessCount(state.tableAccessCount),
         };
       },
       partialize: partializePersistedState,

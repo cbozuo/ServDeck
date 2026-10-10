@@ -20,20 +20,6 @@ configureAntdStaticOverlayLayer();
 // import { installDynamicDragCursors } from './utils/dragCursors'
 // installDynamicDragCursors();
 
-const resolveDevHarnessMode = (): string => {
-    if (typeof window === 'undefined') {
-        return '';
-    }
-    try {
-        return new URLSearchParams(window.location.search).get('devHarness') || '';
-    } catch {
-        return '';
-    }
-};
-
-const devHarnessMode = import.meta.env.DEV ? resolveDevHarnessMode() : '';
-const isPerfDataGridHarness = devHarnessMode === 'datagrid-perf';
-
 if (
     typeof window !== 'undefined'
     && (
@@ -110,18 +96,7 @@ if (
         },
     };
 
-    const mockConnections: any[] = isPerfDataGridHarness ? [{
-        id: 'perf-conn',
-        name: 'Perf Data Grid',
-        config: {
-            id: 'perf-conn',
-            type: 'mysql',
-            host: '127.0.0.1',
-            port: 3306,
-            user: 'root',
-            database: 'perf_lab',
-        },
-    }] : [];
+    const mockConnections: any[] = [];
     let mockConnectionSidebarLayout: any = {
         initialized: false,
         revision: 0,
@@ -135,7 +110,6 @@ if (
     const mockQueryTables = [
         { table_name: 'videos', table_comment: 'sample video records' },
         { table_name: 'users', table_comment: 'sample users' },
-        ...(isPerfDataGridHarness ? [{ table_name: 'perf_grid', table_comment: 'data grid performance harness' }] : []),
     ];
     const mockQueryColumns = [
         { tableName: 'videos', name: 'id', type: 'bigint', comment: 'primary key' },
@@ -143,13 +117,6 @@ if (
         { tableName: 'videos', name: 'title', type: 'varchar', comment: 'video title' },
         { tableName: 'users', name: 'id', type: 'bigint', comment: 'primary key' },
         { tableName: 'users', name: 'name', type: 'varchar', comment: 'display name' },
-        ...(isPerfDataGridHarness ? [
-            { tableName: 'perf_grid', name: 'id', type: 'bigint', comment: 'primary key' },
-            { tableName: 'perf_grid', name: 'created_at', type: 'datetime', comment: 'created time' },
-            { tableName: 'perf_grid', name: 'updated_at', type: 'timestamp', comment: 'updated time' },
-            { tableName: 'perf_grid', name: 'register_date', type: 'date', comment: 'date with preserved time' },
-            { tableName: 'perf_grid', name: 'status', type: 'varchar', comment: 'record status' },
-        ] : []),
     ];
     const mockConnectionSecrets = new Map<string, any>();
     let mockGlobalProxy: any = { enabled: false, type: 'socks5', host: '', port: 1080, user: '', password: '', hasPassword: false };
@@ -921,15 +888,7 @@ const Root = ({ rootComponent }: { rootComponent: React.ReactNode }) => {
 };
 
 const renderRoot = async () => {
-    let rootComponent: React.ReactNode = <App />;
-    if (devHarnessMode === 'datagrid-perf') {
-        const { default: PerfDataGridHarness } = await import('./dev/PerfDataGridHarness');
-        rootComponent = <PerfDataGridHarness />;
-    }
-    if (devHarnessMode === 'home' || devHarnessMode === 'add' || devHarnessMode === 'detail') {
-        const { default: HomeHarness } = await import('./dev/HomeHarness');
-        rootComponent = <HomeHarness />;
-    }
+    const rootComponent: React.ReactNode = <App />;
 
     ReactDOM.createRoot(rootNode).render(
       <React.StrictMode>

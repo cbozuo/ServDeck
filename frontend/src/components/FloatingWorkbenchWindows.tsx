@@ -6,7 +6,6 @@ import { useStore } from '../store';
 import { t } from '../i18n';
 import {
   buildTabDisplayModel,
-  resolveConnectionHostSummary,
 } from '../utils/tabDisplay';
 import {
   clamp,
@@ -54,7 +53,6 @@ type DragMode = 'move' | 'resize-e' | 'resize-s' | 'resize-se';
 
 const FloatingWorkbenchWindows: React.FC = () => {
   const tabs = useWorkbenchTabs();
-  const connections = useStore((state) => state.connections);
   const appearance = useStore((state) => state.appearance);
   const theme = useStore((state) => state.theme);
   const detachedWorkbenchWindows = useStore((state) => state.detachedWorkbenchWindows);
@@ -78,20 +76,9 @@ const FloatingWorkbenchWindows: React.FC = () => {
       .map((windowState) => {
         const tab = tabs.find((item) => item.id === windowState.tabId);
         if (!tab) return null;
-        const connection = connections.find((conn) => conn.id === tab.connectionId);
-        const displayModel = buildTabDisplayModel(tab, connection, appearance.tabDisplay, t);
+        const displayModel = buildTabDisplayModel(tab, appearance.tabDisplay, t);
         const kindLabel = getTabKindLabel(tab.type);
-        const objectLabel =
-          tab.tableName ||
-          tab.viewName ||
-          tab.eventName ||
-          tab.routineName ||
-          tab.sequenceName ||
-          tab.packageName ||
-          tab.triggerName ||
-          tab.resourcePath ||
-          tab.filePath ||
-          '';
+        const objectLabel = tab.resourcePath || '';
         const title = resolveDetachedWindowTitle({
           kindLabel,
           objectLabel,
@@ -101,8 +88,6 @@ const FloatingWorkbenchWindows: React.FC = () => {
           windowState,
           tab,
           title,
-          hostSummary: resolveConnectionHostSummary(connection?.config),
-          connectionName: connection?.name || '',
           isFocused: activeTabId === tab.id,
         };
       })
@@ -110,11 +95,9 @@ const FloatingWorkbenchWindows: React.FC = () => {
       windowState: (typeof detachedWorkbenchWindows)[number];
       tab: (typeof tabs)[number];
       title: string;
-      hostSummary: string;
-      connectionName: string;
       isFocused: boolean;
     }>;
-  }, [activeTabId, appearance.tabDisplay, connections, detachedWorkbenchWindows, tabs]);
+  }, [activeTabId, appearance.tabDisplay, detachedWorkbenchWindows, tabs]);
   const nativeWindowManagerAvailable = hasNativeDetachedWindowManager();
   // 桌面版原生 OS 窗口路径也会写 detachedWorkbenchWindows（仅作状态记录），
   // 浮层只承载主窗口绑定型 tab（设置中心/后台任务工作台），避免与 OS 窗口重复渲染。
@@ -318,7 +301,7 @@ const FloatingWorkbenchWindows: React.FC = () => {
           cursor: nwse-resize;
         }
       `}</style>
-      {overlayWindowModels.map(({ windowState, tab, title, hostSummary, connectionName, isFocused }) => (
+      {overlayWindowModels.map(({ windowState, tab, title, isFocused }) => (
         <div
           key={windowState.tabId}
           className={`gn-detached-window${isFocused ? ' is-focused' : ''}`}
@@ -339,11 +322,6 @@ const FloatingWorkbenchWindows: React.FC = () => {
           >
             <div className="gn-detached-window-title">
               <span>{title}</span>
-              {(connectionName || hostSummary) ? (
-                <span className="gn-detached-window-subtitle">
-                  {[connectionName, hostSummary].filter(Boolean).join(' · ')}
-                </span>
-              ) : null}
             </div>
             <div className="gn-detached-window-actions" onPointerDown={(event) => event.stopPropagation()}>
               <Tooltip title={t('tab_manager.detached.restore')}>

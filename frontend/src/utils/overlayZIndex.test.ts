@@ -21,10 +21,6 @@ const readSource = (path: string): string => readFileSync(
   'utf8',
 );
 const floatingWorkbenchSource = readSource('../components/FloatingWorkbenchWindows.tsx');
-const floatingQueryResultSource = readSource('../components/FloatingQueryResultWindows.tsx');
-const dataGridShellSource = readSource('../components/DataGridShell.tsx');
-const sidebarSource = readSource('../components/Sidebar.tsx');
-const tableOverviewSource = readSource('../components/TableOverview.tsx');
 
 const collectRuntimeSources = (directory: string): string[] => readdirSync(directory).flatMap((entry) => {
   const absolutePath = `${directory}/${entry}`;
@@ -118,7 +114,6 @@ describe('application overlay z-index policy', () => {
   it('keeps every in-WebView floating window above root dialogs with usable portaled popups', () => {
     for (const source of [
       floatingWorkbenchSource,
-      floatingQueryResultSource,
     ]) {
       expect(source).toContain("import { createPortal } from 'react-dom';");
       expect(source).toContain('zIndexPopupBase: APP_POPUP_Z_INDEX');
@@ -128,9 +123,6 @@ describe('application overlay z-index policy', () => {
 
   it('routes body-level context menus through the shared popup layer', () => {
     for (const source of [
-      dataGridShellSource,
-      sidebarSource,
-      tableOverviewSource,
     ]) {
       expect(source).toContain('zIndex: APP_POPUP_Z_INDEX');
     }

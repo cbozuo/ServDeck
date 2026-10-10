@@ -145,3 +145,15 @@ func TestDownloadFileWithHashPreferredForAppContextStopsOnCancel(t *testing.T) {
 		t.Fatal("server connection was not released after cancellation")
 	}
 }
+
+func disableGlobalProxyForTest(t *testing.T) {
+	t.Helper()
+
+	proxySnapshot := currentGlobalProxyConfig()
+	if _, err := setGlobalProxyConfig(false, proxySnapshot.Proxy); err != nil {
+		t.Fatalf("disable global proxy failed: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = setGlobalProxyConfig(proxySnapshot.Enabled, proxySnapshot.Proxy)
+	})
+}

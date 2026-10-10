@@ -281,18 +281,9 @@ func main() {
 			}
 			app.InitializeLifecycle(application, lifecycleCtx)
 		},
-		OnDomReady: func(ctx context.Context) {
-			// 每次 WebView 导航完成（含用户刷新前端）都会触发。
-			// 刷新会让 SQL 编辑器的待提交事务 ID 随组件内存一起丢失，
-			// 但后端事务仍开着并持有行锁：不清理的话，重新执行同一条 DML 会卡满
-			// innodb_lock_wait_timeout 并报 Error 1205，只能重启应用恢复。
-			app.HandleFrontendDomReady(application)
-		},
 		OnShutdown: func(ctx context.Context) {
 			app.StartWindowsRuntimeProcessReaper()
 			nativewindow.ShutdownLifecycle(nativeWindowManager)
-			// 停止数据同步后台 worker,避免关闭窗口后残留 sync-worker 进程
-			application.ShutdownDataSyncBackgroundWorker(ctx)
 			application.Shutdown()
 		},
 		OnBeforeClose: app.NewBeforeCloseHandler(application),
@@ -351,10 +342,6 @@ func runSpecialMode(args []string) (bool, error) {
 
 	mode := strings.ToLower(strings.TrimSpace(args[0]))
 	switch mode {
-	case "sync-worker":
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-		defer stop()
-		return true, app.RunSyncWorker(ctx, args[1:])
 	case "web-server", "--web-server":
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()

@@ -313,24 +313,8 @@ export interface ConnectionConfig {
   keepAliveEnabled?: boolean;
   keepAliveIntervalMinutes?: number;
   keepAliveSQL?: string;
-  redisDB?: number; // Redis database index
   uri?: string; // Connection URI for copy/paste
-  clickHouseProtocol?: "auto" | "http" | "native"; // ClickHouse connection protocol override
-  oceanBaseProtocol?: "mysql" | "oracle"; // OceanBase tenant compatibility protocol
   hosts?: string[]; // Multi-host addresses: host:port
-  topology?: "single" | "replica" | "cluster" | "sentinel";
-  redisSentinelMaster?: string;
-  redisSentinelUser?: string;
-  redisSentinelPassword?: string;
-  mysqlReplicaUser?: string;
-  mysqlReplicaPassword?: string;
-  replicaSet?: string;
-  authSource?: string;
-  readPreference?: string;
-  mongoSrv?: boolean;
-  mongoAuthMechanism?: string;
-  mongoReplicaUser?: string;
-  mongoReplicaPassword?: string;
   jvm?: JVMConfig;
 }
 
@@ -339,15 +323,6 @@ export type ConnectionEnvironmentType =
   | 'test'
   | 'development'
   | 'local';
-
-export interface MongoMemberInfo {
-  host: string;
-  role: string;
-  state: string;
-  stateCode?: number;
-  healthy: boolean;
-  isSelf?: boolean;
-}
 
 export interface SavedConnection {
   id: string;
@@ -360,256 +335,30 @@ export interface SavedConnection {
   hasSSHPassword?: boolean;
   hasProxyPassword?: boolean;
   hasHttpTunnelPassword?: boolean;
-  hasMySQLReplicaPassword?: boolean;
-  hasMongoReplicaPassword?: boolean;
-  hasRedisSentinelPassword?: boolean;
   hasOpaqueURI?: boolean;
   hasOpaqueDSN?: boolean;
-  /** Legacy exact database names kept for backwards-compatible visibility rules. */
-  includeDatabases?: string[];
-  /** Database name masks. `*`/`%` match any text and `_` matches one character. */
-  includeDatabasePatterns?: string[];
-  /** Database name masks that always take precedence over include rules. */
-  excludeDatabasePatterns?: string[];
-  includeRedisDatabases?: number[]; // Redis databases to show
-  schemaVisibilityByDatabase?: Record<string, SchemaVisibilityRule>;
   iconType?: string; // 自定义图标类型（如 'mysql','postgres'），不填则取 config.type
   iconColor?: string; // 自定义图标颜色（十六进制），不填则取类型默认色
-}
-
-export interface SchemaVisibilityRule {
-  mode: 'include' | 'exclude';
-  schemas: string[];
-}
-
-export interface ConnectionTag {
-  id: string;
-  name: string;
-  createdAt?: number;
-  /**
-   * Parent group id. An omitted value keeps the group at the sidebar root.
-   * Hosts are always owned by exactly one direct group, while groups can nest.
-   */
-  parentTagId?: string;
-  connectionIds: string[];
-  /**
-   * Direct child display order. Entries use the same `tag:<id>` and
-   * `connection:<id>` tokens as the sidebar root order.
-   */
-  childOrder?: string[];
-  /** Direct connection display order within this group. */
-  connectionSortMode?: ConnectionDisplaySortMode;
-  sortMode?: ConnectionSortMode;
-}
-
-export type ConnectionSortMode = 'manual' | 'name' | 'createdAt';
-export type ConnectionDisplaySortMode = 'manual' | 'name' | 'createdAt';
-
-export interface ConnectionSidebarLayoutInput {
-  connectionTags: ConnectionTag[];
-  sidebarRootOrder: string[];
-  rootSortMode?: ConnectionSortMode;
-  rootConnectionSortMode?: ConnectionDisplaySortMode;
-}
-
-export interface ConnectionSidebarLayout extends ConnectionSidebarLayoutInput {
-  initialized: boolean;
-  revision: number;
-}
-
-export interface SaveConnectionSidebarLayoutInput {
-  expectedRevision: number;
-  layout: ConnectionSidebarLayoutInput;
-}
-
-export interface SaveConnectionSidebarLayoutResult {
-  conflict: boolean;
-  layout: ConnectionSidebarLayout;
-}
-
-export interface ColumnDefinition {
-  name: string;
-  type: string;
-  nullable: string;
-  key: string;
-  default?: string;
-  hasDefault?: boolean;
-  extra: string;
-  comment: string;
-  charset?: string;
-  collation?: string;
-}
-
-export interface IndexDefinition {
-  name: string;
-  columnName: string;
-  nonUnique: number;
-  seqInIndex: number;
-  indexType: string;
-}
-
-export interface ForeignKeyDefinition {
-  name: string;
-  columnName: string;
-  refTableName: string;
-  refColumnName: string;
-  constraintName: string;
-}
-
-export interface TriggerDefinition {
-  name: string;
-  timing: string;
-  event: string;
-  statement: string;
-  /** ROW or STATEMENT when the backend exposes trigger firing granularity. */
-  orientation?: string;
-}
-
-export type TableExportScope = "selected" | "page" | "all" | "filteredAll";
-export type TableExportContentMode = "schema" | "dataOnly" | "backup";
-
-export interface TableExportScopeOption {
-  value: TableExportScope;
-  label: string;
-  description?: string;
-  disabled?: boolean;
-}
-
-export type TableExportHistoryStatus =
-  | "idle"
-  | "start"
-  | "running"
-  | "finalizing"
-  | "cancelling"
-  | "done"
-  | "error"
-  | "cancelled";
-
-export interface TableExportHistoryEntry {
-  jobId: string;
-  targetName: string;
-  startedAt: number;
-  finishedAt: number;
-  format: string;
-  scope: string;
-  scopeLabel: string;
-  strategyLabel: string;
-  status: TableExportHistoryStatus;
-  stage: string;
-  current: number;
-  total: number;
-  totalRowsKnown: boolean;
-  filePath: string;
-  message: string;
 }
 
 export interface TabData {
   id: string;
   title: string;
   type:
-    | "query"
-    | "table"
-    | "design"
-    | "sql-file-execution"
-    | "sql-analysis"
-    | "sql-audit"
     | "settings-center"
     | "service-detail"
-    | "message-queue"
-    | "redis-keys"
-    | "redis-command"
-    | "redis-monitor"
-    | "nacos-config"
-    | "nacos-services"
-    | "trigger"
-    | "view-def"
-    | "event-def"
-    | "routine-def"
-    | "sequence-def"
-    | "package-def"
-    | "database-link-def"
-    | "table-overview"
-    | "table-export"
-    | "data-import"
     | "jvm-overview"
     | "jvm-resource"
     | "jvm-audit"
     | "jvm-diagnostic"
     | "jvm-monitoring";
   connectionId: string;
-  dbName?: string;
-  tableName?: string;
   /** ServDeck 纳管服务名（service-detail tab 的目标服务）。 */
   serviceName?: string;
-  query?: string;
-  resultPanelVisible?: boolean;
-  queryMode?: "standard" | "object-edit";
-  returnToTabId?: string;
-  filePath?: string;
-  initialTab?: string;
-  initialViewMode?: "table" | "json" | "text" | "fields" | "ddl" | "er" | "sqlLog";
-  initialViewModeRequestId?: string;
   readOnly?: boolean;
   providerMode?: "jmx" | "endpoint" | "agent";
   resourcePath?: string;
   resourceKind?: string;
-  redisDB?: number; // Redis database index for redis tabs
-  nacosNamespaceId?: string; // Nacos namespace id (empty string means public)
-  nacosNamespaceName?: string; // Nacos namespace display name
-  nacosGroup?: string; // Nacos group filter for config or service workbenches
-  triggerName?: string; // Trigger name for trigger tabs
-  triggerTableName?: string; // Trigger target table for trigger tabs
-  triggerRollbackSql?: string; // Original trigger definition used after a failed replacement
-  viewName?: string; // View name for view definition tabs
-  viewKind?: "view" | "materialized";
-  eventName?: string; // Event name for MySQL event definition tabs
-  routineName?: string; // Routine name for function/procedure definition tabs
-  routineType?: string; // 'FUNCTION' or 'PROCEDURE'
-  sequenceName?: string; // Sequence name for sequence definition tabs
-  packageName?: string; // Package name for package definition tabs
-  databaseLinkName?: string; // Oracle database link name for definition tabs
-  schemaName?: string; // Schema / owner name for schema-grouped objects
-  sidebarLocateKey?: string; // Precise sidebar tree key for locating an object node
-  savedQueryId?: string; // Saved query identity for quick-save behavior
-  objectType?: 'table' | 'view' | 'materialized-view'; // Table-like object type for shared viewers
-  exportWorkbenchMode?: 'single' | 'batch-tables' | 'batch-databases' | 'batch-connections' | 'database' | 'schema';
-  dataSyncEntryMode?: 'sync' | 'compare' | 'schemaCompare' | 'dataCompare';
-  dataSyncFocusTaskId?: string;
-  dataSyncFocusStage?: 'endpoints' | 'mappings' | 'delivery' | 'trigger' | 'preflight';
-  dataSyncFocusRequestId?: string;
-  tableExportScopeOptions?: TableExportScopeOption[];
-  tableExportInitialScope?: TableExportScope;
-  tableExportQueryByScope?: Partial<Record<TableExportScope, string>>;
-  tableExportRowCountByScope?: Partial<Record<TableExportScope, number>>;
-  tableExportInitialObjectNames?: string[];
-  tableExportInitialDatabaseNames?: string[];
-  tableExportInitialConnectionIds?: string[];
-  tableExportContentMode?: TableExportContentMode;
-  tableExportIncludeDropIfExists?: boolean;
-  tableExportLaunchKey?: string;
-  tableExportRequestKey?: string;
-  dataImportMode?: "table" | "database";
-  dataImportLaunchKey?: string;
-  dataImportRunning?: boolean;
-  sqlFileExecutionRequestKey?: string;
-  sqlFileExecutionFileName?: string;
-  sqlFileExecutionFileSizeMB?: string;
-  sqlAnalysisView?: "diagnose" | "slow-query";
-  sqlAnalysisRequestKey?: string;
-  sqlAuditView?: "audit" | "query-history";
-  sqlAuditTransactionId?: string;
-  sqlAuditRequestKey?: string;
-  preserveUnboundConnection?: boolean;
-  /** Message queue workbench target requested by the sidebar. */
-  messageQueueTarget?: string;
-  messageQueueObjectKind?: "topic-filter" | "topic" | "queue" | "exchange";
-  messageQueueAction?: "open" | "consume" | "publish";
-  /** Changes whenever an existing workbench should react to a new sidebar request. */
-  messageQueueRequestKey?: string;
-  formatRestoreSnapshot?: {
-    query: string;
-    createdAt: number;
-  }; // Last SQL content before beautify, for cross-session restore
 }
 
 export interface JVMAIPlanContext {
@@ -623,114 +372,6 @@ export interface JVMDiagnosticPlanContext {
   tabId: string;
   connectionId: string;
   transport: JVMDiagnosticTransport;
-}
-
-export interface DatabaseNode {
-  title: string;
-  key: string;
-  isLeaf?: boolean;
-  children?: DatabaseNode[];
-  icon?: any;
-}
-
-export interface SavedQuery {
-  id: string;
-  name: string;
-  sql: string;
-  connectionId: string;
-  dbName: string;
-  createdAt: number;
-  connectionFingerprint?: string;
-  fingerprintVersion?: string;
-  bindingStatus?: "active" | "rebound" | "orphan" | string;
-  originalConnectionId?: string;
-  parameters?: SavedQueryParam[];
-}
-
-export interface SavedQueryParam {
-  name: string;
-  type?: string;
-  label?: string;
-  default?: unknown;
-}
-
-export interface SavedQueryGroup {
-  id: string;
-  name: string;
-  parentGroupId?: string;
-  queryIds: string[];
-  /**
-   * Mixed direct-child order. Tokens use `query:<id>` and `group:<id>`.
-   */
-  childOrder?: string[];
-}
-
-export interface SqlSnippet {
-  id: string;
-  prefix: string;
-  name: string;
-  description?: string;
-  syntaxHelp?: string;
-  body: string;
-  isBuiltin: boolean;
-  createdAt: number;
-}
-
-export interface ExternalSQLDirectory {
-  id: string;
-  name: string;
-  path: string;
-  connectionId?: string;
-  dbName?: string;
-  fileBindings?: ExternalSQLFileBinding[];
-  createdAt: number;
-}
-
-export interface ExternalSQLFileBinding {
-  filePath: string;
-  connectionId: string;
-  dbName: string;
-}
-
-export interface ExternalSQLTreeEntry {
-  name: string;
-  path: string;
-  isDir: boolean;
-  children?: ExternalSQLTreeEntry[];
-}
-
-// Redis types
-export interface RedisKeyInfo {
-  key: string;
-  type: string;
-  ttl: number;
-}
-
-export interface RedisScanResult {
-  keys: RedisKeyInfo[];
-  cursor: string;
-}
-
-export interface RedisValue {
-  type: "string" | "hash" | "list" | "set" | "zset" | "stream";
-  ttl: number;
-  value: any;
-  length: number;
-}
-
-export interface RedisDBInfo {
-  index: number;
-  keys: number;
-}
-
-export interface ZSetMember {
-  member: string;
-  score: number;
-}
-
-export interface StreamEntry {
-  id: string;
-  fields: Record<string, string>;
 }
 
 export type SecurityUpdateOverallStatus =

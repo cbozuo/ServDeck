@@ -130,7 +130,6 @@ export function buildRpcConnectionConfig(
   const protection = resolveConnectionProtectionConfig({
     type: toStringValue(rpcMerged.type),
     driver: rpcMerged.driver,
-    oceanBaseProtocol: rpcMerged.oceanBaseProtocol,
     readOnly: rpcMerged.readOnly,
     protection: rpcMerged.protection,
   });

@@ -1,25 +1,6 @@
-import type React from 'react';
-import type { SavedConnection } from '../types';
-import {
-  isPostgresSchemaDialect as resolveIsPostgresSchemaDialect,
-  normalizeDriverType as normalizeConnectionDriverType,
-  resolveSavedConnectionDriverType as resolveSavedConnectionDriverTypeBase,
-} from '../utils/connectionDriverType';
-
 const SIDEBAR_CONTEXT_MENU_SAFE_GAP = 8;
 export const SIDEBAR_CONTEXT_MENU_FALLBACK_WIDTH = 264;
 export const SIDEBAR_CONTEXT_MENU_FALLBACK_HEIGHT = 420;
-
-export type ExternalSQLFileModalMode = 'create' | 'rename' | 'create-directory' | 'rename-directory';
-
-type SidebarObjectNodeLike = {
-  title?: string;
-  type?: string;
-  dataRef?: any;
-};
-
-export const isExternalSQLDirectoryModalMode = (mode: ExternalSQLFileModalMode): boolean =>
-  mode === 'create-directory' || mode === 'rename-directory';
 
 export const resolveSidebarContextMenuPosition = (
   x: number,
@@ -54,81 +35,4 @@ export const resolveSidebarTreeRowKey = (target: EventTarget | null | undefined)
   const key = row?.getAttribute('data-sidebar-node-key')
     || row?.querySelector('[data-sidebar-node-key]')?.getAttribute('data-sidebar-node-key');
   return String(key || '').trim() || null;
-};
-
-export const isV2SidebarObjectNode = (node: Pick<SidebarObjectNodeLike, 'type'> | null | undefined): boolean => {
-  return node?.type === 'message-object'
-    || node?.type === 'table'
-    || node?.type === 'view'
-    || node?.type === 'materialized-view'
-    || node?.type === 'sequence'
-    || node?.type === 'db-trigger'
-    || node?.type === 'db-event'
-    || node?.type === 'routine'
-    || node?.type === 'package'
-    || node?.type === 'database-link';
-};
-
-export const resolveSidebarObjectDragText = (
-  node: Pick<SidebarObjectNodeLike, 'type' | 'title' | 'dataRef'> | null | undefined,
-): string => {
-  const dataRef = node?.dataRef || {};
-  if (node?.type === 'message-object') {
-    return String(
-      dataRef.messageObjectName
-      || dataRef.topicName
-      || dataRef.queueName
-      || dataRef.exchangeName
-      || dataRef.tableName
-      || node?.title
-      || '',
-    ).trim();
-  }
-  if (node?.type === 'table') return String(dataRef.tableName || node?.title || '').trim();
-  if (node?.type === 'view' || node?.type === 'materialized-view') return String(dataRef.viewName || dataRef.tableName || node?.title || '').trim();
-  if (node?.type === 'sequence') return String(dataRef.sequenceName || node?.title || '').trim();
-  if (node?.type === 'db-trigger') return String(dataRef.triggerName || node?.title || '').trim();
-  if (node?.type === 'routine') return String(dataRef.routineName || node?.title || '').trim();
-  if (node?.type === 'package') return String(dataRef.packageName || node?.title || '').trim();
-  if (node?.type === 'database-link') return String(dataRef.databaseLinkName || node?.title || '').trim();
-  if (node?.type === 'db-event') return String(dataRef.eventName || node?.title || '').trim();
-  return '';
-};
-
-export const buildConnectionReloadSignature = (conn?: SavedConnection | null): string => {
-  if (!conn) return '';
-  return JSON.stringify({
-    config: conn.config || {},
-    includeDatabases: conn.includeDatabases || [],
-    includeDatabasePatterns: conn.includeDatabasePatterns || [],
-    excludeDatabasePatterns: conn.excludeDatabasePatterns || [],
-    includeRedisDatabases: conn.includeRedisDatabases || [],
-    schemaVisibilityByDatabase: conn.schemaVisibilityByDatabase || {},
-  });
-};
-
-export const isConnectionTreeKey = (key: React.Key, connectionId: string): boolean => {
-  const text = String(key);
-  return text === connectionId || text.startsWith(`${connectionId}-`);
-};
-
-export const normalizeDriverType = normalizeConnectionDriverType;
-export const resolveSavedConnectionDriverType = resolveSavedConnectionDriverTypeBase;
-export const isPostgresSchemaDialect = resolveIsPostgresSchemaDialect;
-
-export const normalizeMySQLViewDDLForEditing = (viewName: string, rawDefinition: unknown): string => {
-  const text = String(rawDefinition || '').trim();
-  if (!text) return '';
-
-  const normalized = text.replace(/\r\n/g, '\n').trim().replace(/;+\s*$/, '');
-  const createViewPrefixPattern = /^\s*create\s+(?:algorithm\s*=\s*\w+\s+)?(?:definer\s*=\s*(?:`[^`]+`|\S+)\s*@\s*(?:`[^`]+`|\S+)\s+)?(?:sql\s+security\s+(?:definer|invoker)\s+)?view\s+/i;
-  if (createViewPrefixPattern.test(normalized)) {
-    return `${normalized.replace(createViewPrefixPattern, 'CREATE OR REPLACE VIEW ')};`;
-  }
-
-  if (/^\s*(select|with)\b/i.test(normalized)) {
-    return `CREATE OR REPLACE VIEW ${viewName} AS\n${normalized};`;
-  }
-
-  return `${normalized};`;
 };

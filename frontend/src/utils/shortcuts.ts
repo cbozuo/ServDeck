@@ -20,7 +20,6 @@ export type ShortcutAction =
   | 'closeActiveTab'
   | 'switchToNextTab'
   | 'switchToPreviousTab'
-  | 'newConnection'
   | 'toggleAIPanel'
   | 'toggleLogPanel'
   | 'toggleTheme'
@@ -125,7 +124,6 @@ export const SHORTCUT_ACTION_ORDER: ShortcutAction[] = [
   'closeActiveTab',
   'switchToNextTab',
   'switchToPreviousTab',
-  'newConnection',
   'toggleLogPanel',
   'toggleTheme',
   'diagnoseQuery',
@@ -256,10 +254,6 @@ const SHORTCUT_ACTION_META_DEFINITIONS: Record<ShortcutAction, ShortcutActionMet
     labelKey: 'app.shortcuts.action.switchToPreviousTab.label',
     descriptionKey: 'app.shortcuts.action.switchToPreviousTab.description',
     allowInEditable: true,
-  },
-  newConnection: {
-    labelKey: 'app.shortcuts.action.newConnection.label',
-    descriptionKey: 'app.shortcuts.action.newConnection.description',
   },
   toggleAIPanel: {
     labelKey: 'app.shortcuts.action.toggleAIPanel.label',
@@ -394,10 +388,6 @@ export const DEFAULT_SHORTCUT_OPTIONS: ShortcutOptions = {
   switchToPreviousTab: {
     mac: { combo: 'Ctrl+Shift+Tab', enabled: true },
     windows: { combo: 'Ctrl+Shift+Tab', enabled: true },
-  },
-  newConnection: {
-    mac: { combo: 'Meta+Shift+N', enabled: true },
-    windows: { combo: 'Ctrl+Shift+N', enabled: true },
   },
   toggleAIPanel: {
     mac: { combo: 'Meta+J', enabled: true },

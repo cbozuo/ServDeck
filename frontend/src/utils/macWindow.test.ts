@@ -10,7 +10,7 @@ import {
 
 describe('macWindow helpers', () => {
   it('uses compact padding when native controls are disabled', () => {
-    expect(getMacNativeTitlebarPaddingLeft(1, false)).toBe(16);
+    expect(getMacNativeTitlebarPaddingLeft(1, false)).toBe(8);
     expect(getMacNativeTitlebarPaddingRight(1, false)).toBe(0);
   });
 

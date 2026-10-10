@@ -41,16 +41,6 @@ func (a *App) InstallUpdateAndRestart(closeAllWindowsInstancesConfirmed bool) co
 			}),
 		}
 	}
-	resumeSyncJobs, err := a.suspendDataSyncJobs()
-	installStarted := false
-	defer func() {
-		if !installStarted {
-			resumeSyncJobs()
-		}
-	}()
-	if err != nil {
-		return connection.QueryResult{Success: false, Message: a.appText("app.update.backend.message.install_launch_failed", map[string]any{"detail": err.Error()})}
-	}
 	if stdRuntime.GOOS == "windows" {
 		maintenanceLease, err := updateAcquireWindowsMaintenance(installTarget)
 		if err != nil {
@@ -95,7 +85,6 @@ func (a *App) InstallUpdateAndRestart(closeAllWindowsInstancesConfirmed bool) co
 			},
 		}
 	}
-	installStarted = true
 	go a.quitForUpdate()
 
 	msg := a.appText("app.update.backend.message.install_started", nil)

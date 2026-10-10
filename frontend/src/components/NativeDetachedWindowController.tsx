@@ -4,7 +4,6 @@ import { EventsOn, Show, WindowShow } from '../../wailsjs/runtime';
 import { type SqlLog, useStore } from '../store';
 import { useCustomThemeStore } from '../customThemeStore';
 import type { TabData } from '../types';
-import type { DetachedQueryResultWindow } from '../utils/detachedWindow';
 import {
   clearNativeDetachedHostEvents,
   closeNativeDetachedWindowById,
@@ -20,14 +19,11 @@ import {
   buildNativeDetachedWorkbenchMutableStoreSnapshot,
   mergeNativeDetachedStoreDelta,
   NATIVE_DETACHED_HOST_EVENT_NAMES,
-  NATIVE_DETACHED_QUERY_RESULT_REDETACH_EVENT,
   type NativeDetachedHostEvent,
   type NativeDetachedHostEventName,
   type NativeDetachedStoreSnapshot,
   type NativeDetachedWindowKind,
 } from '../utils/nativeDetachedWindowClient';
-import { saveQueryEditorResultSessionForOpenQueryTab, type QueryEditorResultSessionSnapshot } from '../utils/queryEditorResultSessionCache';
-import { setQueryTabDraft } from '../utils/sqlFileTabDrafts';
 
 export const NATIVE_DETACHED_WINDOW_EVENT = 'gonavi:native-detached-event';
 
@@ -47,8 +43,6 @@ export type NativeDetachedWindowEvent = {
     revision?: number;
     tab?: TabData;
     storeState?: Record<string, unknown>;
-    resultSession?: QueryEditorResultSessionSnapshot | null;
-    resultWindow?: DetachedQueryResultWindow;
     ownerWindowId?: string;
     hostEvent?: NativeDetachedHostEvent;
     openedTabs?: TabData[];
@@ -61,9 +55,6 @@ export type NativeDetachedWindowEvent = {
 };
 
 const replaceSyncedTab = (tab: TabData): void => {
-  if (tab.type === 'query' && typeof tab.query === 'string') {
-    setQueryTabDraft(tab.id, tab.query);
-  }
   useStore.setState((state) => {
     if (!state.tabs.some((item) => item.id === tab.id)) return state;
     return {
@@ -88,27 +79,6 @@ const mergeSyncedSqlLogs = (snapshot: Record<string, unknown>): void => {
     }
   }
 };
-
-const mergeSyncedTabRuntimeState = (
-  tabId: string,
-  snapshot: Record<string, unknown>,
-): void => {
-  const pendingPatch = snapshot.sqlEditorPendingTransactions;
-  if (!pendingPatch || typeof pendingPatch !== 'object') return;
-  const value = (pendingPatch as Record<string, unknown>)[tabId];
-  useStore.setState((state) => {
-    const next = { ...state.sqlEditorPendingTransactions };
-    if (value === null || value === undefined) {
-      delete next[tabId];
-    } else {
-      next[tabId] = value as (typeof next)[string];
-    }
-    return { sqlEditorPendingTransactions: next };
-  });
-};
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 type WorkbenchStateSources = Map<string, NativeDetachedStoreSnapshot>;
 
@@ -142,18 +112,6 @@ const mergeSyncedWorkbenchState = (
   );
 };
 
-const restoreQueryResult = (windowId: string): void => {
-  const restored = useStore.getState().attachQueryResultWindow(windowId);
-  if (!restored || typeof window === 'undefined') return;
-  window.dispatchEvent(new CustomEvent('gonavi:restore-query-result', {
-    detail: {
-      windowId,
-      sourceQueryTabId: restored.sourceQueryTabId,
-      result: restored.result,
-    },
-  }));
-};
-
 const showMainWindow = (): void => {
   if (typeof window === 'undefined') return;
   const runtime = (window as any).runtime;
@@ -170,10 +128,7 @@ export const applyNativeDetachedWindowEvent = (
   } = {},
 ): void => {
   const id = String(event?.id || '').trim();
-  if (
-    !id
-    || (event.kind !== 'workbench' && event.kind !== 'query-result')
-  ) return;
+  if (!id || event.kind !== 'workbench') return;
 
   const localWindowId = String(currentWindowId || '').trim();
   const ownerWindowId = String(event.payload?.ownerWindowId || '').trim();
@@ -181,29 +136,12 @@ export const applyNativeDetachedWindowEvent = (
     // The parent broadcasts lifecycle events to every child. Applying a child's
     // own sync back into its store would schedule another sync indefinitely.
     if (id === localWindowId) return;
-    if (event.kind === 'query-result') {
-      // Result lifecycle belongs to its source SQL window. The result window
-      // process itself receives the same broadcast but must not mutate a copy.
-      if (ownerWindowId !== localWindowId) return;
-    } else if (id !== localWindowId && ownerWindowId !== localWindowId) {
+    if (id !== localWindowId && ownerWindowId !== localWindowId) {
       return;
     }
   }
 
   if (event.action === 'opened') {
-    const resultWindow = event.payload?.resultWindow;
-    if (
-      event.kind === 'query-result'
-      && resultWindow
-      && typeof resultWindow === 'object'
-      && String(resultWindow.id || '').trim() === id
-    ) {
-      useStore.getState().detachQueryResultWindow(resultWindow);
-      callbacks.workbenchStateSources?.set(
-        id,
-        buildNativeDetachedWorkbenchMutableStoreSnapshot(useStore.getState()),
-      );
-    }
     return;
   }
 
@@ -231,44 +169,23 @@ export const applyNativeDetachedWindowEvent = (
     && bounds.width > 0
     && bounds.height > 0
   ) {
-    if (event.kind === 'workbench') {
-      useStore.getState().updateDetachedWorkbenchBounds(
-        event.payload?.tab?.id || id.replace(/^workbench:/, ''),
-        bounds,
-      );
-    } else {
-      useStore.getState().updateDetachedQueryResultBounds(id, bounds);
-    }
+    useStore.getState().updateDetachedWorkbenchBounds(
+      event.payload?.tab?.id || id.replace(/^workbench:/, ''),
+      bounds,
+    );
   }
 
   const tab = event.payload?.tab;
-  const eventTabId = tab?.id || id.replace(/^workbench:/, '');
-  if (
-    event.kind === 'query-result'
-    && event.payload?.resultWindow
-    && event.payload.resultWindow.id === id
-  ) {
-    useStore.getState().detachQueryResultWindow(event.payload.resultWindow);
-  }
   if (event.payload?.clearSqlLogs === true) {
     useStore.getState().clearSqlLogs();
   }
   if (event.payload?.storeState) {
     mergeSyncedSqlLogs(event.payload.storeState);
-    if (event.kind === 'workbench') {
-      mergeSyncedTabRuntimeState(eventTabId, event.payload.storeState);
-    }
   }
   if (event.kind === 'workbench' && tab) {
     replaceSyncedTab(tab);
-    if (event.action !== 'cancel-close') {
-      saveQueryEditorResultSessionForOpenQueryTab(tab, event.payload?.resultSession, useStore.getState().tabs);
-    }
   }
-  if (
-    (event.kind === 'workbench' || event.kind === 'query-result')
-    && event.payload?.workbenchState
-  ) {
+  if (event.payload?.workbenchState) {
     mergeSyncedWorkbenchState(
       id,
       event.payload.workbenchState,
@@ -276,12 +193,9 @@ export const applyNativeDetachedWindowEvent = (
       callbacks.workbenchStateSources,
     );
   }
-  if (event.kind === 'workbench' && Array.isArray(event.payload?.openedTabs)) {
+  if (Array.isArray(event.payload?.openedTabs)) {
     for (const openedTab of event.payload.openedTabs) {
       if (!openedTab || typeof openedTab !== 'object' || !String(openedTab.id || '').trim()) continue;
-      if (openedTab.type === 'query' && typeof openedTab.query === 'string') {
-        setQueryTabDraft(openedTab.id, openedTab.query);
-      }
       if (!useStore.getState().tabs.some((item) => item.id === openedTab.id)) {
         useStore.getState().addTab(openedTab);
       }
@@ -290,30 +204,13 @@ export const applyNativeDetachedWindowEvent = (
   }
 
   if (event.action === 'cancel-close') {
-    if (event.kind === 'workbench') {
-      const tabId = tab?.id || id.replace(/^workbench:/, '');
-      if (tab && tab.id === tabId && !useStore.getState().tabs.some((item) => item.id === tabId)) {
-        useStore.setState((state) => ({ tabs: [...state.tabs, tab] }));
-      }
-      const latest = useStore.getState();
-      if (latest.tabs.some((item) => item.id === tabId) && !latest.isWorkbenchTabDetached(tabId)) {
-        latest.detachWorkbenchTab(tabId);
-      }
-      saveQueryEditorResultSessionForOpenQueryTab(tab, event.payload?.resultSession, useStore.getState().tabs);
-    } else if (
-      event.payload?.rollbackAction === 'attach'
-      && event.payload.resultWindow
-      && typeof window !== 'undefined'
-    ) {
-      const resultWindow = event.payload.resultWindow;
-      const windowId = String(resultWindow.id || '').trim();
-      const sourceQueryTabId = String(resultWindow.sourceQueryTabId || '').trim();
-      const resultKey = String(resultWindow.result?.key || '').trim();
-      if (windowId === id && sourceQueryTabId && resultKey) {
-        window.dispatchEvent(new CustomEvent(NATIVE_DETACHED_QUERY_RESULT_REDETACH_EVENT, {
-          detail: { windowId, sourceQueryTabId, resultKey },
-        }));
-      }
+    const tabId = tab?.id || id.replace(/^workbench:/, '');
+    if (tab && tab.id === tabId && !useStore.getState().tabs.some((item) => item.id === tabId)) {
+      useStore.setState((state) => ({ tabs: [...state.tabs, tab] }));
+    }
+    const latest = useStore.getState();
+    if (latest.tabs.some((item) => item.id === tabId) && !latest.isWorkbenchTabDetached(tabId)) {
+      latest.detachWorkbenchTab(tabId);
     }
     return;
   }
@@ -328,53 +225,31 @@ export const applyNativeDetachedWindowEvent = (
   }
   if (event.action === 'attach') {
     callbacks.workbenchStateSources?.delete(id);
-    if (event.kind === 'workbench') {
-      const tabId = tab?.id || id.replace(/^workbench:/, '');
-      useStore.getState().attachWorkbenchTab(tabId);
-    } else {
-      restoreQueryResult(id);
-    }
+    const tabId = tab?.id || id.replace(/^workbench:/, '');
+    useStore.getState().attachWorkbenchTab(tabId);
     showMainWindow();
     clearNativeDetachedHostEvents(id);
     return;
   }
 
-  if (event.kind === 'workbench') {
-    const tabId = tab?.id || id.replace(/^workbench:/, '');
-    const reason = String(event.payload?.reason || '').trim();
-    const stillDetached = useStore.getState().detachedWorkbenchWindows.some(
-      (item) => item.tabId === tabId,
-    );
-    if (reason === 'attached' || reason === 'parent-shutdown' || reason === 'requested') {
-      return;
+  const tabId = tab?.id || id.replace(/^workbench:/, '');
+  const reason = String(event.payload?.reason || '').trim();
+  const stillDetached = useStore.getState().detachedWorkbenchWindows.some(
+    (item) => item.tabId === tabId,
+  );
+  if (reason === 'attached' || reason === 'parent-shutdown' || reason === 'requested') {
+    return;
+  }
+  if (event.payload?.exited === true) {
+    if (stillDetached) {
+      useStore.getState().attachWorkbenchTab(tabId);
+      showMainWindow();
     }
-    if (event.payload?.exited === true) {
-      if (stillDetached) {
-        useStore.getState().attachWorkbenchTab(tabId);
-        showMainWindow();
-      }
-      return;
-    }
-    if (!stillDetached) return;
-    if (useStore.getState().tabs.some((item) => item.id === tabId)) {
-      useStore.getState().closeTab(tabId);
-    }
-  } else {
-    const reason = String(event.payload?.reason || '').trim();
-    const stillDetached = useStore.getState().detachedQueryResultWindows.some(
-      (item) => item.id === id,
-    );
-    if (reason === 'attached' || reason === 'parent-shutdown' || reason === 'requested') {
-      return;
-    }
-    if (event.payload?.exited === true) {
-      if (stillDetached) {
-        restoreQueryResult(id);
-        showMainWindow();
-      }
-      return;
-    }
-    useStore.getState().closeDetachedQueryResultWindow(id);
+    return;
+  }
+  if (!stillDetached) return;
+  if (useStore.getState().tabs.some((item) => item.id === tabId)) {
+    useStore.getState().closeTab(tabId);
   }
   clearNativeDetachedHostEvents(id);
 };
@@ -383,7 +258,6 @@ const currentNativeWindowIds = (): Set<string> => {
   const state = useStore.getState();
   return new Set([
     ...state.detachedWorkbenchWindows.map((item) => `workbench:${item.tabId}`),
-    ...state.detachedQueryResultWindows.map((item) => item.id),
   ]);
 };
 
@@ -526,9 +400,7 @@ const NativeDetachedWindowController = ({
         });
       };
       for (const eventName of [
-        'gonavi:insert-sql-to-tab',
         'gonavi:jvm-apply-diagnostic-plan',
-        'gonavi:locate-sidebar-object',
       ] as const) {
         window.addEventListener(eventName, forwardTargetedWorkbenchEvent);
         removeWindowEventListeners.push(

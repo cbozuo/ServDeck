@@ -346,6 +346,7 @@ export interface TabData {
   title: string;
   type:
     | "settings-center"
+    | "service-home"
     | "service-detail"
     | "jvm-overview"
     | "jvm-resource"

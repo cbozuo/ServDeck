@@ -42,6 +42,8 @@ const getTabKindLabel = (tab: TabData): string => {
   if (tab.type === 'settings-center') return '';
   // 服务详情：服务名已是完整标题，去掉 SVC 缩写角标（用户反馈）
   if (tab.type === 'service-detail') return '';
+  // 服务总览：标题「服务总览」已表意
+  if (tab.type === 'service-home') return '';
   if (tab.type.startsWith('jvm')) return t('tab_manager.kind_badge.jvm');
   return t('tab_manager.kind_badge.fallback');
 };
@@ -228,10 +230,15 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
     ? <ServiceHoverTooltip service={serviceEntry} groupName={serviceGroupName}>{labelNode}</ServiceHoverTooltip>
     : labelNode;
 
+  // Dropdown 的右键触发靠 cloneElement 往 child 注入 onContextMenu——child 是
+  // 函数组件（ServiceHoverTooltip）时注入的 handler 会被吞掉（不转发），右键菜单
+  // 因此失效。受控 open + 外层真实 span 锚点双保险：右键由 label 自己的 handler
+  // 触发（受控 open），span 保证 antd 的定位 ref 与事件注入都落在 DOM 元素上。
   return (
     <Dropdown
       menu={{ items: menuItems }}
       trigger={['contextMenu']}
+      open={isTabMenuOpen}
       onOpenChange={handleTabMenuOpenChange}
       rootClassName={'gn-v2-tab-context-menu-popup'}
       popupRender={(menu) => renderV2ActionMenuPopup(menu, true, {
@@ -239,7 +246,9 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
         showHeader: false,
       })}
     >
-      {hoverWrappedLabel}
+      <span className="gn-v2-tab-label-anchor">
+        {hoverWrappedLabel}
+      </span>
     </Dropdown>
   );
 };
@@ -878,6 +887,11 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onA
             .main-tabs .ant-tabs-tab {
               transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), background-color 120ms ease;
             }
+            .main-tabs .gn-v2-tab-label-anchor {
+              display: inline-flex;
+              align-items: center;
+              max-width: 100%;
+            }
             .main-tabs .tab-dnd-label {
               position: relative;
               user-select: none;
@@ -994,8 +1008,10 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onA
         {!hasTabs ? (
           ServiceHomeElement
         ) : !hasDockedTabs ? (
-          // All tabs are floating: keep empty docked area; floating host still shows content.
-          <div className="gn-detached-only-workbench" style={{ flex: 1, minHeight: 0 }} />
+          // 全部页签都拖出为浮窗时，主窗口不再留白，展示服务总览；
+          // service-home 页签是主窗口绑定 tab（不可拖出），因此此分支下
+          // 不会与总览页签重复挂载。
+          ServiceHomeElement
         ) : (
         <DndContext
           sensors={sensors}

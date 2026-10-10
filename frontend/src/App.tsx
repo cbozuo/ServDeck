@@ -3077,6 +3077,15 @@ function App() {
       };
   }, [handleOpenToolCenterPane]);
 
+  // 服务总览（页签形态）的「注册服务」按钮走事件总线打开注册弹窗
+  useEffect(() => {
+      const handleOpenAddServiceEvent = () => setIsAddServiceModalOpen(true);
+      window.addEventListener('gonavi:open-add-service', handleOpenAddServiceEvent as EventListener);
+      return () => {
+          window.removeEventListener('gonavi:open-add-service', handleOpenAddServiceEvent as EventListener);
+      };
+  }, []);
+
   useEffect(() => {
       if (!isMacRuntime || !useNativeMacWindowControls) {
           return;

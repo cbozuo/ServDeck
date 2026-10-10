@@ -13,6 +13,12 @@ const SettingsCenterWorkbench = React.lazy(() => import('./settings/SettingsCent
 const ServiceDetailWorkbench = React.lazy(
   () => import('./serviceDetail/ServiceDetail') as Promise<{ default: React.ComponentType<{ name: string }> }>,
 );
+const ServiceHomeWorkbench = React.lazy(
+  async () => {
+    const mod = await import('./home/ServiceHome');
+    return { default: mod.ServiceHome as React.ComponentType };
+  },
+);
 
 export const WORKBENCH_CONTENT_READY_FALLBACK_MS = 4_000;
 const WORKBENCH_PENDING_CONTENT_SELECTOR = '[data-monaco-editor-loading="true"]';
@@ -75,6 +81,8 @@ export const WorkbenchTabContent: React.FC<WorkbenchTabContentProps> = React.mem
   let content: React.ReactNode;
   if (tab.type === 'settings-center') {
     content = <SettingsCenterWorkbench tab={tab} isActive={isActive} />;
+  } else if (tab.type === 'service-home') {
+    content = <ServiceHomeWorkbench />;
   } else if (tab.type === 'service-detail') {
     content = <ServiceDetailWorkbench name={tab.serviceName ?? ''} />;
   } else if (tab.type === 'jvm-overview') {

@@ -5,5 +5,6 @@ import type { TabData } from '../types';
  *  so detach to an in-app overlay window instead of a native OS window. */
 export const isMainWindowBoundWorkbenchTab = (tab: Pick<TabData, 'type'>): boolean => (
   tab.type === 'settings-center'
+  || tab.type === 'service-home'
   || tab.type === 'service-detail'
 );

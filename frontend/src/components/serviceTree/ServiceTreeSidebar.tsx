@@ -188,6 +188,22 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
     }
   }, []);
 
+  /** 「全部服务」行点击：打开（或聚焦）服务总览页签。 */
+  const openServiceHomeTab = useCallback(() => {
+    const { tabs, addTab, setActiveTab } = useStore.getState();
+    const existing = tabs.find((tab) => tab.type === 'service-home');
+    if (existing) {
+      setActiveTab(existing.id);
+      return;
+    }
+    addTab({
+      id: 'service-home',
+      title: t('home.title'),
+      type: 'service-home',
+      connectionId: '',
+    });
+  }, [t]);
+
   // 双向联动（tab → 树）：激活 tab 是服务详情时，树选中跟随该服务并展开所在分组；
   // 切到与服务无关的 tab 时仅清除服务行选中（分组选中不感知 tab）。
   // 反向（树 → tab）由 handleSelect → serviceDetailStore.open → addTab 同 id 聚焦天然成立。
@@ -436,7 +452,21 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
           </div>
         </div>
 
-        <div className="gst-all-services-row" data-service-tree-all-row="true" data-sidebar-explorer-actions="true">
+        <div
+          className="gst-all-services-row"
+          data-service-tree-all-row="true"
+          data-sidebar-explorer-actions="true"
+          role="button"
+          tabIndex={0}
+          title={t('home.title')}
+          onClick={openServiceHomeTab}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              openServiceHomeTab();
+            }
+          }}
+        >
           <AppstoreOutlined className="gst-all-services-icon" />
           <span className="gst-panel-title">{t('service.tree.title')}</span>
           <span className="gst-panel-title-spring" />

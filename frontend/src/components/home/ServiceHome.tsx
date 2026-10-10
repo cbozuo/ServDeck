@@ -98,6 +98,11 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService, onMore }
   const services = useServiceRegistryStore((state) => state.services);
   const runtime = useServiceRuntime(services);
   const openDetail = onMore ?? ((name: string) => useServiceDetailStore.getState().open(name));
+  // 注册入口缺省走事件总线：页签形态（WorkbenchTabContent）不传 props，
+  // 由 App 监听 gonavi:open-add-service 打开注册弹窗。
+  const handleAddService = onAddService ?? (() => {
+    window.dispatchEvent(new CustomEvent('gonavi:open-add-service'));
+  });
 
   const [filter, setFilter] = useState<FilterKey>('all');
   const [search, setSearch] = useState('');
@@ -230,7 +235,7 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService, onMore }
             <ReloadOutlined style={{ fontSize: 13 }} />
             {t('home.action.refresh')}
           </button>
-          <button className="h-btn h-btn-primary" onClick={() => onAddService?.()}>
+          <button className="h-btn h-btn-primary" onClick={() => handleAddService()}>
             <PlusOutlined style={{ fontSize: 13 }} />
             {t('home.action.register')}
           </button>
@@ -305,7 +310,7 @@ export const ServiceHome: React.FC<ServiceHomeProps> = ({ onAddService, onMore }
               <h3>{t('home.empty.title')}</h3>
               <p>{t('home.empty.desc')}</p>
               <div className="eh-actions">
-                <button className="h-btn h-btn-primary" onClick={() => onAddService?.()}>
+                <button className="h-btn h-btn-primary" onClick={() => handleAddService()}>
                   <PlusOutlined style={{ fontSize: 13 }} />
                   {t('home.action.register')}
                 </button>

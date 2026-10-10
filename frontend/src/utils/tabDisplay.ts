@@ -198,6 +198,8 @@ export const getTabDisplayKindLabel = (tab: TabData): string => {
   if (tab.type === 'settings-center') return '';
   // 服务详情：服务名已是完整标题，去掉 SVC 缩写角标
   if (tab.type === 'service-detail') return '';
+  // 服务总览：标题「服务总览」已表意，不叠 TAB 角标
+  if (tab.type === 'service-home') return '';
   if (tab.type.startsWith('jvm')) return 'JVM';
   return 'TAB';
 };

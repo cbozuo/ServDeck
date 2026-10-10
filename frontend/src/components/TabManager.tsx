@@ -1,7 +1,7 @@
 import Modal from './common/ResizableDraggableModal';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, Dropdown, message, Tabs, Tooltip } from 'antd';
-import { ArrowLeftOutlined, ArrowRightOutlined, CloseCircleOutlined, CloseOutlined, ExportOutlined, SettingOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ArrowRightOutlined, CloseCircleOutlined, CloseOutlined, ExportOutlined } from '@ant-design/icons';
 import type { MenuProps, TabsProps } from 'antd';
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragMoveEvent, DragStartEvent } from '@dnd-kit/core';
@@ -107,18 +107,14 @@ export const closeConfirmedWorkbenchTabs = (
     .forEach((id) => closeTab(id));
 };
 
-export const openTabDisplaySettings = () => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  window.dispatchEvent(new CustomEvent('gonavi:open-tab-display-settings'));
-};
-
 type SortableTabLabelProps = {
   tab: TabData;
   displayModel: TabDisplayModel;
   displayTitle: string;
   menuItems: MenuProps['items'];
+  /** 右键菜单受控开关：状态在 TabManager 组件级，整个页签节点（含空白区）都可触发。 */
+  menuOpen: boolean;
+  onMenuOpenChange: (open: boolean) => void;
   onClose?: () => void;
 };
 
@@ -151,13 +147,14 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
   displayModel,
   displayTitle,
   menuItems,
+  menuOpen,
+  onMenuOpenChange,
   onClose,
 }) => {
-  const [isTabMenuOpen, setIsTabMenuOpen] = useState(false);
-
   const handleTabLabelContextMenu = (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault();
-    setIsTabMenuOpen(true);
+    event.stopPropagation();
+    onMenuOpenChange(true);
   };
 
   const handleTabLabelMouseDown = (event: React.MouseEvent<HTMLElement>) => {
@@ -171,10 +168,6 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
     event.preventDefault();
     event.stopPropagation();
     onClose();
-  };
-
-  const handleTabMenuOpenChange = (open: boolean) => {
-    setIsTabMenuOpen(open);
   };
 
   const tabDisplayPartCount = displayModel.primaryParts.length + displayModel.secondaryParts.length;
@@ -220,26 +213,27 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
   );
 
   // 页签悬停信息框（service-detail 才有意义）：复用服务列表同一组件，按字段非空才显，避免大卡片遮挡。
+  // 右键菜单打开期间禁用悬浮卡：右击不应再弹出信息卡（用户反馈）。
   const serviceEntry = tab.type === 'service-detail'
     ? useServiceRegistryStore.getState().services.find((entry) => entry.name === (tab.serviceName || tab.title))
     : undefined;
   const serviceGroupName = serviceEntry
     ? useServiceRegistryStore.getState().groups.find((group) => group.id === serviceEntry.groupId)?.name
     : undefined;
-  const hoverWrappedLabel = serviceEntry
+  const hoverWrappedLabel = serviceEntry && !menuOpen
     ? <ServiceHoverTooltip service={serviceEntry} groupName={serviceGroupName}>{labelNode}</ServiceHoverTooltip>
     : labelNode;
 
   // Dropdown 的右键触发靠 cloneElement 往 child 注入 onContextMenu——child 是
   // 函数组件（ServiceHoverTooltip）时注入的 handler 会被吞掉（不转发），右键菜单
-  // 因此失效。受控 open + 外层真实 span 锚点双保险：右键由 label 自己的 handler
+  // 因此失效。受控 open + 外层真实 span 锚点双保险：右击由页签节点级 handler
   // 触发（受控 open），span 保证 antd 的定位 ref 与事件注入都落在 DOM 元素上。
   return (
     <Dropdown
       menu={{ items: menuItems }}
       trigger={['contextMenu']}
-      open={isTabMenuOpen}
-      onOpenChange={handleTabMenuOpenChange}
+      open={menuOpen}
+      onOpenChange={onMenuOpenChange}
       rootClassName={'gn-v2-tab-context-menu-popup'}
       popupRender={(menu) => renderV2ActionMenuPopup(menu, true, {
         title: displayTitle,
@@ -255,6 +249,8 @@ const SortableTabLabel: React.FC<SortableTabLabelProps> = ({
 
 type DraggableTabNodeProps = {
   node: React.ReactElement;
+  /** 整个页签节点（含空白区）右击时回调：打开该页签的右键菜单。 */
+  onTabContextMenu?: (tabId: string) => void;
 };
 
 const TAB_DRAG_INTERACTIVE_SELECTOR = [
@@ -383,7 +379,7 @@ export const installTabDetachDragGuards = ({
   };
 };
 
-const DraggableTabNode: React.FC<DraggableTabNodeProps> = ({ node }) => {
+const DraggableTabNode: React.FC<DraggableTabNodeProps> = ({ node, onTabContextMenu }) => {
   const tabId = String(node.key || '').trim();
   const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tabId });
   const style: React.CSSProperties = {
@@ -404,6 +400,13 @@ const DraggableTabNode: React.FC<DraggableTabNodeProps> = ({ node }) => {
     ...listeners,
     onPointerDown: (event: React.PointerEvent<HTMLElement>) =>
       handleTabDragPointerDown(event, handlePointerDown),
+    // 右击页签任意位置（含空白区）都打开该页签的右键菜单
+    onContextMenu: onTabContextMenu
+      ? (event: React.MouseEvent<HTMLElement>) => {
+          event.preventDefault();
+          onTabContextMenu(tabId);
+        }
+      : node.props.onContextMenu,
     className: `${node.props.className || ''} tab-dnd-node${isDragging ? ' is-dragging' : ''}`,
   });
 };
@@ -436,6 +439,8 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onA
   const [v2TabWidth, setV2TabWidth] = useState(V2_WORKBENCH_TAB_MAX_WIDTH);
   const [draggingTabId, setDraggingTabId] = useState<string | null>(null);
   const [detachDragPreview, setDetachDragPreview] = useState<DetachDragPreviewState | null>(null);
+  // 右键菜单状态在组件级：整个页签节点（DraggableTabNode）与 label 都能触发同一菜单
+  const [contextMenuTabId, setContextMenuTabId] = useState<string | null>(null);
   const detachDragSessionRef = useRef<{
     tabId: string;
     title: string;
@@ -735,7 +740,13 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onA
 
   const renderTabBar: TabsProps['renderTabBar'] = (tabBarProps, DefaultTabBar) => (
     <DefaultTabBar {...tabBarProps}>
-      {(node) => <DraggableTabNode key={node.key} node={node} />}
+      {(node) => (
+        <DraggableTabNode
+          key={node.key}
+          node={node}
+          onTabContextMenu={(tabId) => setContextMenuTabId(tabId)}
+        />
+      )}
     </DefaultTabBar>
   );
 
@@ -744,12 +755,6 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onA
     const displayTitle = displayModel.fullTitle;
 
     const menuItems: MenuProps['items'] = [
-      {
-        key: 'tab-display-settings',
-        icon: <SettingOutlined />,
-        label: t('tab_manager.menu.tab_display_settings'),
-        onClick: openTabDisplaySettings,
-      },
       {
         key: 'open-in-window',
         icon: <ExportOutlined />,
@@ -806,6 +811,8 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onA
           displayModel={displayModel}
           displayTitle={displayTitle}
           menuItems={menuItems}
+          menuOpen={contextMenuTabId === tab.id}
+          onMenuOpenChange={(open) => setContextMenuTabId(open ? tab.id : null)}
           onClose={() => closeTabsDirectly([tab.id], () => closeTab(tab.id))}
         />
       ),
@@ -813,7 +820,7 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onA
       closable: false,
       children: <WorkbenchTabContent tab={tab} />,
     };
-  }), [dockedTabs, tabs, appearance.tabDisplay, closeTab, closeTabsDirectly, detachTabToWindow]);
+  }), [dockedTabs, tabs, appearance.tabDisplay, closeTab, closeTabsDirectly, contextMenuTabId, detachTabToWindow]);
 
   const detailOpen = useServiceDetailStore((state) => state.open);
 
@@ -888,8 +895,11 @@ const TabManager: React.FC<TabManagerProps> = React.memo<TabManagerProps>(({ onA
               transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), background-color 120ms ease;
             }
             .main-tabs .gn-v2-tab-label-anchor {
+              /* 撑满页签节点：label 的 width:100% 以此为基准，
+                 关闭钮才能被 content(flex:1) 推到页签最右侧垂直居中 */
               display: inline-flex;
               align-items: center;
+              width: 100%;
               max-width: 100%;
             }
             .main-tabs .tab-dnd-label {

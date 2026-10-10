@@ -6859,7 +6859,7 @@ body[data-ui-version="v2"] [data-grid-custom-page-size-confirm="true"].ant-btn {
 
 /* ─── V2 context menus, including portal-rendered custom menus ─ */
 body[data-ui-version="v2"] .gn-v2-action-menu-surface {
-  width: 264px;
+  width: 208px;
   max-width: calc(100vw - 24px);
   overflow: hidden;
   box-sizing: border-box;

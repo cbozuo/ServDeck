@@ -188,9 +188,13 @@ export const ServiceTreeSidebar: React.FC<ServiceTreeSidebarProps> = ({
     }
   }, []);
 
-  /** 「全部服务」行点击：打开（或聚焦）服务总览页签。 */
+  /** 「全部服务」行点击：打开（或聚焦）服务总览页签。
+   *  没有任何页签时主窗口已是服务总览形态，不再重复开页签。 */
   const openServiceHomeTab = useCallback(() => {
     const { tabs, addTab, setActiveTab } = useStore.getState();
+    if (tabs.length === 0) {
+      return;
+    }
     const existing = tabs.find((tab) => tab.type === 'service-home');
     if (existing) {
       setActiveTab(existing.id);

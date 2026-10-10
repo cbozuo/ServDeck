@@ -1,16 +1,11 @@
 import Modal from './components/common/ResizableDraggableModal';
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { Layout, Button, ConfigProvider, theme, message, notification, Spin, Slider, Switch, Input, InputNumber, Select, Segmented, Tooltip, Alert } from 'antd';
-import { UploadOutlined, DownloadOutlined, CloudDownloadOutlined, BugOutlined, GlobalOutlined, InfoCircleOutlined, GithubOutlined, SkinOutlined, CheckOutlined, SettingOutlined, LinkOutlined, BgColorsOutlined, AppstoreOutlined, FolderOpenOutlined, HddOutlined, SafetyCertificateOutlined, SwitcherOutlined, CodeOutlined, RightOutlined, TableOutlined, MenuOutlined, PoweroffOutlined, UserOutlined, MessageOutlined, FileTextOutlined, SyncOutlined, SendOutlined, AuditOutlined, ThunderboltOutlined, ApiOutlined, WechatOutlined, CopyOutlined } from '@ant-design/icons';
-import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { UploadOutlined, DownloadOutlined, CloudDownloadOutlined, BugOutlined, GlobalOutlined, InfoCircleOutlined, GithubOutlined, SkinOutlined, CheckOutlined, SettingOutlined, LinkOutlined, BgColorsOutlined, FolderOpenOutlined, HddOutlined, SwitcherOutlined, CodeOutlined, RightOutlined, PoweroffOutlined, UserOutlined, MessageOutlined, FileTextOutlined, SyncOutlined, SendOutlined, AuditOutlined, ThunderboltOutlined, ApiOutlined, WechatOutlined, CopyOutlined } from '@ant-design/icons';
 import { BrowserOpenURL, Environment, EventsOn, WindowFullscreen, WindowGetPosition, WindowGetSize, WindowIsFullscreen, WindowIsMaximised, WindowIsMinimised, WindowIsNormal, WindowMaximise, WindowMinimise, WindowSetDarkTheme, WindowSetLightTheme, WindowSetPosition, WindowSetSize, WindowSetSystemDefaultTheme, WindowUnfullscreen, WindowUnmaximise } from '../wailsjs/runtime';
 import { ServiceTreeSidebar } from './components/serviceTree/ServiceTreeSidebar';
 import TitleBarPrimaryActions from './components/TitleBarPrimaryActions';
 import TitleBarSystemActions from './components/TitleBarSystemActions';
-import TitleBarViewMenu from './components/TitleBarViewMenu';
-import { useTitleBarViewMenuEntries } from './components/useTitleBarViewMenuEntries';
 import { ManageServiceGroupsModal } from './components/serviceTree/ManageServiceGroupsModal';
 import { AddServiceModal } from './components/AddServiceModal';
 import TabManager from './components/TabManager';
@@ -19,37 +14,20 @@ import FloatingQueryResultWindows from './components/FloatingQueryResultWindows'
 import NativeDetachedWindowController from './components/NativeDetachedWindowController';
 import { TitleBarCloseIcon, TitleBarGearIcon, TitleBarMaximizeIcon, TitleBarMinimizeIcon, TitleBarPanelFoldIcon, TitleBarPanelUnfoldIcon, TitleBarRestoreIcon } from './components/TitleBarWindowControlIcons';
 import ConnectionModal from './components/ConnectionModal';
-import ConnectionHealthModal from './components/ConnectionHealthModal';
-import SnippetSettingsModal from './components/SnippetSettingsModal';
-import DriverManagerModal from './components/DriverManagerModal';
-import ConnectionPackagePasswordModal from './components/ConnectionPackagePasswordModal';
-import ConnectionImportSettingsPanel, {
-  buildConnectionImportGroupOptions,
-  resolveConnectionImportPlacement,
-  type ConnectionImportNotice,
-} from './components/settings/ConnectionImportSettingsPanel';
 import UpdateReleaseNotesModal from './components/UpdateReleaseNotesModal';
 import {
   buildReleaseNotesReadKey,
   isReleaseNotesRead,
   markReleaseNotesRead,
 } from './utils/updateReleaseNotesReadState';
-import { normalizeDataSyncEntryMode, type DataSyncEntryModeAlias } from './components/dataSyncEntryMode';
 import LinuxCJKFontBanner from './components/LinuxCJKFontBanner';
 import LogPanel from './components/LogPanel';
-import SecurityUpdateBanner from './components/SecurityUpdateBanner';
-import SecurityUpdateIntroModal from './components/SecurityUpdateIntroModal';
-import SecurityUpdateProgressModal from './components/SecurityUpdateProgressModal';
-import SecurityUpdateSettingsModal from './components/SecurityUpdateSettingsModal';
 import LanguageSettingsPanel from './components/LanguageSettingsPanel';
-import WebAuthSettingsPanel from './components/WebAuthSettingsPanel';
-import CloudBackupSettings from './components/CloudBackupSettings';
 import {
   resolveBrandIconSrc,
 } from './brand/brandIcons';
 import CustomThemeManager from './components/settings/CustomThemeManager';
 import ToolbarButtonAppearanceSettings from './components/settings/ToolbarButtonAppearanceSettings';
-import TitlebarMenuStyleSettings from './components/settings/TitlebarMenuStyleSettings';
 import SettingsCenterTreeNav, {
   findSettingsCenterTreeItem,
 } from './components/settings/SettingsCenterTreeNav';
@@ -80,7 +58,7 @@ import {
   useStore,
 } from './store';
 import { useCustomThemeStore } from './customThemeStore';
-import { GlobalProxyConfig, SavedConnection, SecurityUpdateIssue, SecurityUpdateStatus } from './types';
+import { SavedConnection } from './types';
 import { blurToFilter, normalizeBlurForPlatform, normalizeOpacityForPlatform, isMacLikePlatform, isWindowsPlatform, resolveAppearanceValues } from './utils/appearance';
 import { buildFontFamilyOptions, DEFAULT_MONO_FONT_FAMILY, DEFAULT_UI_FONT_FAMILY, getLinuxCJKFontInstallHint, matchFontFamilyOption, resolveMonoFontFamily, resolveUIFontFamily, sanitizeFontFamilyInput, type FontFamilyOption, type InstalledFontFamily } from './utils/fontFamilies';
 import {
@@ -117,38 +95,11 @@ import {
   createConnectionSidebarLayoutCoordinator,
   type ConnectionSidebarLayoutCoordinator,
 } from './utils/connectionSidebarLayoutCoordinator';
-import { createGlobalProxyDraft, toSaveGlobalProxyInput } from './utils/globalProxyDraft';
-import {
-  detectConnectionImportKind,
-  isConnectionPackagePasswordRequiredError,
-  parseConnectionsExcelImportEnvelope,
-  resolveConnectionPackageExportResult,
-  normalizeConnectionPackagePassword,
-} from './utils/connectionExport';
-import { downloadBrowserTextFile } from './utils/browserFileTransfer';
-import {
-  planExcelGroupAssignments,
-  type ExcelGroupAssignment,
-  type ExcelGroupPlanContext,
-} from './utils/connectionExcelGroups';
-import { buildDataSyncWorkbenchTab, resolveExistingDataSyncWorkbenchTabId } from './utils/dataSyncTab';
-import {
-  buildDriverManagerWorkbenchTab,
-  DOWNLOAD_SOURCE_CHANGED_EVENT,
-  getNextDownloadSource,
-  normalizeDownloadSource,
-  notifyDownloadSourceChanged,
-  OPEN_GLOBAL_PROXY_SETTINGS_EVENT,
-  type DownloadSourceId,
-} from './utils/driverManagerTab';
 import {
   buildSettingsCenterWorkbenchTab,
   SETTINGS_CENTER_WORKBENCH_TAB_ID,
 } from './utils/settingsCenterTab';
 import { SettingsCenterWorkbenchRegistrar } from './components/settings/SettingsCenterWorkbenchBridge';
-import { buildSqlAuditWorkbenchTab } from './utils/sqlAuditTab';
-import { buildRequestDiagnosticsWorkbenchTab } from './utils/requestDiagnosticsTab';
-import { buildDMLSnapshotWorkbenchTab } from './utils/dmlSnapshotTab';
 import {
   getDataSourceCapabilities,
   isMessageQueueDataSource,
@@ -165,47 +116,8 @@ import {
   sanitizeRedisDbAliases,
   type RedisDbAliasMap,
 } from './utils/redisDbAlias';
-import {
-  bootstrapSecureConfig,
-  finalizeSecurityUpdateStatus,
-  mergeSecurityUpdateStatusWithLegacySource,
-  startSecurityUpdateFromBootstrap,
-} from './utils/secureConfigBootstrap';
+import { bootstrapSecureConfig } from './utils/secureConfigBootstrap';
 import { bootstrapSavedQueries } from './utils/savedQueryPersistence';
-import {
-  LEGACY_PERSIST_KEY,
-  hasLegacyMigratableSensitiveItems,
-  stripLegacyPersistedConnectionById,
-} from './utils/legacyConnectionStorage';
-import { DEFAULT_QUERY_TEMPLATE } from './components/queryEditor/QueryEditorHelpers';
-import {
-  DEFAULT_SIDEBAR_TABLE_METADATA_FIELDS,
-  SIDEBAR_TABLE_METADATA_FIELDS,
-  applySidebarTableMetadataFieldOrder,
-  resolveSidebarTableMetadataFieldOrder,
-  resolveSidebarTableMetadataFields,
-  setSidebarTableMetadataFieldSelected,
-  type SidebarTableMetadataField,
-} from './utils/sidebarTableMetadata';
-import {
-  SIDEBAR_OBJECT_GROUP_KEYS,
-  type SidebarObjectGroupKey,
-} from './utils/sidebarObjectVisibility';
-import { buildSidebarObjectVisibilitySettings } from './utils/sidebarObjectVisibilitySettings';
-import {
-  getSecurityUpdateStatusMeta,
-  resolveSecurityUpdateEntryVisibility,
-} from './utils/securityUpdatePresentation';
-import {
-  hasSecurityUpdateRecentResult,
-  resolveSecurityUpdateRepairEntry,
-  resolveSecurityUpdateSettingsFocusTarget,
-  shouldRefreshSecurityUpdateDetailsFocus,
-  shouldReopenSecurityUpdateDetails,
-  shouldRetrySecurityUpdateAfterRepairSave,
-  type SecurityUpdateRepairSource,
-  type SecurityUpdateSettingsFocusTarget,
-} from './utils/securityUpdateRepairFlow';
 import { getWindowsScaleFixNudgedWidth } from './utils/windowsScaleFix';
 import {
   clearStartupWindowRestorePending,
@@ -234,7 +146,6 @@ import {
   isShortcutMatch,
   normalizeShortcutCombo,
   resolveShortcutBinding,
-  setGlobalShortcutCaptureActive,
   splitConflictsByContext,
   type ConflictInfo,
 } from './utils/shortcuts';
@@ -304,19 +215,15 @@ import { isWailsDevNativeContextMenu, shouldAllowNativeContextMenu } from './uti
 import {
   ApplyDataRootDirectory,
   ApplyServyEnginePath,
-  ApplySavedQueryDirectory,
   CancelApplicationQuit,
   ForceQuitApplication,
   GetDataRootDirectoryInfo,
   GetServyEngineConfig,
   GetSavedConnections,
-  GetSavedQueries,
   ListInstalledFontFamilies,
   OpenDataRootDirectory,
-  OpenSavedQueryDirectory,
   RestartApplication,
   SelectDataRootDirectory,
-  SelectSavedQueryDirectory,
   SelectServyEngineFile,
   GetServiceLogRetentionDays,
   SetServiceLogRetentionDays,
@@ -547,18 +454,6 @@ const ThemeSettingsSlider: React.FC<ThemeSettingsSliderProps> = ({
   );
 };
 
-const createEmptySecurityUpdateStatus = (): SecurityUpdateStatus => ({
-  overallStatus: 'not_detected',
-  summary: {
-    total: 0,
-    updated: 0,
-    pending: 0,
-    skipped: 0,
-    failed: 0,
-  },
-  issues: [],
-});
-
 const detectNavigatorPlatform = (): string => {
   if (typeof navigator === 'undefined') {
       return '';
@@ -586,60 +481,11 @@ const getSystemThemeMode = (): 'light' | 'dark' => {
 };
 
 
-const mergeSavedConnections = (current: SavedConnection[], imported: SavedConnection[]): SavedConnection[] => {
-  const merged = new Map<string, SavedConnection>();
-  current.forEach((conn) => merged.set(conn.id, conn));
-  imported.forEach((conn) => merged.set(conn.id, conn));
-  return Array.from(merged.values());
-};
 
-type ConnectionPackageImportPayload = {
-  connections: SavedConnection[];
-  redisDbAliases: RedisDbAliasMap;
-  excelGroups?: ExcelGroupAssignment[];
-};
+type ToolCenterGroupKey = 'config';
+type ToolCenterPaneKey = 'data-root-application';
 
-/** Normalize ImportConnectionsPayload results: object (new) or bare array (legacy/mock). */
-const normalizeConnectionPackageImportPayload = (value: unknown): ConnectionPackageImportPayload | null => {
-  if (Array.isArray(value)) {
-    return {
-      connections: value as SavedConnection[],
-      redisDbAliases: {},
-    };
-  }
-  if (!value || typeof value !== 'object') {
-    return null;
-  }
-  const record = value as { connections?: unknown; redisDbAliases?: unknown; excelGroups?: unknown };
-  if (!Array.isArray(record.connections)) {
-    return null;
-  }
-  const excelGroups = Array.isArray(record.excelGroups)
-    ? (record.excelGroups as ExcelGroupAssignment[])
-    : [];
-  return {
-    connections: record.connections as SavedConnection[],
-    redisDbAliases: sanitizeRedisDbAliases(record.redisDbAliases),
-    excelGroups,
-  };
-};
-
-type ConnectionPackageDialogMode = 'import' | 'export';
-type ToolCenterGroupKey = 'config' | 'workflow' | 'workspace';
-type ToolCenterPaneKey =
-  | 'connection-package'
-  | 'import'
-  | 'export'
-  | 'connection-health'
-  | 'data-root'
-  | 'data-root-application'
-  | 'data-root-saved-queries'
-  | 'security-update'
-  | 'drivers'
-  | 'snippet-settings'
-  | 'shortcut-settings';
-
-type SettingsCenterGroupKey = 'preferences' | 'services' | ToolCenterGroupKey | 'about';
+type SettingsCenterGroupKey = 'preferences' | ToolCenterGroupKey | 'about';
 
 /** 日志保留天数选项（-1 = 永久保留，禁用自动清理）。 */
 const LOG_RETENTION_OPTIONS: Array<{ value: number }> = [
@@ -652,12 +498,6 @@ const LOG_RETENTION_OPTIONS: Array<{ value: number }> = [
 type SettingsCenterPaneKey =
   | 'language'
   | 'theme'
-  | 'sidebar-metadata'
-  | 'sidebar-objects'
-  | 'proxy'
-  | 'download-source'
-  | 'web-auth'
-  | 'cloud-backup'
   | ToolCenterPaneKey
   | 'about-go-navi';
 type SettingsCenterPaneState = {
@@ -666,68 +506,20 @@ type SettingsCenterPaneState = {
 };
 
 const isToolCenterGroupKey = (group: SettingsCenterGroupKey): group is ToolCenterGroupKey => (
-  group === 'config' || group === 'workflow' || group === 'workspace'
+  group === 'config'
 );
-
-const isConnectionPackageSettingsPaneKey = (
-  key: SettingsCenterPaneKey | string | null | undefined,
-): boolean => key === 'connection-package' || key === 'import' || key === 'export';
 
 const resolveSettingsCenterGroupInitialPane = (group: SettingsCenterGroupKey): SettingsCenterPaneState | null => {
   switch (group) {
     case 'preferences':
       return { key: 'language', group };
-    case 'services':
-      return { key: 'proxy', group };
     case 'config':
       return { key: 'data-root-application', group };
-    case 'workspace':
-      return { key: 'snippet-settings', group };
     case 'about':
       return { key: 'about-go-navi', group };
     default:
       return null;
   }
-};
-
-const DEFAULT_GLOBAL_PROXY_TEST_URL = 'https://api.github.com/';
-
-type GlobalProxyTestResultState = {
-  success: boolean;
-  message: string;
-  url?: string;
-  finalUrl?: string;
-  statusCode?: number;
-  durationMs?: number;
-  viaProxy?: boolean;
-};
-
-const getGlobalProxyDefaultPort = (type: GlobalProxyConfig['type']): number => (
-  type === 'http' ? 8080 : 1080
-);
-
-const createGlobalProxyComparableDraft = (
-  value: Partial<GlobalProxyConfig> = {},
-): GlobalProxyConfig => ({
-  ...createGlobalProxyDraft(value),
-  password: typeof value.password === 'string' ? value.password : '',
-});
-
-const areGlobalProxyDraftsEqual = (
-  left: Partial<GlobalProxyConfig>,
-  right: Partial<GlobalProxyConfig>,
-): boolean => {
-  const normalizedLeft = createGlobalProxyComparableDraft(left);
-  const normalizedRight = createGlobalProxyComparableDraft(right);
-  return (
-    normalizedLeft.enabled === normalizedRight.enabled &&
-    normalizedLeft.type === normalizedRight.type &&
-    normalizedLeft.host === normalizedRight.host &&
-    normalizedLeft.port === normalizedRight.port &&
-    normalizedLeft.user === normalizedRight.user &&
-    normalizedLeft.password === normalizedRight.password &&
-    normalizedLeft.hasPassword === normalizedRight.hasPassword
-  );
 };
 
 const formatAboutCheckedAt = (value: Date): string => {
@@ -747,116 +539,12 @@ const formatAboutReleaseTime = (value: string | undefined): string => {
   return formatAboutCheckedAt(date);
 };
 
-type ConnectionPackageDialogState = {
-  open: boolean;
-  mode: ConnectionPackageDialogMode;
-  includeSecrets: boolean;
-  useFilePassword: boolean;
-  password: string;
-  error: string;
-  confirmLoading: boolean;
-  /** Export only: selected connection ids to include in the package. */
-  selectedConnectionIds: string[];
-};
-
-const createClosedConnectionPackageDialogState = (): ConnectionPackageDialogState => ({
-  open: false,
-  mode: 'export',
-  includeSecrets: true,
-  useFilePassword: false,
-  password: '',
-  error: '',
-  confirmLoading: false,
-  selectedConnectionIds: [],
-});
-
-type SidebarMetadataSortableRowProps = {
-  field: SidebarTableMetadataField;
-  label: string;
-  checked: boolean;
-  dividerColor: string;
-  titleColor: string;
-  mutedColor: string;
-  onToggle: (selected: boolean) => void;
-};
-
-const SidebarMetadataSortableRow: React.FC<SidebarMetadataSortableRowProps> = ({
-  field,
-  label,
-  checked,
-  dividerColor,
-  titleColor,
-  mutedColor,
-  onToggle,
-}) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: field });
-
-  return (
-    <div
-      ref={setNodeRef}
-      data-sidebar-metadata-field={field}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-        minHeight: 44,
-        padding: '6px 2px',
-        borderBottom: `1px solid ${dividerColor}`,
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.72 : 1,
-        position: 'relative',
-        zIndex: isDragging ? 2 : undefined,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-        <button
-          type="button"
-          aria-label={`Drag ${label}`}
-          {...attributes}
-          {...listeners}
-          style={{
-            width: 24,
-            height: 24,
-            border: 'none',
-            borderRadius: 8,
-            background: 'transparent',
-            color: mutedColor,
-            cursor: isDragging ? 'grabbing' : 'grab',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-            touchAction: 'none',
-          }}
-        >
-          <MenuOutlined />
-        </button>
-        <span style={{ fontWeight: 500, color: titleColor, minWidth: 0 }}>{label}</span>
-      </div>
-      <Switch
-        checked={checked}
-        onChange={(selected) => onToggle(selected)}
-      />
-    </div>
-  );
-};
-
 function App() {
   const { language, t } = useI18n();
   const [notificationApi, notificationContextHolder] = notification.useNotification();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConnectionModalMounted, setIsConnectionModalMounted] = useState(false);
   const [editingConnection, setEditingConnection] = useState<SavedConnection | null>(null);
-  const [connectionHealthTargetIds, setConnectionHealthTargetIds] = useState<string[]>([]);
   const pendingConnectionTagIdRef = useRef<string | null>(null);
   const connectionModalWarmupDoneRef = useRef(false);
   const windowState = useStore(state => state.windowState);
@@ -881,17 +569,13 @@ function App() {
   const setAutoCheckForUpdates = useStore(state => state.setAutoCheckForUpdates);
   const autoCheckForUpdatesIntervalMinutes = useStore(state => state.autoCheckForUpdatesIntervalMinutes);
   const setAutoCheckForUpdatesIntervalMinutes = useStore(state => state.setAutoCheckForUpdatesIntervalMinutes);
-  const globalProxy = useStore(state => state.globalProxy);
   const replaceConnections = useStore(state => state.replaceConnections);
   const replaceConnectionSidebarLayout = useStore(state => state.replaceConnectionSidebarLayout);
-  const replaceGlobalProxy = useStore(state => state.replaceGlobalProxy);
   const replaceSavedQueries = useStore(state => state.replaceSavedQueries);
   const reloadSavedQueryGroups = useStore(state => state.reloadSavedQueryGroups);
   const queryOptions = useStore(state => state.queryOptions);
   const setQueryOptions = useStore(state => state.setQueryOptions);
   const shortcutOptions = useStore(state => state.shortcutOptions);
-  const updateShortcut = useStore(state => state.updateShortcut);
-  const resetShortcutOptions = useStore(state => state.resetShortcutOptions);
   const [systemThemeMode, setSystemThemeMode] = useState<'light' | 'dark'>(() => getSystemThemeMode());
   const [runtimePlatform, setRuntimePlatform] = useState('');
   const [runtimeBuildType, setRuntimeBuildType] = useState('');
@@ -951,24 +635,6 @@ function App() {
   const queryTableCtrlClickAction: QueryTableCtrlClickAction = appearance.queryTableCtrlClickAction === 'locate'
       ? 'locate'
       : 'open-design';
-  const newQuerySqlTemplate = appearance.newQuerySqlTemplate ?? DEFAULT_QUERY_TEMPLATE;
-  const sidebarTableMetadataFieldOrder = useMemo(
-      () => resolveSidebarTableMetadataFieldOrder(queryOptions?.sidebarTableMetadataFieldOrder),
-      [queryOptions?.sidebarTableMetadataFieldOrder],
-  );
-  const sidebarTableMetadataFields = useMemo(
-      () => resolveSidebarTableMetadataFields(
-          queryOptions?.sidebarTableMetadataFields,
-          queryOptions?.showSidebarTableComment === true,
-          sidebarTableMetadataFieldOrder,
-      ),
-      [queryOptions?.showSidebarTableComment, queryOptions?.sidebarTableMetadataFields, sidebarTableMetadataFieldOrder],
-  );
-  const sidebarMetadataDragSensors = useSensors(
-      useSensor(PointerSensor, {
-          activationConstraint: { distance: 4 },
-      }),
-  );
   const tabDisplaySettings = useMemo(
       () => sanitizeTabDisplaySettings(appearance.tabDisplay),
       [appearance.tabDisplay],
@@ -1154,21 +820,9 @@ function App() {
   const savedQueriesBootstrapPromiseRef = useRef<Promise<void> | null>(null);
   const savedQueriesLoadedRef = useRef(false);
   const [hasLoadedSecureConfig, setHasLoadedSecureConfig] = useState(false);
-  const [downloadSource, setDownloadSource] = useState<DownloadSourceId>('cst');
-  const [downloadSourceSaving, setDownloadSourceSaving] = useState(false);
   const [hasLoadedConnectionSidebarLayout, setHasLoadedConnectionSidebarLayout] = useState(false);
   const connectionSidebarLayoutCoordinatorRef = useRef<ConnectionSidebarLayoutCoordinator | null>(null);
   const [viewportWidth, setViewportWidth] = useState(() => (typeof window === 'undefined' ? 1280 : window.innerWidth || 1280));
-  const [securityUpdateStatus, setSecurityUpdateStatus] = useState<SecurityUpdateStatus>(() => createEmptySecurityUpdateStatus());
-  const [securityUpdateRawPayload, setSecurityUpdateRawPayload] = useState<string | null>(null);
-  const [securityUpdateHasLegacySensitiveItems, setSecurityUpdateHasLegacySensitiveItems] = useState(false);
-  const [isSecurityUpdateIntroOpen, setIsSecurityUpdateIntroOpen] = useState(false);
-  const [isSecurityUpdateBannerDismissed, setIsSecurityUpdateBannerDismissed] = useState(false);
-  const [securityUpdateSettingsFocusTarget, setSecurityUpdateSettingsFocusTarget] = useState<SecurityUpdateSettingsFocusTarget | null>(null);
-  const [securityUpdateSettingsFocusRequest, setSecurityUpdateSettingsFocusRequest] = useState(0);
-  const [isSecurityUpdateProgressOpen, setIsSecurityUpdateProgressOpen] = useState(false);
-  const [securityUpdateProgressStage, setSecurityUpdateProgressStage] = useState(() => t('app.security_update.stage.checking_saved_config'));
-  const [securityUpdateRepairSource, setSecurityUpdateRepairSource] = useState<SecurityUpdateRepairSource | null>(null);
   /** 设置中心 = workbench tab 形态（2026-09-29 曾短暂改为弹框后按用户要求回退）。
       服务详情 2026-09-30 起同为 tab 形态，两者可并存，无需再强制退出详情页。 */
   const isSettingsModalOpen = useStore((state) => state.tabs.some((tab) => tab.id === SETTINGS_CENTER_WORKBENCH_TAB_ID));
@@ -1188,12 +842,6 @@ function App() {
   const activeSettingsCenterPaneRef = useRef<SettingsCenterPaneState | null>(null);
   activeSettingsCenterPaneRef.current = activeSettingsCenterPane;
   const [focusedTabDisplayElementKey, setFocusedTabDisplayElementKey] = useState<TabDisplayElementKey | null>(null);
-  const [connectionPackageDialog, setConnectionPackageDialog] = useState<ConnectionPackageDialogState>(() => createClosedConnectionPackageDialogState());
-  const [pendingConnectionImportPayload, setPendingConnectionImportPayload] = useState<string | null>(null);
-  const [connectionImportTargetTagId, setConnectionImportTargetTagId] = useState('');
-  const [connectionImportNotice, setConnectionImportNotice] = useState<ConnectionImportNotice | null>(null);
-  const browserConnectionImportInputRef = useRef<HTMLInputElement>(null);
-  const browserConnectionImportSourceGroupRef = useRef<ToolCenterGroupKey | undefined>(undefined);
   const sidebarWidth = useStore(state => state.sidebarWidth);
   const setSidebarWidth = useStore(state => state.setSidebarWidth);
   const navigatorPlatform = detectNavigatorPlatform();
@@ -1247,16 +895,6 @@ function App() {
       hasLoadedSecureConfig,
       hasLoadedConnectionSidebarLayout,
   );
-  const securityUpdateStatusMeta = useMemo(
-      () => getSecurityUpdateStatusMeta(securityUpdateStatus, t),
-      [securityUpdateStatus, t],
-  );
-  const securityUpdateEntryVisibility = useMemo(
-      () => resolveSecurityUpdateEntryVisibility(securityUpdateStatus),
-      [securityUpdateStatus],
-  );
-  const isSecurityUpdateBannerVisible = securityUpdateEntryVisibility.showBanner
-      && !isSecurityUpdateBannerDismissed;
 
   const windowCornerRadius = 14;
   useEffect(() => {
@@ -1377,47 +1015,6 @@ function App() {
       });
   }, [ensureSavedQueriesLoaded, isStoreHydrated]);
 
-  const normalizeSecurityUpdateStatus = useCallback((status?: Partial<SecurityUpdateStatus> | null): SecurityUpdateStatus => {
-      const fallback = createEmptySecurityUpdateStatus();
-      return {
-          ...fallback,
-          ...(status ?? {}),
-          summary: {
-              ...fallback.summary,
-              ...(status?.summary ?? {}),
-          },
-          issues: Array.isArray(status?.issues) ? status.issues : [],
-      };
-  }, []);
-
-  const applySecurityUpdateStatus = useCallback((
-      status?: Partial<SecurityUpdateStatus> | null,
-      options?: {
-          openSettings?: boolean;
-          refreshFocus?: boolean;
-          resetBannerDismissed?: boolean;
-      },
-  ) => {
-      const nextStatus = normalizeSecurityUpdateStatus(status);
-      const visibility = resolveSecurityUpdateEntryVisibility(nextStatus);
-      setSecurityUpdateStatus(nextStatus);
-      setIsSecurityUpdateIntroOpen(visibility.showIntro);
-      if (options?.resetBannerDismissed !== false) {
-          setIsSecurityUpdateBannerDismissed(false);
-      }
-      if (options?.openSettings) {
-          if (options.refreshFocus !== false) {
-              setSecurityUpdateSettingsFocusTarget(resolveSecurityUpdateSettingsFocusTarget(nextStatus));
-              setSecurityUpdateSettingsFocusRequest((current) => current + 1);
-          }
-          setToolCenterBackGroupKey('config');
-          setActiveSettingsCenterGroupKey('config');
-          setActiveSettingsCenterPane({ key: 'security-update', group: 'config' });
-          openSettingsCenterWorkbenchTab();
-      }
-      return nextStatus;
-  }, [normalizeSecurityUpdateStatus]);
-
   useEffect(() => {
       if (!isStoreHydrated) {
           return;
@@ -1426,19 +1023,15 @@ function App() {
       let cancelled = false;
       const loadSecureConfig = async () => {
           try {
-              const result = await bootstrapSecureConfig({
+              await bootstrapSecureConfig({
                   backend: (window as any).go?.app?.App,
                   autoStartLegacySecurityUpdate: true,
                   replaceConnections,
-                  replaceGlobalProxy,
                   t,
               });
               if (cancelled) {
                   return;
               }
-              setSecurityUpdateRawPayload(result.rawPayload);
-              setSecurityUpdateHasLegacySensitiveItems(result.hasLegacySensitiveItems);
-              applySecurityUpdateStatus(result.status);
           } catch (err) {
               console.warn('Failed to bootstrap secure config', err);
           } finally {
@@ -1452,64 +1045,7 @@ function App() {
       return () => {
           cancelled = true;
       };
-  }, [applySecurityUpdateStatus, isStoreHydrated, replaceConnections, replaceGlobalProxy, t]);
-
-  useEffect(() => {
-      let cancelled = false;
-      const backendApp = (window as any).go?.app?.App;
-      if (typeof backendApp?.GetDownloadSourceConfig !== 'function') {
-          return () => {
-              cancelled = true;
-          };
-      }
-      void backendApp.GetDownloadSourceConfig()
-          .then((result: { source?: string } | undefined) => {
-              if (!cancelled) {
-                  setDownloadSource(normalizeDownloadSource(result?.source));
-              }
-          })
-          .catch((error: unknown) => {
-              if (!cancelled) {
-                  console.warn('Failed to load download source preference', error);
-              }
-          });
-      return () => {
-          cancelled = true;
-      };
-  }, []);
-
-  useEffect(() => {
-      const syncDownloadSource = (event: Event) => {
-          setDownloadSource(normalizeDownloadSource((event as CustomEvent<{ source?: unknown }>).detail?.source));
-      };
-      window.addEventListener(DOWNLOAD_SOURCE_CHANGED_EVENT, syncDownloadSource);
-      return () => window.removeEventListener(DOWNLOAD_SOURCE_CHANGED_EVENT, syncDownloadSource);
-  }, []);
-
-  const handleDownloadSourceChange = useCallback(async (value: DownloadSourceId) => {
-      const nextSource = normalizeDownloadSource(value);
-      const previousSource = downloadSource;
-      setDownloadSource(nextSource);
-      notifyDownloadSourceChanged(nextSource);
-      const backendApp = (window as any).go?.app?.App;
-      if (typeof backendApp?.SaveDownloadSourceConfig !== 'function') {
-          return;
-      }
-      setDownloadSourceSaving(true);
-      try {
-          const result = await backendApp.SaveDownloadSourceConfig(nextSource);
-          const savedSource = normalizeDownloadSource(result?.source ?? nextSource);
-          setDownloadSource(savedSource);
-          notifyDownloadSourceChanged(savedSource);
-          void message.success(t('app.download_source.message.saved'));
-      } catch (error: unknown) {
-          setDownloadSource(previousSource);
-          notifyDownloadSourceChanged(previousSource);
-          void message.error(error instanceof Error ? error.message : t('app.download_source.message.save_failed'));
-      } finally {
-          setDownloadSourceSaving(false);
-      }
-  }, [downloadSource, t]);
+  }, [isStoreHydrated, replaceConnections, t]);
 
   useEffect(() => {
       if (!isStoreHydrated || !hasLoadedSecureConfig) {
@@ -2559,15 +2095,6 @@ function App() {
   });
 
   const addTab = useStore(state => state.addTab);
-  const handleOpenDriverManagerWorkbench = useCallback(() => {
-      const tab = buildDriverManagerWorkbenchTab();
-      const wasDetached = useStore.getState().isWorkbenchTabDetached(tab.id);
-      addTab(tab);
-      if (!wasDetached) return;
-      void openNativeWorkbenchTabWindow(tab.id).catch((error) => {
-          message.error(error instanceof Error ? error.message : String(error));
-      });
-  }, [addTab]);
   const activeContext = useStore(state => state.activeContext);
   const connections = useStore(state => state.connections);
   const connectionTags = useStore(state => state.connectionTags);
@@ -2578,18 +2105,6 @@ function App() {
   const moveConnectionToTag = useStore(state => state.moveConnectionToTag);
   const moveConnectionsToTag = useStore(state => state.moveConnectionsToTag);
   const setConnectionDisplaySortMode = useStore(state => state.setConnectionDisplaySortMode);
-  const connectionImportGroupOptions = useMemo(
-      () => buildConnectionImportGroupOptions(connectionTags),
-      [connectionTags],
-  );
-  useEffect(() => {
-      if (
-          connectionImportTargetTagId
-          && !connectionTags.some((tag) => tag.id === connectionImportTargetTagId)
-      ) {
-          setConnectionImportTargetTagId('');
-      }
-  }, [connectionImportTargetTagId, connectionTags]);
   const tabs = useWorkbenchTabs();
   const activeTabId = useStore(state => state.activeTabId);
   const setActiveTab = useStore(state => state.setActiveTab);
@@ -2639,190 +2154,6 @@ function App() {
   ]);
   const applicationQuitConfirmRef = useRef<{ destroy: () => void } | null>(null);
   const applicationQuitHandlingRef = useRef(false);
-  const openSecurityUpdateSettings = useCallback((focusTarget?: SecurityUpdateSettingsFocusTarget | null) => {
-      setIsSecurityUpdateIntroOpen(false);
-      if (focusTarget !== undefined) {
-          setSecurityUpdateSettingsFocusTarget(focusTarget);
-          setSecurityUpdateSettingsFocusRequest((current) => current + 1);
-      }
-      setToolCenterBackGroupKey('config');
-      setActiveSettingsCenterGroupKey('config');
-      setActiveSettingsCenterPane({ key: 'security-update', group: 'config' });
-      openSettingsCenterWorkbenchTab();
-  }, []);
-  const handleOpenSecurityUpdateSettings = useCallback((focusTarget: SecurityUpdateSettingsFocusTarget | null = null) => {
-      openSecurityUpdateSettings(focusTarget);
-  }, [openSecurityUpdateSettings]);
-  const runSecurityUpdateRound = useCallback(async (mode: 'start' | 'retry' | 'restart') => {
-      const backendApp = (window as any).go?.app?.App;
-      const stageText = mode === 'start'
-          ? t('app.security_update.stage.checking_saved_config')
-          : (mode === 'retry'
-              ? t('app.security_update.stage.verifying_result')
-              : t('app.security_update.stage.updating_secure_storage'));
-      const detailsWereOpen = isSettingsModalOpen && activeSettingsCenterPane?.key === 'security-update';
-      setSecurityUpdateProgressStage(stageText);
-      setIsSecurityUpdateProgressOpen(true);
-      setIsSecurityUpdateIntroOpen(false);
-
-      let nextStatus: SecurityUpdateStatus | null = null;
-      let shouldOpenSettings = false;
-      let refreshSettingsFocus = false;
-      try {
-          if (mode === 'start') {
-              const result = await startSecurityUpdateFromBootstrap({
-                  backend: backendApp,
-                  replaceConnections,
-                  replaceGlobalProxy,
-                  t,
-              });
-              if (result.error) {
-                  throw result.error;
-              }
-              nextStatus = normalizeSecurityUpdateStatus(result.status);
-          } else if (mode === 'retry') {
-              if (typeof backendApp?.RetrySecurityUpdateCurrentRound !== 'function') {
-                  throw new Error(t('app.security_update.error.capability_unavailable'));
-              }
-              nextStatus = normalizeSecurityUpdateStatus(await backendApp.RetrySecurityUpdateCurrentRound({
-                  migrationId: securityUpdateStatus.migrationId,
-              }));
-          } else {
-              if (typeof backendApp?.RestartSecurityUpdate !== 'function') {
-                  throw new Error(t('app.security_update.error.capability_unavailable'));
-              }
-              nextStatus = normalizeSecurityUpdateStatus(await backendApp.RestartSecurityUpdate({
-                  migrationId: securityUpdateStatus.migrationId,
-                  sourceType: 'current_app_saved_config',
-                  rawPayload: securityUpdateRawPayload ?? '',
-                  options: {
-                      allowPartial: true,
-                      writeBackup: true,
-                  },
-              }));
-          }
-
-          if (mode !== 'start') {
-              nextStatus = await finalizeSecurityUpdateStatus({
-                  backend: backendApp,
-                  replaceConnections,
-                  replaceGlobalProxy,
-                  t,
-              }, nextStatus);
-          }
-
-          shouldOpenSettings = nextStatus.overallStatus === 'needs_attention' || nextStatus.overallStatus === 'rolled_back';
-          refreshSettingsFocus = shouldRefreshSecurityUpdateDetailsFocus({
-              requestedOpen: shouldOpenSettings,
-              wasOpen: detailsWereOpen,
-          });
-      } catch (err: any) {
-          console.warn('Failed to execute security update round', err);
-          setIsSecurityUpdateProgressOpen(false);
-          if (detailsWereOpen) {
-              openSecurityUpdateSettings();
-          }
-          void message.error(err?.message || t('app.security_update.message.not_finished_retry_later'));
-          return;
-      }
-
-      if (!nextStatus) {
-          setIsSecurityUpdateProgressOpen(false);
-          return;
-      }
-      setIsSecurityUpdateProgressOpen(false);
-      applySecurityUpdateStatus(nextStatus, {
-          openSettings: shouldOpenSettings,
-          refreshFocus: refreshSettingsFocus,
-      });
-
-      if (nextStatus.overallStatus === 'completed') {
-          setSecurityUpdateHasLegacySensitiveItems(false);
-          setSecurityUpdateRawPayload(null);
-          void message.success(t('app.security_update.message.completed'));
-      } else if (nextStatus.overallStatus === 'needs_attention') {
-          void message.warning(t('app.security_update.message.needs_attention'));
-      } else if (nextStatus.overallStatus === 'rolled_back') {
-          void message.warning(t('app.security_update.message.rolled_back'));
-      }
-  }, [
-      applySecurityUpdateStatus,
-      activeSettingsCenterPane?.key,
-      isSettingsModalOpen,
-      normalizeSecurityUpdateStatus,
-      openSecurityUpdateSettings,
-      replaceConnections,
-      replaceGlobalProxy,
-      securityUpdateRawPayload,
-      securityUpdateStatus.migrationId,
-      t,
-  ]);
-  const handleStartSecurityUpdate = useCallback(() => {
-      void runSecurityUpdateRound('start');
-  }, [runSecurityUpdateRound]);
-  const handleRetrySecurityUpdate = useCallback(() => {
-      void runSecurityUpdateRound('retry');
-  }, [runSecurityUpdateRound]);
-  const handleRestartSecurityUpdate = useCallback(() => {
-      void runSecurityUpdateRound('restart');
-  }, [runSecurityUpdateRound]);
-  const handlePostponeSecurityUpdate = useCallback(async () => {
-      const backendApp = (window as any).go?.app?.App;
-      setIsSecurityUpdateIntroOpen(false);
-      try {
-          if (typeof backendApp?.DismissSecurityUpdateReminder === 'function') {
-              const nextStatus = mergeSecurityUpdateStatusWithLegacySource(
-                  await backendApp.DismissSecurityUpdateReminder(),
-                  securityUpdateRawPayload,
-                  { t },
-              );
-              applySecurityUpdateStatus(nextStatus);
-              return;
-          }
-          applySecurityUpdateStatus({
-              overallStatus: 'postponed',
-              canStart: true,
-              canPostpone: true,
-              summary: securityUpdateStatus.summary,
-              issues: securityUpdateStatus.issues,
-          });
-      } catch (err: any) {
-          console.warn('Failed to dismiss security update reminder', err);
-          void message.error(err?.message || t('app.security_update.message.postpone_failed'));
-      }
-  }, [
-      applySecurityUpdateStatus,
-      securityUpdateRawPayload,
-      securityUpdateStatus.issues,
-      securityUpdateStatus.summary,
-      t,
-  ]);
-  const handleSecurityUpdateIssueAction = useCallback((issue: SecurityUpdateIssue) => {
-      const repairEntry = resolveSecurityUpdateRepairEntry(issue, connections, securityUpdateStatus, t);
-      if (repairEntry.type === 'warning') {
-          void message.warning(repairEntry.message);
-          return;
-      }
-      if (repairEntry.type === 'connection') {
-          closeSettingsCenterWorkbenchTab();
-          setSecurityUpdateRepairSource(repairEntry.repairSource);
-          setEditingConnection(repairEntry.connection);
-          setIsModalOpen(true);
-          return;
-      }
-      if (repairEntry.type === 'proxy') {
-          closeSettingsCenterWorkbenchTab();
-          setSecurityUpdateRepairSource(repairEntry.repairSource);
-          setIsProxyModalOpen(true);
-          return;
-      }
-      if (repairEntry.type === 'retry') {
-          void runSecurityUpdateRound('retry');
-          return;
-      }
-      setSecurityUpdateRepairSource(null);
-      openSecurityUpdateSettings(repairEntry.focusTarget);
-  }, [connections, openSecurityUpdateSettings, runSecurityUpdateRound, securityUpdateStatus, t]);
   const useNativeMacWindowControls = isMacRuntime;
   const activeShortcutPlatform = getShortcutPlatform(isMacRuntime);
   const macWindowDiagnosticsEnabled = shouldEnableMacWindowDiagnostics(
@@ -3359,514 +2690,13 @@ function App() {
       };
   }, [handleApplicationQuitRequest]);
 
-  const closeConnectionPackageDialog = useCallback(() => {
-      setConnectionPackageDialog(createClosedConnectionPackageDialogState());
-      setPendingConnectionImportPayload(null);
-      setConnectionImportNotice(null);
-      setToolCenterBackGroupKey(null);
-  }, []);
-
-  const refreshConnectionsAfterImport = useCallback(async (importedViews: SavedConnection[]) => {
-      const backendApp = (window as any).go?.app?.App;
-      if (typeof backendApp?.GetSavedConnections === 'function') {
-          let latestConnections: unknown;
-          try {
-              latestConnections = await GetSavedConnections();
-          } catch (error) {
-              const detail = error instanceof Error ? error.message : String(error ?? '').trim();
-              throw new Error(
-                  detail
-                      ? t('app.connection_package.message.import_failed_with_error', { error: detail })
-                      : t('app.connection_package.message.import_failed'),
-              );
-          }
-          if (!Array.isArray(latestConnections)) {
-              throw new Error(t('app.connection_package.error.refresh_failed_no_connections'));
-          }
-          replaceConnections(latestConnections as SavedConnection[]);
-          return;
-      }
-
-      const latestConnections = useStore.getState().connections;
-      replaceConnections(mergeSavedConnections(latestConnections, importedViews));
-  }, [replaceConnections]);
-
-  const importConnectionsPayload = useCallback(async (raw: string, password: string) => {
-      const backendApp = (window as any).go?.app?.App;
-      if (typeof backendApp?.ImportConnectionsPayload !== 'function') {
-          throw new Error(t('app.connection_package.error.import_capability_unavailable'));
-      }
-
-      await connectionSidebarLayoutCoordinatorRef.current?.bootstrap();
-      const targetTagId = String(connectionImportTargetTagId || '').trim();
-      if (
-          targetTagId
-          && !useStore.getState().connectionTags.some((tag) => tag.id === targetTagId)
-      ) {
-          throw new Error(t('app.connection_package.import.target_group_unavailable'));
-      }
-
-      let importedRaw: unknown;
-      try {
-          importedRaw = await backendApp.ImportConnectionsPayload(raw, password);
-      } catch (error) {
-          if (isConnectionPackagePasswordRequiredError(error)) {
-              throw error;
-          }
-          const detail = error instanceof Error ? error.message : String(error ?? '').trim();
-          throw new Error(
-              detail
-                  ? t('app.connection_package.message.import_failed_with_error', { error: detail })
-                  : t('app.connection_package.message.import_failed'),
-          );
-      }
-      const imported = normalizeConnectionPackageImportPayload(importedRaw);
-      if (!imported) {
-          throw new Error(t('app.connection_package.error.import_no_connections'));
-      }
-      const importedConnectionIDs = imported.connections
-          .map((connection) => String(connection.id || '').trim())
-          .filter(Boolean);
-      const preRefreshState = useStore.getState();
-      const placement = resolveConnectionImportPlacement(
-          importedConnectionIDs,
-          targetTagId,
-          preRefreshState.connectionTags,
-      );
-      placement.manualOrderTargetGroupIds.forEach((groupID) => {
-          setConnectionDisplaySortMode(groupID, 'manual');
-      });
-      await refreshConnectionsAfterImport(imported.connections);
-      if (placement.groupAssignment) {
-          moveConnectionsToTag(
-              placement.groupAssignment.connectionIds,
-              placement.groupAssignment.targetGroupId,
-          );
-      }
-      if (placement.manualOrderTargetGroupIds.length > 0) {
-          try {
-              await connectionSidebarLayoutCoordinatorRef.current?.flush();
-          } catch (error) {
-              const detail = error instanceof Error ? error.message : String(error ?? '').trim();
-              throw new Error(t('app.connection_package.import.group_save_failed', { detail }));
-          }
-      }
-      // Redis DB 别名存在前端 appearance，需随连接包一并恢复
-      if (Object.keys(imported.redisDbAliases).length > 0) {
-          const currentAliases = useStore.getState().appearance.redisDbAliases;
-          useStore.getState().setAppearance({
-              redisDbAliases: mergeRedisDbAliases(currentAliases, imported.redisDbAliases),
-          });
-      }
-      return imported.connections;
-  }, [connectionImportTargetTagId, moveConnectionsToTag, refreshConnectionsAfterImport, setConnectionDisplaySortMode, t]);
-
-  const importConnectionPayloadFromFile = async (raw: string, sourceGroup?: ToolCenterGroupKey) => {
-      // Excel 由后端在统一入口直接完成导入，返回信封结果而非文本载荷。
-      const excelResult = parseConnectionsExcelImportEnvelope(raw);
-      if (excelResult) {
-          await finishExcelImport({ data: excelResult }, sourceGroup);
-          return;
-      }
-
-      const importKind = detectConnectionImportKind(raw);
-
-      if (importKind === 'invalid') {
-          setConnectionImportNotice(null);
-          setConnectionPackageDialog((current) => ({
-              ...current,
-              mode: 'import',
-              error: t('app.connection_package.message.unsupported_file_format'),
-              confirmLoading: false,
-          }));
-          return;
-      }
-
-      try {
-          setPendingConnectionImportPayload(null);
-          setConnectionImportNotice(null);
-          setConnectionPackageDialog((current) => ({
-              ...current,
-              mode: 'import',
-              password: '',
-              error: '',
-              confirmLoading: true,
-          }));
-          const importedViews = await importConnectionsPayload(raw, '');
-          if ((importKind === 'mysql-workbench-xml' || importKind === 'navicat-ncx') && importedViews.some(v => !v.hasPrimaryPassword)) {
-              const warning = t('app.connection_package.message.imported_with_missing_passwords', { count: importedViews.length });
-              setConnectionImportNotice({ type: 'warning', message: warning });
-              void message.warning(warning);
-          } else {
-              const success = t('app.connection_package.message.imported_connections', { count: importedViews.length });
-              setConnectionImportNotice({ type: 'success', message: success });
-              void message.success(success);
-          }
-          setConnectionPackageDialog((current) => ({
-              ...current,
-              open: false,
-              password: '',
-              error: '',
-              confirmLoading: false,
-          }));
-      } catch (e: any) {
-          if (isConnectionPackagePasswordRequiredError(e)) {
-              if (sourceGroup) {
-                  setToolCenterBackGroupKey(sourceGroup);
-                  setActiveSettingsCenterGroupKey(sourceGroup);
-                  setActiveSettingsCenterPane({ key: 'import', group: sourceGroup });
-              }
-              setPendingConnectionImportPayload(raw);
-              setConnectionPackageDialog({
-                  open: true,
-                  mode: 'import',
-                  includeSecrets: true,
-                  useFilePassword: false,
-                  password: '',
-                  error: '',
-                  confirmLoading: false,
-                  selectedConnectionIds: [],
-              });
-              return;
-          }
-          const detail = e?.message || t('app.connection_package.message.import_failed');
-          setConnectionPackageDialog((current) => ({
-              ...current,
-              mode: 'import',
-              error: detail,
-              confirmLoading: false,
-          }));
-          void message.error(detail);
-      }
-  };
-
-  const handleBrowserConnectionImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      const sourceGroup = browserConnectionImportSourceGroupRef.current;
-      browserConnectionImportSourceGroupRef.current = undefined;
-      event.target.value = '';
-      if (!file) {
-          return;
-      }
-
-      try {
-          // Excel 为二进制格式：转 base64 走专用导入通道，其余格式按文本解析。
-          if (/\.xlsx$/i.test(file.name)) {
-              const backendApp = (window as any).go?.app?.App;
-              if (typeof backendApp?.ImportConnectionsExcelFileBase64 !== 'function') {
-                  throw new Error(t('app.connection_package.error.import_capability_unavailable'));
-              }
-              const dataUrl = await new Promise<string>((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onload = () => resolve(String(reader.result || ''));
-                  reader.onerror = () => reject(reader.error || new Error(t('app.connection_package.message.import_failed')));
-                  reader.readAsDataURL(file);
-              });
-              const base64 = dataUrl.includes(',') ? dataUrl.slice(dataUrl.indexOf(',') + 1) : dataUrl;
-              const res = await backendApp.ImportConnectionsExcelFileBase64(base64);
-              if (!res?.success) {
-                  throw new Error(String(res?.message || ''));
-              }
-              await finishExcelImport(res, sourceGroup);
-              return;
-          }
-          await importConnectionPayloadFromFile(await file.text(), sourceGroup);
-      } catch (error) {
-          const detail = error instanceof Error ? error.message : String(error ?? '').trim();
-          const resolvedDetail = detail || t('app.connection_package.message.import_failed');
-          setConnectionPackageDialog((current) => ({
-              ...current,
-              mode: 'import',
-              error: resolvedDetail,
-              confirmLoading: false,
-          }));
-          void message.error(resolvedDetail);
-      }
-  };
-
-  const handleImportConnections = async (sourceGroup?: ToolCenterGroupKey) => {
-      setToolCenterBackGroupKey(sourceGroup ?? null);
-      setConnectionImportNotice(null);
-      setConnectionPackageDialog((current) => ({
-          ...current,
-          mode: 'import',
-          password: '',
-          error: '',
-          confirmLoading: false,
-      }));
-      if (sourceGroup) {
-          setActiveSettingsCenterGroupKey(sourceGroup);
-          setActiveSettingsCenterPane({ key: 'import', group: sourceGroup });
-          openSettingsCenterWorkbenchTab();
-      }
-      if (isWebRuntime) {
-          const input = browserConnectionImportInputRef.current;
-          if (!input) {
-              void message.error(t('app.connection_package.error.import_capability_unavailable'));
-              return;
-          }
-          browserConnectionImportSourceGroupRef.current = sourceGroup;
-          input.value = '';
-          input.click();
-          return;
-      }
-
-      const res = await (window as any).go.app.App.ImportConfigFile();
-      if (!res.success) {
-          if (res.message !== "已取消") {
-              const detail = t('app.connection_package.message.import_failed_with_error', { error: res.message });
-              setConnectionPackageDialog((current) => ({ ...current, error: detail }));
-              void message.error(detail);
-          }
-          return;
-      }
-
-      const raw = typeof res.data === 'string' ? res.data : String(res.data ?? '');
-      await importConnectionPayloadFromFile(raw, sourceGroup);
-  };
-
-  const handleExportConnections = async (sourceGroup?: ToolCenterGroupKey) => {
-      setToolCenterBackGroupKey(sourceGroup ?? null);
-      if (sourceGroup) {
-          setActiveSettingsCenterGroupKey(sourceGroup);
-          setActiveSettingsCenterPane({ key: 'export', group: sourceGroup });
-          openSettingsCenterWorkbenchTab();
-      }
-      setConnectionPackageDialog({
-          open: true,
-          mode: 'export',
-          includeSecrets: true,
-          useFilePassword: false,
-          password: '',
-          error: '',
-          confirmLoading: false,
-          selectedConnectionIds: connections.map((item) => item.id),
-      });
-  };
-  const handleExportConnectionsRef = useRef(handleExportConnections);
-  handleExportConnectionsRef.current = handleExportConnections;
-
-  // === Excel 批量导入（issue #1226）：统一入口按格式分流 ===
-  // Excel 导入结果里分组按连接名声明；导入完成后按名字→ID 映射把连接挂入
-  // 既有或新建的分组（"父分组/子分组" 逐级查/建），并沿用导入面板的目标分组兜底。
-  const applyExcelGroupAssignments = async (excelGroups: ExcelGroupAssignment[], importedConnections: SavedConnection[]) => {
-      if (!Array.isArray(excelGroups) || excelGroups.length === 0) return 0;
-      await connectionSidebarLayoutCoordinatorRef.current?.bootstrap();
-      const tags = useStore.getState().connectionTags;
-      const resolveTagId = (name: string, parentTagId: string | undefined) => {
-          const found = tags.find((tag) => (
-              tag.parentTagId === (parentTagId || undefined)
-              && String(tag.name || '').localeCompare(name, undefined, { sensitivity: 'accent' }) === 0
-          ));
-          return found?.id;
-      };
-      let nextTagSeq = 0;
-      const context: ExcelGroupPlanContext = {
-          resolveTagId,
-          nextTagId: () => `${Date.now()}-${nextTagSeq++}`,
-      };
-      const plan = planExcelGroupAssignments(excelGroups, context);
-      if (plan.tagsToCreate.length > 0) {
-          plan.tagsToCreate.forEach((tag) => {
-              useStore.getState().addConnectionTag({
-                  id: tag.id,
-                  name: tag.name,
-                  parentTagId: tag.parentTagId,
-                  connectionIds: [],
-              });
-          });
-      }
-      const nameToId = new Map(importedConnections.map((conn) => [conn.name, conn.id]));
-      let movedCount = 0;
-      Object.entries(plan.movesByLeafTagId).forEach(([leafTagId, connectionNames]) => {
-          const ids = connectionNames
-              .map((name) => nameToId.get(name))
-              .filter((id): id is string => Boolean(id));
-          if (ids.length === 0) return;
-          useStore.getState().moveConnectionsToTag(ids, leafTagId);
-          movedCount += ids.length;
-      });
-      if (movedCount > 0 || plan.tagsToCreate.length > 0) {
-          try {
-              await connectionSidebarLayoutCoordinatorRef.current?.flush();
-          } catch (error) {
-              const detail = error instanceof Error ? error.message : String(error ?? '').trim();
-              throw new Error(t('app.connection_package.import.group_save_failed', { detail }));
-          }
-      }
-      return movedCount;
-  };
-
-  const finishExcelImport = async (result: any, sourceGroup?: ToolCenterGroupKey) => {
-      const imported = normalizeConnectionPackageImportPayload(result?.data);
-      if (!imported || imported.connections.length === 0) {
-          throw new Error(t('app.connection_package.error.import_no_connections'));
-      }
-      const targetTagId = String(connectionImportTargetTagId || '').trim();
-      const placement = resolveConnectionImportPlacement(
-          imported.connections.map((connection) => connection.id),
-          targetTagId,
-          useStore.getState().connectionTags,
-      );
-      placement.manualOrderTargetGroupIds.forEach((groupID) => {
-          setConnectionDisplaySortMode(groupID, 'manual');
-      });
-      await refreshConnectionsAfterImport(imported.connections);
-      if (placement.groupAssignment) {
-          moveConnectionsToTag(
-              placement.groupAssignment.connectionIds,
-              placement.groupAssignment.targetGroupId,
-          );
-      }
-      const movedByExcel = await applyExcelGroupAssignments(imported.excelGroups || [], imported.connections);
-      if (sourceGroup) {
-          setToolCenterBackGroupKey(sourceGroup);
-          setActiveSettingsCenterGroupKey(sourceGroup);
-          setActiveSettingsCenterPane({ key: 'import', group: sourceGroup });
-      }
-      const summary = movedByExcel > 0
-          ? t('app.connection_package.excel.groups_applied', { count: imported.connections.length, groupCount: movedByExcel })
-          : t('app.connection_package.message.imported_connections', { count: imported.connections.length });
-      setConnectionImportNotice({ type: 'success', message: summary });
-      void message.success(summary);
-  };
-
-  const handleConfirmConnectionPackageDialog = async () => {
-      const backendApp = (window as any).go?.app?.App;
-      const password = normalizeConnectionPackagePassword(connectionPackageDialog.password);
-
-      if (connectionPackageDialog.mode === 'import' && !password) {
-          setConnectionPackageDialog((current) => ({
-              ...current,
-              error: t('app.connection_package.error.restore_password_required'),
-          }));
-          return;
-      }
-
-      if (
-          connectionPackageDialog.mode === 'export'
-          && connectionPackageDialog.selectedConnectionIds.length === 0
-      ) {
-          setConnectionPackageDialog((current) => ({
-              ...current,
-              error: t('app.connection_package.error.no_selected_connections'),
-          }));
-          return;
-      }
-
-      if (
-          connectionPackageDialog.mode === 'export'
-          && connectionPackageDialog.includeSecrets
-          && connectionPackageDialog.useFilePassword
-          && !password
-      ) {
-          setConnectionPackageDialog((current) => ({
-              ...current,
-              error: t('app.connection_package.error.file_password_required'),
-          }));
-          return;
-      }
-
-      setConnectionPackageDialog((current) => ({
-          ...current,
-          password: (
-              current.mode === 'export'
-              && (!current.includeSecrets || !current.useFilePassword)
-          ) ? '' : password,
-          error: '',
-          confirmLoading: true,
-      }));
-
-      try {
-          if (connectionPackageDialog.mode === 'export') {
-               const exportMethod = isWebRuntime
-                   ? backendApp?.ExportConnectionsPayload
-                   : backendApp?.ExportConnectionsPackage;
-               if (typeof exportMethod !== 'function') {
-                   throw new Error(t('app.connection_package.error.export_capability_unavailable'));
-               }
-
-               let res: unknown;
-               try {
-                   res = await exportMethod({
-                      includeSecrets: connectionPackageDialog.includeSecrets,
-                      filePassword: (
-                          connectionPackageDialog.includeSecrets
-                          && connectionPackageDialog.useFilePassword
-                      ) ? password : '',
-                      connectionIds: connectionPackageDialog.selectedConnectionIds,
-                      // Redis DB 别名仅存前端，导出时注入连接包
-                      redisDbAliases: useStore.getState().appearance.redisDbAliases,
-                  });
-              } catch (error) {
-                  const detail = error instanceof Error ? error.message : String(error ?? '').trim();
-                  throw new Error(
-                      detail
-                          ? `${t('app.connection_package.message.export_failed')}: ${detail}`
-                          : t('app.connection_package.message.export_failed'),
-                  );
-              }
-              const exportResult = resolveConnectionPackageExportResult(connectionPackageDialog, res);
-              if (exportResult.kind === 'canceled') {
-                  setConnectionPackageDialog(exportResult.nextDialog);
-                  return;
-              }
-               if (exportResult.kind === 'failed') {
-                   throw new Error(exportResult.error);
-               }
-               if (isWebRuntime) {
-                   const content = typeof (res as any)?.data === 'string' ? (res as any).data : '';
-                   if (!content || !downloadBrowserTextFile(content, 'connections.gonavi-conn', 'application/json;charset=utf-8')) {
-                       throw new Error(t('app.connection_package.error.export_capability_unavailable'));
-                   }
-               }
-
-              setConnectionPackageDialog((current) => ({
-                  ...current,
-                  password: '',
-                  error: '',
-                  confirmLoading: false,
-              }));
-              void message.success(t('app.connection_package.message.export_succeeded'));
-              return;
-          }
-
-          if (!pendingConnectionImportPayload) {
-              throw new Error(t('app.connection_package.error.missing_import_payload'));
-          }
-
-          const importedViews = await importConnectionsPayload(pendingConnectionImportPayload, password);
-          const success = t('app.connection_package.message.imported_connections', { count: importedViews.length });
-          setPendingConnectionImportPayload(null);
-          setConnectionImportNotice({ type: 'success', message: success });
-          setConnectionPackageDialog((current) => ({
-              ...current,
-              open: false,
-              password: '',
-              error: '',
-              confirmLoading: false,
-          }));
-          void message.success(success);
-      } catch (e: any) {
-          setConnectionPackageDialog((current) => ({
-              ...current,
-              confirmLoading: false,
-              error: e?.message || t(
-                  current.mode === 'export'
-                      ? 'app.connection_package.message.export_failed'
-                      : 'app.connection_package.message.import_failed',
-              ),
-          }));
-      }
-  };
-
   const [toolCenterBackGroupKey, setToolCenterBackGroupKey] = useState<ToolCenterGroupKey | null>(null);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
-  type ThemeSettingsSection = 'theme' | 'appearance' | 'workspace';
+  type ThemeSettingsSection = 'theme' | 'appearance';
   const THEME_SETTINGS_SECTION_STORAGE_KEY = 'gonavi.themeSettingsSection';
   const sanitizeThemeSettingsSection = useCallback((value: unknown): ThemeSettingsSection => {
       const normalized = String(value || '').trim().toLowerCase();
-      if (normalized === 'appearance' || normalized === 'workspace') {
+      if (normalized === 'appearance') {
           return normalized;
       }
       return 'theme';
@@ -3887,15 +2717,8 @@ function App() {
   }, [themeModalSection]);
   const [isLinuxCJKFontBannerDismissed, setIsLinuxCJKFontBannerDismissed] = useState(false);
   const [isAppearanceModalOpen, setIsAppearanceModalOpen] = useState(false);
-  const [capturingShortcutAction, setCapturingShortcutAction] = useState<ShortcutAction | null>(null);
   const closeShortcutScopeRef = useRef<CloseShortcutScope>('workspace');
-  const tabDisplaySettingsPanelRef = useRef<HTMLDivElement | null>(null);
-  const [tabDisplaySettingsFocusRequest, setTabDisplaySettingsFocusRequest] = useState(0);
   const isThemeSettingsPaneOpen = activeSettingsCenterPane?.key === 'theme';
-  useEffect(() => {
-      setGlobalShortcutCaptureActive(Boolean(capturingShortcutAction));
-      return () => setGlobalShortcutCaptureActive(false);
-  }, [capturingShortcutAction]);
   useEffect(() => {
       const shouldLoadInstalledFonts =
           runtimePlatform === 'linux' || ((isThemeModalOpen || isThemeSettingsPaneOpen) && themeModalSection === 'appearance');
@@ -3949,330 +2772,38 @@ function App() {
       };
   }, [isThemeModalOpen, isThemeSettingsPaneOpen, runtimePlatform, t, themeModalSection]);
 
-  useEffect(() => {
-      if ((!isThemeModalOpen && !isThemeSettingsPaneOpen) || themeModalSection !== 'workspace' || tabDisplaySettingsFocusRequest === 0) {
-          return;
-      }
-      const timer = window.setTimeout(() => {
-          tabDisplaySettingsPanelRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-      }, 80);
-      return () => window.clearTimeout(timer);
-  }, [isThemeModalOpen, isThemeSettingsPaneOpen, themeModalSection, tabDisplaySettingsFocusRequest]);
 
-  const shortcutConflictMap = useMemo(() => {
-      const map: Partial<Record<ShortcutAction, ConflictInfo[]>> = {};
-      for (const action of SHORTCUT_ACTION_ORDER) {
-          const binding = resolveShortcutBinding(shortcutOptions, action, activeShortcutPlatform);
-          if (!binding?.enabled || !binding.combo) continue;
-          const conflicts = findReservedConflictsForAction(
-              action,
-              normalizeShortcutCombo(binding.combo),
-              activeShortcutPlatform,
-          );
-          if (conflicts.length > 0) {
-              map[action] = conflicts;
-          }
-      }
-      return map;
-  }, [activeShortcutPlatform, language, shortcutOptions]);
-  const [isProxyModalOpen, setIsProxyModalOpen] = useState(false);
-  const [proxyDraft, setProxyDraft] = useState<GlobalProxyConfig>(() => createGlobalProxyComparableDraft(globalProxy));
-  const [proxyDraftClearPassword, setProxyDraftClearPassword] = useState(false);
-  const [proxyApplying, setProxyApplying] = useState(false);
-  const [proxyTestUrl, setProxyTestUrl] = useState(DEFAULT_GLOBAL_PROXY_TEST_URL);
-  const [proxyTesting, setProxyTesting] = useState(false);
-  const [proxyTestResult, setProxyTestResult] = useState<GlobalProxyTestResultState | null>(null);
   const [isDataRootModalOpen, setIsDataRootModalOpen] = useState(false);
   const [dataRootInfo, setDataRootInfo] = useState<any>(null);
   const [selectedDataRootPath, setSelectedDataRootPath] = useState('');
-  const [selectedSavedQueryDirectoryPath, setSelectedSavedQueryDirectoryPath] = useState('');
   const [dataRootLoading, setDataRootLoading] = useState(false);
   const [dataRootApplying, setDataRootApplying] = useState(false);
-  const [savedQueryDirectoryApplying, setSavedQueryDirectoryApplying] = useState(false);
   const [servyEngineConfig, setServyEngineConfig] = useState<any>(null);
   const [servyEnginePathDraft, setServyEnginePathDraft] = useState('');
   const [servyEngineApplying, setServyEngineApplying] = useState(false);
-  const directorySettingsApplying = dataRootApplying || savedQueryDirectoryApplying;
+  const directorySettingsApplying = dataRootApplying;
 
-  const appliedGlobalProxyDraft = useMemo(() => (
-      createGlobalProxyComparableDraft(globalProxy)
-  ), [
-      globalProxy.enabled,
-      globalProxy.type,
-      globalProxy.host,
-      globalProxy.port,
-      globalProxy.user,
-      globalProxy.password,
-      globalProxy.hasPassword,
-  ]);
-  const proxyDraftHost = String(proxyDraft.host || '').trim();
-  const proxyDraftUser = String(proxyDraft.user || '').trim();
-  const proxyDraftPort = Number(proxyDraft.port);
-  const proxyDraftPortValid = Number.isFinite(proxyDraftPort) && proxyDraftPort > 0 && proxyDraftPort <= 65535;
-  const proxyDraftValid = !proxyDraft.enabled || (proxyDraftHost !== '' && proxyDraftPortValid);
-  const proxyDraftDirty = proxyDraftClearPassword || !areGlobalProxyDraftsEqual(proxyDraft, appliedGlobalProxyDraft);
-  const proxyPanelOpen = isProxyModalOpen || activeSettingsCenterPane?.key === 'proxy';
-  const proxyPanelWasOpenRef = useRef(false);
-  const proxyStatusTone = proxyDraft.enabled
-      ? (proxyDraftValid ? 'success' : 'warning')
-      : 'info';
-  const proxyStatusTitle = proxyDraft.enabled
-      ? (proxyDraftValid ? t('app.proxy.status.enabled') : t('app.proxy.status.incomplete'))
-      : t('app.proxy.status.disabled');
-  const proxyStatusDescription = proxyDraft.enabled && proxyDraftValid
-      ? t('app.proxy.status.enabled_description', {
-          type: proxyDraft.type.toUpperCase(),
-          endpoint: `${proxyDraftHost}:${proxyDraftPort}`,
-      })
-      : (proxyDraft.enabled
-          ? t('app.proxy.status.incomplete_description')
-          : t('app.proxy.status.disabled_description'));
-  const proxyPresetItems = useMemo(() => ([
-      { key: 'clash-mixed', label: t('app.proxy.preset.clash_mixed'), type: 'socks5' as const, host: '127.0.0.1', port: 7890 },
-      { key: 'socks5-local', label: t('app.proxy.preset.socks5_local'), type: 'socks5' as const, host: '127.0.0.1', port: 1080 },
-      { key: 'http-local', label: t('app.proxy.preset.http_local'), type: 'http' as const, host: '127.0.0.1', port: 8080 },
-  ]), [t]);
-  const proxyTestPresetItems = useMemo(() => ([
-      { key: 'github-api', label: t('app.proxy.test.preset.github_api'), url: 'https://api.github.com/' },
-      { key: 'github-release', label: t('app.proxy.test.preset.github_release'), url: 'https://github.com/Syngnat/GoNavi/releases/latest' },
-      { key: 'go-module-proxy', label: t('app.proxy.test.preset.go_module_proxy'), url: 'https://proxy.golang.org/' },
-      { key: 'baidu', label: t('app.proxy.test.preset.baidu'), url: 'https://www.baidu.com/' },
-  ]), [t]);
-  const proxyTestUrlTrimmed = String(proxyTestUrl || '').trim();
-  const proxyCanTest = proxyDraft.enabled && proxyDraftValid && proxyTestUrlTrimmed !== '' && !proxyTesting;
-  useEffect(() => {
-      if (!proxyPanelOpen) {
-          proxyPanelWasOpenRef.current = false;
-          return;
-      }
-      if (proxyPanelWasOpenRef.current) {
-          return;
-      }
-      proxyPanelWasOpenRef.current = true;
-      setProxyDraft(appliedGlobalProxyDraft);
-      setProxyDraftClearPassword(false);
-  }, [appliedGlobalProxyDraft, proxyPanelOpen]);
-  useEffect(() => {
-      setProxyTestResult(null);
-  }, [
-      proxyDraft.enabled,
-      proxyDraft.type,
-      proxyDraft.host,
-      proxyDraft.port,
-      proxyDraft.user,
-      proxyDraft.password,
-      proxyDraftClearPassword,
-      proxyTestUrlTrimmed,
-  ]);
-  const resetProxyDraftToCurrent = useCallback(() => {
-      setProxyDraft(appliedGlobalProxyDraft);
-      setProxyDraftClearPassword(false);
-  }, [appliedGlobalProxyDraft]);
-  const updateProxyDraftType = useCallback((type: GlobalProxyConfig['type']) => {
-      setProxyDraft((current) => {
-          const currentPort = Number(current.port);
-          const previousDefault = getGlobalProxyDefaultPort(current.type);
-          const shouldSwitchPort = !Number.isFinite(currentPort) || currentPort === previousDefault;
-          return {
-              ...current,
-              type,
-              port: shouldSwitchPort ? getGlobalProxyDefaultPort(type) : current.port,
-          };
-      });
-  }, []);
-  const applyProxyPreset = useCallback((preset: { type: GlobalProxyConfig['type']; host: string; port: number }) => {
-      setProxyDraft((current) => ({
-          ...current,
-          enabled: true,
-          type: preset.type,
-          host: preset.host,
-          port: preset.port,
-      }));
-  }, []);
-  const handleTestGlobalProxyDraft = useCallback(async () => {
-      if (!proxyDraft.enabled) {
-          void message.warning(t('app.proxy.test.message.enable_first'));
-          return;
-      }
-      if (!proxyDraftValid) {
-          void message.warning(t('app.proxy.message.invalid_enabled'));
-          return;
-      }
-      if (proxyTestUrlTrimmed === '') {
-          void message.warning(t('app.proxy.test.message.url_required'));
-          return;
-      }
-      const backendApp = (window as any).go?.app?.App;
-      if (typeof backendApp?.TestGlobalProxyConnection !== 'function') {
-          void message.error(t('app.proxy.test.message.unavailable'));
-          return;
-      }
-      setProxyTesting(true);
-      try {
-          const res = await backendApp.TestGlobalProxyConnection({
-              proxy: toSaveGlobalProxyInput({
-                  ...proxyDraft,
-                  host: proxyDraftHost,
-                  user: proxyDraftUser,
-                  port: proxyDraftPortValid ? proxyDraftPort : getGlobalProxyDefaultPort(proxyDraft.type),
-                  clearPassword: proxyDraftClearPassword,
-              }),
-              url: proxyTestUrlTrimmed,
-              timeoutSeconds: 8,
-          });
-          const data = (res?.data || {}) as Partial<GlobalProxyTestResultState>;
-          const statusCode = Number(data.statusCode);
-          setProxyTestResult({
-              success: res?.success === true,
-              message: res?.message || t('common.unknown'),
-              url: data.url || proxyTestUrlTrimmed,
-              finalUrl: data.finalUrl,
-              statusCode: Number.isFinite(statusCode) ? statusCode : undefined,
-              durationMs: typeof data.durationMs === 'number' ? data.durationMs : undefined,
-              viaProxy: data.viaProxy === true,
-          });
-      } catch (err) {
-          const errMsg = err instanceof Error ? err.message : String(err || t('common.unknown'));
-          setProxyTestResult({
-              success: false,
-              message: errMsg,
-              url: proxyTestUrlTrimmed,
-          });
-      } finally {
-          setProxyTesting(false);
-      }
-  }, [
-      proxyDraft,
-      proxyDraftClearPassword,
-      proxyDraftHost,
-      proxyDraftPort,
-      proxyDraftPortValid,
-      proxyDraftUser,
-      proxyDraftValid,
-      proxyTestUrlTrimmed,
-      t,
-  ]);
-  const handleApplyGlobalProxyDraft = useCallback(async () => {
-      if (!proxyDraftValid) {
-          void message.warning({
-              content: t('app.proxy.message.invalid_enabled'),
-              key: 'global-proxy-invalid',
-          });
-          return;
-      }
-      void message.destroy('global-proxy-invalid');
-      const backendApp = (window as any).go?.app?.App;
-      if (typeof backendApp?.SaveGlobalProxy !== 'function') {
-          void message.error({
-              content: t('app.proxy.message.save_failed', { error: t('common.unknown') }),
-              key: 'global-proxy-sync-error',
-          });
-          return;
-      }
-      const saveInput = toSaveGlobalProxyInput({
-          ...proxyDraft,
-          host: proxyDraftHost,
-          user: proxyDraftUser,
-          port: proxyDraftPortValid ? proxyDraftPort : getGlobalProxyDefaultPort(proxyDraft.type),
-          clearPassword: proxyDraftClearPassword,
-      });
-      setProxyApplying(true);
-      try {
-          const saved = await backendApp.SaveGlobalProxy(saveInput);
-          const nextDraft = createGlobalProxyComparableDraft(saved || saveInput);
-          replaceGlobalProxy(nextDraft);
-          setProxyDraft(nextDraft);
-          setProxyDraftClearPassword(false);
-          void message.success({
-              content: t('app.proxy.message.config_applied'),
-              key: 'global-proxy-applied',
-          });
-      } catch (err) {
-          const errMsg = err instanceof Error ? err.message : String(err || t('common.unknown'));
-          void message.error({
-              content: t('app.proxy.message.save_failed', { error: errMsg }),
-              key: 'global-proxy-sync-error',
-          });
-      } finally {
-          setProxyApplying(false);
-      }
-  }, [
-      proxyDraft,
-      proxyDraftClearPassword,
-      proxyDraftHost,
-      proxyDraftPort,
-      proxyDraftPortValid,
-      proxyDraftUser,
-      proxyDraftValid,
-      replaceGlobalProxy,
-      t,
-  ]);
-  const closeConnectionHealthSettingsPane = useCallback(() => {
-      setConnectionHealthTargetIds([]);
-      setActiveSettingsCenterPane((current) => (
-          current?.key === 'connection-health' ? resolveSettingsCenterGroupInitialPane('config') : current
-      ));
-  }, []);
-  const clearSettingsCenterTransientPaneState = useCallback(() => {
-      setCapturingShortcutAction(null);
-      if (isConnectionPackageSettingsPaneKey(activeSettingsCenterPaneRef.current?.key)) {
-          closeConnectionPackageDialog();
-      }
-      if (activeSettingsCenterPaneRef.current?.key === 'connection-health') {
-          setConnectionHealthTargetIds([]);
-      }
-  }, [closeConnectionPackageDialog]);
   const handleOpenToolsModal = useCallback((group: ToolCenterGroupKey = 'config') => {
-      clearSettingsCenterTransientPaneState();
       setToolCenterBackGroupKey(null);
       setActiveSettingsCenterGroupKey(group);
       setActiveSettingsCenterPane(resolveSettingsCenterGroupInitialPane(group));
       openSettingsCenterWorkbenchTab();
-  }, [clearSettingsCenterTransientPaneState, openSettingsCenterWorkbenchTab]);
+  }, [openSettingsCenterWorkbenchTab]);
   const handleOpenSettingsModal = useCallback((group: SettingsCenterGroupKey = 'preferences') => {
-      clearSettingsCenterTransientPaneState();
       setActiveSettingsCenterGroupKey(group);
       setActiveSettingsCenterPane(resolveSettingsCenterGroupInitialPane(group));
       openSettingsCenterWorkbenchTab();
-  }, [clearSettingsCenterTransientPaneState, openSettingsCenterWorkbenchTab]);
+  }, [openSettingsCenterWorkbenchTab]);
   const handleOpenSettingsCenterPane = useCallback((group: SettingsCenterGroupKey, key: SettingsCenterPaneKey) => {
-      clearSettingsCenterTransientPaneState();
       setActiveSettingsCenterGroupKey(group);
       setActiveSettingsCenterPane({ key, group });
       openSettingsCenterWorkbenchTab();
-  }, [clearSettingsCenterTransientPaneState, openSettingsCenterWorkbenchTab]);
-  const titleBarViewMenuEntries = useTitleBarViewMenuEntries({
-      activeTabType: activeWorkbenchTab?.type,
-      fullscreen: windowState === 'fullscreen',
-      isMacRuntime,
-      onCloseSettings: closeSettingsCenterWorkbenchTab,
-      onCollapseSidebar: handleCollapseSidebarPanel,
-      onExpandSidebar: handleExpandSidebarPanel,
-      onOpenSettings: handleOpenSettingsModal,
-      settingsOpen: isSettingsModalOpen,
-      sidebarCollapsed: isSidebarCollapsed,
-  });
+  }, [openSettingsCenterWorkbenchTab]);
   const handleCancelSettingsCenterPane = useCallback(() => {
-      if (isConnectionPackageSettingsPaneKey(activeSettingsCenterPane?.key)) {
-          closeConnectionPackageDialog();
-      }
-      if (activeSettingsCenterPane?.key === 'connection-health') {
-          setConnectionHealthTargetIds([]);
-      }
-      setCapturingShortcutAction(null);
       setToolCenterBackGroupKey(null);
       setActiveSettingsCenterPane(null);
       closeSettingsCenterWorkbenchTab();
-  }, [activeSettingsCenterPane?.key, closeConnectionPackageDialog, closeSettingsCenterWorkbenchTab]);
-  const handleOpenDataSyncWorkbench = useCallback((entryMode: DataSyncEntryModeAlias) => {
-      const normalized = normalizeDataSyncEntryMode(entryMode);
-      const nextTab = buildDataSyncWorkbenchTab({ entryMode: normalized });
-      const existingId = resolveExistingDataSyncWorkbenchTabId(
-          normalized,
-          useStore.getState().tabs,
-      );
-      addTab(existingId ? { ...nextTab, id: existingId } : nextTab);
-  }, [addTab]);
+  }, [closeSettingsCenterWorkbenchTab]);
   const isSettingsAboutPaneOpen = isSettingsModalOpen && activeSettingsCenterPane?.key === 'about-go-navi';
   const wasSettingsCenterTabOpenRef = useRef(false);
   useEffect(() => {
@@ -4282,16 +2813,9 @@ function App() {
           return;
       }
       // Tab closed via workbench chrome (X) — mirror cancel cleanup without re-entering leave guard.
-      if (isConnectionPackageSettingsPaneKey(activeSettingsCenterPaneRef.current?.key)) {
-          closeConnectionPackageDialog();
-      }
-      if (activeSettingsCenterPaneRef.current?.key === 'connection-health') {
-          setConnectionHealthTargetIds([]);
-      }
-      setCapturingShortcutAction(null);
       setToolCenterBackGroupKey(null);
       setActiveSettingsCenterPane(null);
-  }, [closeConnectionPackageDialog, isSettingsModalOpen]);
+  }, [isSettingsModalOpen]);
   const isSettingsAboutPaneOpenRef = useRef(false);
   useEffect(() => {
       isSettingsAboutPaneOpenRef.current = isSettingsAboutPaneOpen;
@@ -4325,12 +2849,11 @@ function App() {
       prepareAboutSurface();
   }, [isSettingsAboutPaneOpen, prepareAboutSurface]);
   const handleOpenToolCenterPane = useCallback((group: ToolCenterGroupKey, key: ToolCenterPaneKey) => {
-      clearSettingsCenterTransientPaneState();
       setToolCenterBackGroupKey(group);
       setActiveSettingsCenterGroupKey(group);
       setActiveSettingsCenterPane({ key, group });
       openSettingsCenterWorkbenchTab();
-  }, [clearSettingsCenterTransientPaneState]);
+  }, []);
   /** 标题栏「数据目录」图标入口：直接落到工具中心的「应用数据目录」面板。 */
   const handleOpenDataRootPane = useCallback(() => {
       handleOpenToolCenterPane('config', 'data-root-application');
@@ -4359,39 +2882,9 @@ function App() {
   }, [t]);
   /** Title-bar / explorer settings entries → settings center navigation. */
   const handleTitleBarSettingsNavigation = useCallback((spec: {
-    group: 'preferences' | 'services' | 'config' | 'workflow' | 'workspace' | 'about';
+    group: 'preferences' | 'config' | 'about';
     pane?: string;
-    action?: 'import-connections' | 'export-connections' | 'schema-compare' | 'data-compare' | 'compare' | 'sync' | 'drivers' | 'sql-audit';
   }) => {
-      if (spec.action === 'import-connections') {
-          handleOpenToolCenterPane('config', 'import');
-          return;
-      }
-      if (spec.action === 'export-connections') {
-          void handleExportConnectionsRef.current('config');
-          return;
-      }
-      if (
-          spec.action === 'compare' ||
-          spec.action === 'schema-compare' ||
-          spec.action === 'data-compare'
-      ) {
-          handleOpenDataSyncWorkbench('compare');
-          return;
-      }
-      if (spec.action === 'sync') {
-          handleOpenDataSyncWorkbench('sync');
-          return;
-      }
-      if (spec.action === 'drivers') {
-          handleOpenToolCenterPane('workspace', 'drivers');
-          return;
-      }
-      if (spec.action === 'sql-audit') {
-          handleCancelSettingsCenterPane();
-          addTab(buildSqlAuditWorkbenchTab());
-          return;
-      }
       if (!spec.pane) {
           if (isToolCenterGroupKey(spec.group)) {
               handleOpenToolsModal(spec.group);
@@ -4413,7 +2906,6 @@ function App() {
   }, [
       addTab,
       handleCancelSettingsCenterPane,
-      handleOpenDataSyncWorkbench,
       handleOpenSettingsCenterPane,
       handleOpenSettingsModal,
       handleOpenToolCenterPane,
@@ -4443,9 +2935,6 @@ function App() {
           const data = (res?.data || {}) as any;
           setDataRootInfo(data);
           setSelectedDataRootPath(String(data.path || ''));
-          setSelectedSavedQueryDirectoryPath(String(
-              data.savedQueryDirectory || data.defaultSavedQueryDirectory || '',
-          ));
       } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error || t('common.unknown'));
           void message.error(t('app.data_root.message.load_failed_with_error', { error: errMsg }));
@@ -4589,164 +3078,8 @@ function App() {
       }
   }, [servyEnginePathDraft, t]);
 
-  const handleSelectSavedQueryDirectory = useCallback(async () => {
-      try {
-          const res = await SelectSavedQueryDirectory(
-              selectedSavedQueryDirectoryPath
-                  || dataRootInfo?.savedQueryDirectory
-                  || dataRootInfo?.defaultSavedQueryDirectory
-                  || '',
-          );
-          if (!res?.success) {
-              const data = (res?.data || {}) as any;
-              if (data.cancelled === true) return;
-              throw new Error(res?.message || t('common.unknown'));
-          }
-          const data = (res?.data || {}) as any;
-          setSelectedSavedQueryDirectoryPath(String(data.directory || ''));
-      } catch (error) {
-          const errMsg = error instanceof Error ? error.message : String(error || t('common.unknown'));
-          void message.error(t('app.data_root.saved_query_directory.message.select_failed_with_error', { error: errMsg }));
-      }
-  }, [
-      dataRootInfo?.defaultSavedQueryDirectory,
-      dataRootInfo?.savedQueryDirectory,
-      selectedSavedQueryDirectoryPath,
-      t,
-  ]);
-
-  const handleApplySavedQueryDirectory = useCallback(async (useDefaultPath = false) => {
-      const nextPath = useDefaultPath
-          ? String(dataRootInfo?.defaultSavedQueryDirectory || '')
-          : String(selectedSavedQueryDirectoryPath || '').trim();
-      if (!nextPath) {
-          void message.warning(t('app.data_root.saved_query_directory.message.select_valid_first'));
-          return;
-      }
-      setSavedQueryDirectoryApplying(true);
-      try {
-          const res = await ApplySavedQueryDirectory(nextPath);
-          if (!res?.success) {
-              throw new Error(res?.message || t('common.unknown'));
-          }
-          const data = (res?.data || {}) as any;
-          setDataRootInfo(data);
-          setSelectedSavedQueryDirectoryPath(String(
-              data.savedQueryDirectory || data.defaultSavedQueryDirectory || nextPath,
-          ));
-          try {
-              const queries = await GetSavedQueries();
-              replaceSavedQueries(Array.isArray(queries) ? queries : []);
-              await reloadSavedQueryGroups();
-          } catch (refreshError) {
-              console.warn('Failed to refresh saved queries after changing their directory', refreshError);
-          }
-          void message.success(res?.message || t('app.data_root.saved_query_directory.message.updated'));
-      } catch (error) {
-          const errMsg = error instanceof Error ? error.message : String(error || t('common.unknown'));
-          void message.error(t('app.data_root.saved_query_directory.message.apply_failed_with_error', { error: errMsg }));
-      } finally {
-          setSavedQueryDirectoryApplying(false);
-      }
-  }, [
-      dataRootInfo?.defaultSavedQueryDirectory,
-      reloadSavedQueryGroups,
-      replaceSavedQueries,
-      selectedSavedQueryDirectoryPath,
-      t,
-  ]);
-
-  const handleOpenSavedQueryDirectory = useCallback(async () => {
-      try {
-          const res = await OpenSavedQueryDirectory();
-          if (!res?.success) {
-              throw new Error(res?.message || t('common.unknown'));
-          }
-      } catch (error) {
-          const errMsg = error instanceof Error ? error.message : String(error || t('common.unknown'));
-          void message.error(t('app.data_root.saved_query_directory.message.open_failed_with_error', { error: errMsg }));
-      }
-  }, [t]);
-
-  const renderSavedQueryDirectorySettings = (readOnly = false) => (
-      <DataDirectoryPage testId="saved-queries">
-          <section className="gn-storage-panel gn-storage-panel--current" data-saved-query-directory-settings="true">
-              <div className="gn-storage-panel__body">
-                  <DirectorySectionHeading
-                      title={t('app.data_root.current_location')}
-                      description={t('app.data_root.saved_query_directory.current_description')}
-                  />
-                  <DirectoryPathDisplay
-                      label={t('app.data_root.saved_query_directory.current_directory')}
-                      path={dataRootInfo?.savedQueryDirectory || selectedSavedQueryDirectoryPath}
-                      action={!readOnly ? (
-                          <Button onClick={() => void handleOpenSavedQueryDirectory()}>
-                              {t('app.data_root.action.open_current')}
-                          </Button>
-                      ) : undefined}
-                  />
-                  <DirectoryMetaGrid items={[{
-                      label: t('app.data_root.saved_query_directory.default_directory'),
-                      value: dataRootInfo?.defaultSavedQueryDirectory || '-',
-                  }]} />
-              </div>
-          </section>
-
-          {!readOnly && (
-              <section className="gn-storage-panel">
-                  <div className="gn-storage-panel__body">
-                      <DirectorySectionHeading
-                          title={t('app.data_root.change_location')}
-                          description={t('app.data_root.saved_query_directory.change_description')}
-                      />
-                      <div className="gn-storage-path-editor">
-                          <Input
-                              readOnly
-                              value={selectedSavedQueryDirectoryPath}
-                              placeholder={t('app.data_root.saved_query_directory.placeholder')}
-                              aria-label={t('app.data_root.saved_query_directory.title')}
-                          />
-                          <div className="gn-storage-path-editor__actions">
-                              <Button
-                                  icon={<FolderOpenOutlined />}
-                                  disabled={directorySettingsApplying}
-                                  onClick={() => void handleSelectSavedQueryDirectory()}
-                              >
-                                  {t('app.data_root.action.select')}
-                              </Button>
-                              <Button
-                                  disabled={directorySettingsApplying}
-                                  loading={savedQueryDirectoryApplying}
-                                  onClick={() => void handleApplySavedQueryDirectory(true)}
-                              >
-                                  {t('app.data_root.action.restore_default_directory')}
-                              </Button>
-                          </div>
-                      </div>
-                      <DirectoryChoice
-                          recommended
-                          badge={t('app.data_root.recommended')}
-                          title={t('app.data_root.saved_query_directory.apply_title')}
-                          description={t('app.data_root.saved_query_directory.apply_description')}
-                          action={(
-                              <Button
-                                  type="primary"
-                                  disabled={directorySettingsApplying}
-                                  loading={savedQueryDirectoryApplying}
-                                  onClick={() => void handleApplySavedQueryDirectory(false)}
-                              >
-                                  {t('app.data_root.action.use_selected_directory')}
-                              </Button>
-                          )}
-                      />
-                  </div>
-              </section>
-          )}
-      </DataDirectoryPage>
-  );
-
   const renderDataDirectorySettings = (
-      section: 'all' | 'application' | 'agent' | 'saved-queries' = 'all',
+      section: 'all' | 'application' | 'agent' = 'all',
       readOnly = false,
   ) => {
       if (dataRootLoading) {
@@ -4970,7 +3303,6 @@ function App() {
               )}
 
 
-              {(section === 'all' || section === 'saved-queries') && renderSavedQueryDirectorySettings(readOnly)}
           </div>
       );
   };
@@ -4993,7 +3325,6 @@ function App() {
   const openCreateConnection = useCallback((targetTagId?: string) => {
       const normalizedTargetTagId = String(targetTagId || '').trim();
       pendingConnectionTagIdRef.current = normalizedTargetTagId || null;
-      setSecurityUpdateRepairSource(null);
       setEditingConnection(null);
       setIsConnectionModalMounted(true);
       setIsModalOpen(true);
@@ -5006,7 +3337,6 @@ function App() {
 
   const handleEditConnection = useCallback((conn: SavedConnection) => {
       pendingConnectionTagIdRef.current = null;
-      setSecurityUpdateRepairSource(null);
       setIsConnectionModalMounted(true);
       void (async () => {
           const backendApp = (window as any).go?.app?.App;
@@ -5065,121 +3395,13 @@ function App() {
       if (targetTagId && savedConnection?.id) {
           moveConnectionToTag(savedConnection.id, targetTagId);
       }
-
-      if (!shouldRetrySecurityUpdateAfterRepairSave(securityUpdateRepairSource)) {
-          return;
-      }
-
-      const backendApp = (window as any).go?.app?.App;
-      if (securityUpdateStatus.migrationId) {
-          if (typeof backendApp?.RetrySecurityUpdateCurrentRound !== 'function') {
-              return;
-          }
-
-          const rawStatus = await backendApp.RetrySecurityUpdateCurrentRound({
-              migrationId: securityUpdateStatus.migrationId,
-          });
-          const nextStatus = await finalizeSecurityUpdateStatus({
-              backend: backendApp,
-              replaceConnections,
-              replaceGlobalProxy,
-              t,
-          }, normalizeSecurityUpdateStatus(rawStatus));
-
-          applySecurityUpdateStatus(nextStatus, {
-              openSettings: false,
-          });
-
-          if (nextStatus.overallStatus === 'completed') {
-              setSecurityUpdateHasLegacySensitiveItems(false);
-              setSecurityUpdateRawPayload(null);
-          }
-          return;
-      }
-
-      if (!securityUpdateRawPayload || !savedConnection?.id) {
-          return;
-      }
-
-      const nextRawPayload = stripLegacyPersistedConnectionById(securityUpdateRawPayload, savedConnection.id);
-      if (!nextRawPayload || nextRawPayload === securityUpdateRawPayload) {
-          return;
-      }
-
-      window.localStorage.setItem(LEGACY_PERSIST_KEY, nextRawPayload);
-
-      const rawStatus = typeof backendApp?.GetSecurityUpdateStatus === 'function'
-          ? await backendApp.GetSecurityUpdateStatus()
-          : securityUpdateStatus;
-      const nextStatus = mergeSecurityUpdateStatusWithLegacySource(rawStatus, nextRawPayload, {
-          previousStatus: securityUpdateStatus,
-          t,
-      });
-      const nextHasLegacySensitiveItems = hasLegacyMigratableSensitiveItems(nextRawPayload);
-
-      setSecurityUpdateRawPayload(nextRawPayload);
-      setSecurityUpdateHasLegacySensitiveItems(nextHasLegacySensitiveItems);
-      applySecurityUpdateStatus(nextStatus, {
-          openSettings: false,
-      });
-  }, [
-      applySecurityUpdateStatus,
-      normalizeSecurityUpdateStatus,
-      moveConnectionToTag,
-      replaceConnections,
-      replaceGlobalProxy,
-      securityUpdateRawPayload,
-      securityUpdateRepairSource,
-      securityUpdateStatus,
-      securityUpdateStatus.migrationId,
-      t,
-  ]);
+  }, [moveConnectionToTag]);
 
   const handleCloseModal = () => {
-      const reopenSecurityUpdateDetails = shouldReopenSecurityUpdateDetails(securityUpdateRepairSource);
       pendingConnectionTagIdRef.current = null;
       setIsModalOpen(false);
       setEditingConnection(null);
-      setSecurityUpdateRepairSource(null);
-      if (reopenSecurityUpdateDetails) {
-          openSecurityUpdateSettings();
-      }
   };
-  const handleOpenConnectionHealth = useCallback((connectionIds: string[] = []) => {
-      setConnectionHealthTargetIds(Array.from(new Set(connectionIds.filter((id) => String(id || '').trim() !== ''))));
-      setToolCenterBackGroupKey('config');
-      setActiveSettingsCenterGroupKey('config');
-      setActiveSettingsCenterPane({ key: 'connection-health', group: 'config' });
-      openSettingsCenterWorkbenchTab();
-  }, [openSettingsCenterWorkbenchTab]);
-
-  const handleOpenDriverManagerFromConnection = useCallback(() => {
-      pendingConnectionTagIdRef.current = null;
-      setIsModalOpen(false);
-      setEditingConnection(null);
-      setToolCenterBackGroupKey(null);
-      handleOpenDriverManagerWorkbench();
-  }, [handleOpenDriverManagerWorkbench]);
-
-  const handleOpenGlobalProxySettings = useCallback(() => {
-      setSecurityUpdateRepairSource(null);
-      setIsProxyModalOpen(true);
-  }, []);
-
-  useEffect(() => {
-      const openGlobalProxySettings = () => handleOpenGlobalProxySettings();
-      window.addEventListener(OPEN_GLOBAL_PROXY_SETTINGS_EVENT, openGlobalProxySettings);
-      return () => window.removeEventListener(OPEN_GLOBAL_PROXY_SETTINGS_EVENT, openGlobalProxySettings);
-  }, [handleOpenGlobalProxySettings]);
-
-  const handleCloseGlobalProxySettings = useCallback(() => {
-      const reopenSecurityUpdateDetails = shouldReopenSecurityUpdateDetails(securityUpdateRepairSource);
-      setIsProxyModalOpen(false);
-      setSecurityUpdateRepairSource(null);
-      if (reopenSecurityUpdateDetails) {
-          openSecurityUpdateSettings();
-      }
-  }, [openSecurityUpdateSettings, securityUpdateRepairSource]);
 
   const handleWebLogout = useCallback(async () => {
       try {
@@ -5358,38 +3580,6 @@ function App() {
     tokenControlHeightSM,
   ]);
 
-  useEffect(() => {
-      const handleOpenShortcutSettingsEvent = () => {
-          handleOpenToolCenterPane('workspace', 'shortcut-settings');
-      };
-      window.addEventListener('gonavi:open-shortcut-settings', handleOpenShortcutSettingsEvent as EventListener);
-      return () => {
-          window.removeEventListener('gonavi:open-shortcut-settings', handleOpenShortcutSettingsEvent as EventListener);
-      };
-  }, [handleOpenToolCenterPane]);
-
-  useEffect(() => {
-      const handleOpenSnippetSettingsEvent = () => {
-          handleOpenToolCenterPane('workspace', 'snippet-settings');
-      };
-      window.addEventListener('gonavi:open-snippet-settings', handleOpenSnippetSettingsEvent as EventListener);
-      return () => {
-          window.removeEventListener('gonavi:open-snippet-settings', handleOpenSnippetSettingsEvent as EventListener);
-      };
-  }, [handleOpenToolCenterPane]);
-
-  useEffect(() => {
-      const handleOpenTabDisplaySettingsEvent = () => {
-          closeSettingsCenterWorkbenchTab();
-          setThemeModalSection('workspace');
-          setIsThemeModalOpen(true);
-          setTabDisplaySettingsFocusRequest((current) => current + 1);
-      };
-      window.addEventListener('gonavi:open-tab-display-settings', handleOpenTabDisplaySettingsEvent as EventListener);
-      return () => {
-          window.removeEventListener('gonavi:open-tab-display-settings', handleOpenTabDisplaySettingsEvent as EventListener);
-      };
-  }, []);
 
   useEffect(() => {
       const handleOpenServyEngineSettingsEvent = () => {
@@ -5454,11 +3644,6 @@ function App() {
 
   useEffect(() => {
       const handleGlobalShortcut = (event: KeyboardEvent) => {
-          // The recorder owns every key while it is active, including Cmd/Ctrl+W.
-          if (capturingShortcutAction) {
-              return;
-          }
-
           const closeDecision = resolveCloseShortcutKeydownDecision({
               event,
               shortcutOptions,
@@ -5549,9 +3734,6 @@ function App() {
               case 'toggleTheme':
                   selectPresetTheme(themeMode === 'dark' ? 'light' : 'dark');
                   break;
-              case 'openShortcutManager':
-                  handleOpenToolCenterPane('workspace', 'shortcut-settings');
-                  break;
               case 'toggleMacFullscreen':
                   if (isMacRuntime && useNativeMacWindowControls) {
                       void handleTitleBarWindowToggle({ allowMacNativeFullscreen: true });
@@ -5567,70 +3749,7 @@ function App() {
       return () => {
           window.removeEventListener('keydown', handleGlobalShortcut, true);
       };
-  }, [activeShortcutPlatform, capturingShortcutAction, handleCreateConnection, handleFocusSidebarSearch, handleManualResetWindowZoom, handleNewQuery, handleOpenToolCenterPane, handleTitleBarWindowToggle, handleToggleLogPanel, isMacRuntime, selectPresetTheme, shortcutOptions, switchActiveTabByOffset, themeMode, useNativeMacWindowControls]);
-
-  useEffect(() => {
-      if (!capturingShortcutAction) {
-          return;
-      }
-
-      const handleShortcutCapture = (event: KeyboardEvent) => {
-          event.preventDefault();
-          event.stopPropagation();
-
-          if (event.key === 'Escape') {
-              setCapturingShortcutAction(null);
-              return;
-          }
-
-          const combo = eventToShortcut(event);
-          if (!combo) {
-              return;
-          }
-
-          const normalizedCombo = normalizeShortcutCombo(combo);
-          if (!canRecordShortcutForAction(capturingShortcutAction, normalizedCombo)) {
-              const meta = SHORTCUT_ACTION_META[capturingShortcutAction];
-              void message.warning(meta.scope === 'aiComposer'
-                  ? t('app.shortcuts.message.ai_send_limit')
-                  : t('app.shortcuts.message.modifier_required'));
-              return;
-          }
-          const conflictAction = findEnabledActionConflicts(
-              shortcutOptions,
-              capturingShortcutAction,
-              normalizedCombo,
-              activeShortcutPlatform,
-          )[0];
-          if (conflictAction) {
-              void message.warning(t('app.shortcuts.message.conflict', { action: SHORTCUT_ACTION_META[conflictAction].label }));
-              return;
-          }
-
-          const reservedConflicts = findReservedConflictsForAction(
-              capturingShortcutAction,
-              normalizedCombo,
-              activeShortcutPlatform,
-          );
-          if (reservedConflicts.length > 0) {
-              const { hasMonaco, hasOther, monacoLabels, otherLabels, otherContexts } = splitConflictsByContext(reservedConflicts);
-              if (hasMonaco) {
-                  void message.info(t('app.shortcuts.message.reserved_conflict_info', { labels: monacoLabels }), 4);
-              }
-              if (hasOther) {
-                  void message.warning(t('app.shortcuts.message.reserved_conflict_warning', { contexts: otherContexts, labels: otherLabels }), 4);
-              }
-          }
-
-          updateShortcut(capturingShortcutAction, { combo: normalizedCombo, enabled: true }, activeShortcutPlatform);
-          setCapturingShortcutAction(null);
-      };
-
-      window.addEventListener('keydown', handleShortcutCapture, true);
-      return () => {
-          window.removeEventListener('keydown', handleShortcutCapture, true);
-      };
-  }, [activeShortcutPlatform, capturingShortcutAction, shortcutOptions, t, updateShortcut]);
+  }, [activeShortcutPlatform, handleCreateConnection, handleFocusSidebarSearch, handleManualResetWindowZoom, handleNewQuery, handleTitleBarWindowToggle, handleToggleLogPanel, isMacRuntime, selectPresetTheme, shortcutOptions, switchActiveTabByOffset, themeMode, useNativeMacWindowControls]);
 
   const linuxResizeHandleStyleBase = {
       position: 'fixed',
@@ -5778,688 +3897,6 @@ function App() {
       !fontFamiliesLoadError &&
       !isLinuxCJKFontBannerDismissed,
   );
-  const sidebarMetadataFieldItems = useMemo(() => {
-      const labelByField: Record<SidebarTableMetadataField, string> = {
-          comment: t('sidebar.v2_table_group_menu.show_table_comments'),
-          rows: t('sidebar.v2_table_group_menu.display_table_rows'),
-          size: t('sidebar.v2_table_group_menu.display_table_size'),
-          createdAt: t('sidebar.v2_table_group_menu.display_create_time'),
-          updatedAt: t('sidebar.v2_table_group_menu.display_update_time'),
-      };
-      return sidebarTableMetadataFieldOrder.map((field) => ({
-          field,
-          label: labelByField[field],
-      }));
-  }, [sidebarTableMetadataFieldOrder, t]);
-  const toggleSidebarMetadataFieldFromSettings = useCallback((field: SidebarTableMetadataField, selected: boolean) => {
-      setQueryOptions({
-          sidebarTableMetadataFields: setSidebarTableMetadataFieldSelected(
-              sidebarTableMetadataFields,
-              field,
-              selected,
-              sidebarTableMetadataFieldOrder,
-          ),
-      });
-  }, [setQueryOptions, sidebarTableMetadataFieldOrder, sidebarTableMetadataFields]);
-  const handleSidebarMetadataDragEnd = useCallback((event: DragEndEvent) => {
-      const activeField = String(event.active.id || '') as SidebarTableMetadataField;
-      const overField = String(event.over?.id || '') as SidebarTableMetadataField;
-      if (!overField || activeField === overField) {
-          return;
-      }
-      const currentOrder = sidebarMetadataFieldItems.map((item) => item.field);
-      const activeIndex = currentOrder.indexOf(activeField);
-      const overIndex = currentOrder.indexOf(overField);
-      if (activeIndex < 0 || overIndex < 0) {
-          return;
-      }
-      const nextOrder = arrayMove(currentOrder, activeIndex, overIndex);
-      setQueryOptions({
-          sidebarTableMetadataFieldOrder: nextOrder,
-          sidebarTableMetadataFields: applySidebarTableMetadataFieldOrder(
-              sidebarTableMetadataFields,
-              nextOrder,
-          ),
-      });
-  }, [setQueryOptions, sidebarMetadataFieldItems, sidebarTableMetadataFields]);
-  const renderProxySettingsContent = useCallback(() => {
-      const fieldLabelStyle: React.CSSProperties = {
-          marginBottom: 4,
-          fontSize: 12,
-          color: darkMode ? 'rgba(255,255,255,0.55)' : 'rgba(16,24,40,0.58)',
-      };
-      const narrow = viewportWidth < 760;
-      const proxyStatusColor = proxyDraft.enabled
-          ? (proxyDraftValid ? (darkMode ? '#4ade80' : '#16a34a') : (darkMode ? '#fbbf24' : '#d97706'))
-          : (darkMode ? 'rgba(148,163,184,0.85)' : 'rgba(71,85,105,0.72)');
-      const proxyTestAlertType = proxyTestResult
-          ? (!proxyTestResult.success ? 'error' : ((proxyTestResult.statusCode || 0) >= 400 ? 'warning' : 'success'))
-          : 'info';
-
-
-      return (
-          <div className="gonavi-proxy-settings" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 0 4px', minHeight: 0 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  flexWrap: 'wrap',
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  border: `1px solid ${darkMode ? 'rgba(148,163,184,0.18)' : 'rgba(15,23,42,0.08)'}`,
-                  background: darkMode ? 'rgba(15,23,42,0.35)' : 'rgba(248,250,252,0.9)',
-                }}
-              >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flexWrap: 'wrap' }}>
-                      <Switch
-                          aria-label={t('app.proxy.section_title')}
-                          checked={proxyDraft.enabled}
-                          onChange={(checked) => setProxyDraft((current) => ({ ...current, enabled: checked }))}
-                      />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: overlayTheme.titleText }}>
-                          {t(proxyDraft.enabled ? 'app.proxy.switch.enabled' : 'app.proxy.switch.disabled')}
-                      </span>
-                      <span
-                        title={proxyStatusDescription}
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 500,
-                          color: proxyStatusColor,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          border: `1px solid ${proxyStatusColor}33`,
-                          background: `${proxyStatusColor}14`,
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                          {proxyStatusTitle}
-                      </span>
-                      {proxyDraftDirty ? (
-                          <span style={{ ...utilityMutedTextStyle, fontSize: 12 }}>{t('app.proxy.unsaved_hint')}</span>
-                      ) : null}
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {proxyPresetItems.map((preset) => (
-                          <Button key={preset.key} size="small" onClick={() => applyProxyPreset(preset)}>
-                              {preset.label}
-                          </Button>
-                      ))}
-                  </div>
-              </div>
-
-              <div style={{ ...utilityPanelStyle, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: narrow ? '1fr' : 'minmax(160px, 0.9fr) minmax(180px, 1.6fr) 110px',
-                      gap: 10,
-                      alignItems: 'end',
-                    }}
-                  >
-                      <div>
-                          <div style={fieldLabelStyle}>{t('app.proxy.type')}</div>
-                          <Segmented
-                              block
-                              value={proxyDraft.type}
-                              options={[
-                                  { label: t('app.proxy.type_socks5'), value: 'socks5' },
-                                  { label: t('app.proxy.type_http'), value: 'http' },
-                              ]}
-                              onChange={(value) => updateProxyDraftType(value as GlobalProxyConfig['type'])}
-                          />
-                      </div>
-                      <div>
-                          <div style={fieldLabelStyle}>{t('app.proxy.host')}</div>
-                          <Input
-                              placeholder={t('app.proxy.host_placeholder')}
-                              status={proxyDraft.enabled && proxyDraftHost === '' ? 'error' : undefined}
-                              value={proxyDraft.host}
-                              onChange={(e) => setProxyDraft((current) => ({ ...current, host: e.target.value }))}
-                          />
-                      </div>
-                      <div>
-                          <div style={fieldLabelStyle}>{t('app.proxy.port')}</div>
-                          <InputNumber
-                              min={1}
-                              max={65535}
-                              status={proxyDraft.enabled && !proxyDraftPortValid ? 'error' : undefined}
-                              style={{ width: '100%' }}
-                              value={proxyDraft.port}
-                              onChange={(value) => setProxyDraft((current) => ({
-                                  ...current,
-                                  port: typeof value === 'number' ? value : getGlobalProxyDefaultPort(current.type),
-                              }))}
-                          />
-                      </div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: narrow ? '1fr' : '1fr 1fr',
-                      gap: 10,
-                      alignItems: 'end',
-                    }}
-                  >
-                      <div>
-                          <div style={fieldLabelStyle}>{t('app.proxy.username_optional')}</div>
-                          <Input
-                              placeholder="proxy-user"
-                              value={proxyDraft.user}
-                              onChange={(e) => setProxyDraft((current) => ({ ...current, user: e.target.value }))}
-                          />
-                      </div>
-                      <div>
-                          <div style={fieldLabelStyle}>{t('app.proxy.password_optional')}</div>
-                          <Input.Password
-                              placeholder="proxy-password"
-                              value={proxyDraft.password}
-                              onChange={(e) => {
-                                  const nextPassword = e.target.value;
-                                  setProxyDraft((current) => ({
-                                      ...current,
-                                      password: nextPassword,
-                                      hasPassword: nextPassword !== '' ? true : current.hasPassword,
-                                  }));
-                                  setProxyDraftClearPassword(false);
-                              }}
-                          />
-                      </div>
-                  </div>
-
-                  {proxyDraftClearPassword ? (
-                      <Alert showIcon type="warning" message={t('app.proxy.clear_saved_password_pending')} />
-                  ) : proxyDraft.hasPassword && proxyDraft.password === '' ? (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                          <span style={utilityMutedTextStyle}>{t('app.proxy.password_saved_hint')}</span>
-                          <Button
-                              size="small"
-                              onClick={() => {
-                                  setProxyDraft((current) => ({ ...current, password: '', hasPassword: false }));
-                                  setProxyDraftClearPassword(true);
-                              }}
-                          >
-                              {t('app.proxy.clear_saved_password')}
-                          </Button>
-                      </div>
-                  ) : null}
-              </div>
-
-              <div style={{ ...utilityPanelStyle, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: narrow ? '1fr' : 'minmax(140px, 0.9fr) minmax(200px, 1.6fr) auto',
-                      gap: 10,
-                      alignItems: 'end',
-                    }}
-                  >
-                      <div>
-                          <div style={fieldLabelStyle}>{t('app.proxy.test.target_label')}</div>
-                          <Select
-                              value={proxyTestPresetItems.some((item) => item.url === proxyTestUrlTrimmed) ? proxyTestUrlTrimmed : undefined}
-                              placeholder={t('app.proxy.test.target_label')}
-                              style={{ width: '100%' }}
-                              allowClear
-                              options={proxyTestPresetItems.map((item) => ({
-                                  value: item.url,
-                                  label: item.label,
-                              }))}
-                              onChange={(value) => {
-                                  if (typeof value === 'string' && value) {
-                                      setProxyTestUrl(value);
-                                  }
-                              }}
-                          />
-                      </div>
-                      <div>
-                          <div style={fieldLabelStyle}>{t('app.proxy.test.title')}</div>
-                          <Input
-                              value={proxyTestUrl}
-                              placeholder={t('app.proxy.test.target_placeholder')}
-                              onChange={(event) => setProxyTestUrl(event.target.value)}
-                              onPressEnter={() => {
-                                  if (proxyCanTest) {
-                                      void handleTestGlobalProxyDraft();
-                                  }
-                              }}
-                          />
-                      </div>
-                      <Button
-                          type="primary"
-                          loading={proxyTesting}
-                          disabled={!proxyCanTest}
-                          onClick={handleTestGlobalProxyDraft}
-                          style={{ minWidth: 96 }}
-                      >
-                          {t('app.proxy.test.action')}
-                      </Button>
-                  </div>
-                  {!proxyDraft.enabled ? (
-                      <div style={utilityMutedTextStyle}>{t('app.proxy.test.disabled_hint')}</div>
-                  ) : null}
-                  {proxyTestResult ? (
-                      <Alert
-                          showIcon
-                          type={proxyTestAlertType}
-                          message={proxyTestResult.message}
-                          description={[
-                              proxyTestResult.statusCode ? t('app.proxy.test.result.status', { status: proxyTestResult.statusCode }) : '',
-                              typeof proxyTestResult.durationMs === 'number' ? t('app.proxy.test.result.duration', { duration: proxyTestResult.durationMs }) : '',
-                              proxyTestResult.finalUrl && proxyTestResult.finalUrl !== proxyTestResult.url ? t('app.proxy.test.result.final_url', { url: proxyTestResult.finalUrl }) : '',
-                          ].filter(Boolean).join('  ')}
-                      />
-                  ) : null}
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', paddingTop: 2 }}>
-                  <div style={{ ...utilityMutedTextStyle, flex: '1 1 240px', fontSize: 12 }}>{t('app.proxy.scope_hint')}</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                      <Button onClick={resetProxyDraftToCurrent} disabled={!proxyDraftDirty || proxyApplying}>
-                          {t('app.proxy.reset')}
-                      </Button>
-                      <Button
-                          type="primary"
-                          loading={proxyApplying}
-                          disabled={!proxyDraftDirty && !proxyApplying}
-                          onClick={handleApplyGlobalProxyDraft}
-                      >
-                          {t('app.proxy.apply')}
-                      </Button>
-                  </div>
-              </div>
-          </div>
-      );
-
-  }, [
-      applyProxyPreset,
-      darkMode,
-      overlayTheme.titleText,
-      handleApplyGlobalProxyDraft,
-      proxyApplying,
-      proxyCanTest,
-      proxyDraft.enabled,
-      proxyDraft.hasPassword,
-      proxyDraft.host,
-      proxyDraft.password,
-      proxyDraft.port,
-      proxyDraft.type,
-      proxyDraft.user,
-      proxyDraftClearPassword,
-      proxyDraftDirty,
-      proxyDraftHost,
-      proxyDraftPortValid,
-      proxyDraftValid,
-      proxyTestPresetItems,
-      proxyTestResult,
-      proxyTesting,
-      proxyTestUrl,
-      proxyTestUrlTrimmed,
-      proxyPresetItems,
-      proxyStatusDescription,
-      proxyStatusTitle,
-      resetProxyDraftToCurrent,
-      t,
-      handleTestGlobalProxyDraft,
-      updateProxyDraftType,
-      utilityMutedTextStyle,
-      utilityPanelStyle,
-      viewportWidth,
-  ]);
-  const downloadSourceItems: ReadonlyArray<{
-      id: DownloadSourceId;
-      labelKey: string;
-      descKey: string;
-      guideKey: string;
-      tagKey: string;
-      icon: React.ReactNode;
-      iconColor: string;
-      iconBg: string;
-      tagColor: string;
-      tagBg: string;
-  }> = [
-      {
-          id: 'cst',
-          labelKey: 'app.download_source.option.cst',
-          descKey: 'app.download_source.option.cst.desc',
-          guideKey: 'app.download_source.option.cst.guide',
-          tagKey: 'app.download_source.option.cst.tag',
-          icon: <ThunderboltOutlined />,
-          iconColor: '#f59e0b',
-          iconBg: 'rgba(245, 158, 11, 0.14)',
-          tagColor: '#b45309',
-          tagBg: 'rgba(245, 158, 11, 0.12)',
-      },
-      {
-          id: 'bero',
-          labelKey: 'app.download_source.option.bero',
-          descKey: 'app.download_source.option.bero.desc',
-          guideKey: 'app.download_source.option.bero.guide',
-          tagKey: 'app.download_source.option.bero.tag',
-          icon: <ApiOutlined />,
-          iconColor: '#0ea5e9',
-          iconBg: 'rgba(14, 165, 233, 0.14)',
-          tagColor: '#0369a1',
-          tagBg: 'rgba(14, 165, 233, 0.12)',
-      },
-      {
-          id: 'github',
-          labelKey: 'app.download_source.option.github',
-          descKey: 'app.download_source.option.github.desc',
-          guideKey: 'app.download_source.option.github.guide',
-          tagKey: 'app.download_source.option.github.tag',
-          icon: <GithubOutlined />,
-          iconColor: darkMode ? '#cbd5e1' : '#475569',
-          iconBg: darkMode ? 'rgba(203, 213, 225, 0.14)' : 'rgba(71, 85, 105, 0.14)',
-          tagColor: darkMode ? '#e2e8f0' : '#1f2937',
-          tagBg: darkMode ? 'rgba(203, 213, 225, 0.12)' : 'rgba(71, 85, 105, 0.12)',
-      },
-  ];
-
-  const renderDownloadSourceSettingsContent = useCallback(() => {
-      return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '12px 0' }}>
-              <div style={utilityPanelStyle}>
-                  <div style={{ ...utilityMutedTextStyle, marginBottom: 14, lineHeight: 1.7 }}>
-                      {t('app.download_source.description')}
-                  </div>
-                  <div
-                      role="radiogroup"
-                      aria-label={t('app.download_source.title')}
-                      style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
-                          gap: 12,
-                      }}
-                  >
-                      {downloadSourceItems.map((source) => {
-                          const isSelected = downloadSource === source.id;
-                          const isDisabled = downloadSourceSaving;
-                          const baseBorderColor = isSelected
-                              ? overlayTheme.selectedText
-                              : overlayTheme.divider;
-                          const hoverBorderColor = overlayTheme.selectedText;
-                          const selectedBackground = darkMode
-                              ? 'rgba(255, 255, 255, 0.05)'
-                              : 'rgba(22, 119, 255, 0.05)';
-                          return (
-                              <button
-                                  key={source.id}
-                                  type="button"
-                                  role="radio"
-                                  aria-checked={isSelected}
-                                  disabled={isDisabled}
-                                  onClick={() => void handleDownloadSourceChange(source.id)}
-                                  data-download-source-card={source.id}
-                                  data-selected={isSelected ? 'true' : 'false'}
-                                  className="gonavi-download-source-card"
-                                  style={{
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      gap: 12,
-                                      padding: 14,
-                                      borderRadius: 12,
-                                      border: `2px solid ${baseBorderColor}`,
-                                      background: isSelected ? selectedBackground : 'transparent',
-                                      cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                      textAlign: 'left',
-                                      transition: 'border-color 160ms ease, background 160ms ease, box-shadow 160ms ease',
-                                      opacity: isDisabled ? 0.6 : 1,
-                                      fontFamily: 'inherit',
-                                      outline: 'none',
-                                      minHeight: 132,
-                                      boxShadow: isSelected
-                                          ? `0 0 0 4px ${darkMode ? 'rgba(22,119,255,0.18)' : 'rgba(22,119,255,0.10)'}`
-                                          : 'none',
-                                      color: overlayTheme.titleText,
-                                  }}
-                                  onMouseEnter={(event) => {
-                                      if (!isSelected && !isDisabled) {
-                                          event.currentTarget.style.borderColor = hoverBorderColor;
-                                          event.currentTarget.style.background = selectedBackground;
-                                      }
-                                  }}
-                                  onMouseLeave={(event) => {
-                                      if (!isSelected && !isDisabled) {
-                                          event.currentTarget.style.borderColor = baseBorderColor;
-                                          event.currentTarget.style.background = 'transparent';
-                                      }
-                                  }}
-                                  onFocus={(event) => {
-                                      if (!isSelected && !isDisabled) {
-                                          event.currentTarget.style.borderColor = hoverBorderColor;
-                                      }
-                                  }}
-                                  onBlur={(event) => {
-                                      if (!isSelected && !isDisabled) {
-                                          event.currentTarget.style.borderColor = baseBorderColor;
-                                      }
-                                  }}
-                              >
-                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                      <div
-                                          style={{
-                                              width: 36,
-                                              height: 36,
-                                              borderRadius: 10,
-                                              display: 'grid',
-                                              placeItems: 'center',
-                                              background: source.iconBg,
-                                              color: source.iconColor,
-                                              fontSize: 18,
-                                          }}
-                                      >
-                                          {source.icon}
-                                      </div>
-                                      {isSelected ? (
-                                          <span
-                                              style={{
-                                                  display: 'inline-flex',
-                                                  alignItems: 'center',
-                                                  gap: 4,
-                                                  padding: '3px 9px',
-                                                  borderRadius: 999,
-                                                  background: overlayTheme.selectedText,
-                                                  color: '#fff',
-                                                  fontSize: 11,
-                                                  fontWeight: 600,
-                                              }}
-                                          >
-                                              <CheckOutlined style={{ fontSize: 10 }} />
-                                              {t('app.download_source.selected_badge')}
-                                          </span>
-                                      ) : null}
-                                  </div>
-                                  <div style={{ minWidth: 0 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                          <span style={{ fontSize: 14, fontWeight: 700, color: overlayTheme.titleText }}>
-                                              {t(source.labelKey)}
-                                          </span>
-                                          <span
-                                              style={{
-                                                  fontSize: 11,
-                                                  fontWeight: 600,
-                                                  padding: '1px 8px',
-                                                  borderRadius: 999,
-                                                  background: source.tagBg,
-                                                  color: source.tagColor,
-                                              }}
-                                          >
-                                              {t(source.tagKey)}
-                                          </span>
-                                      </div>
-                                      <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, lineHeight: 1.6 }}>
-                                          {t(source.guideKey)}
-                                      </div>
-                                      <div
-                                          style={{
-                                              marginTop: 6,
-                                              fontSize: 12,
-                                              color: overlayTheme.mutedText,
-                                              lineHeight: 1.6,
-                                          }}
-                                      >
-                                          {t(source.descKey)}
-                                      </div>
-                                  </div>
-                              </button>
-                          );
-                      })}
-                  </div>
-                  <div
-                      style={{
-                          marginTop: 14,
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: 8,
-                          padding: '10px 12px',
-                          borderRadius: 10,
-                          background: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(22,119,255,0.06)',
-                          color: overlayTheme.mutedText,
-                          fontSize: 12,
-                          lineHeight: 1.7,
-                      }}
-                  >
-                      <InfoCircleOutlined style={{ color: overlayTheme.selectedText, marginTop: 2, flexShrink: 0 }} />
-                      <span>{t('app.download_source.fallback_hint')}</span>
-                  </div>
-              </div>
-          </div>
-      );
-  }, [
-      darkMode,
-      downloadSource,
-      downloadSourceSaving,
-      handleDownloadSourceChange,
-      overlayTheme.divider,
-      overlayTheme.mutedText,
-      overlayTheme.selectedText,
-      overlayTheme.titleText,
-      t,
-      utilityMutedTextStyle,
-      utilityPanelStyle,
-  ]);
-  const renderSidebarMetadataSettingsPane = useCallback(() => (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 0' }}>
-          <div style={utilityPanelStyle}>
-              <DndContext
-                  sensors={sidebarMetadataDragSensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleSidebarMetadataDragEnd}
-              >
-                  <SortableContext
-                      items={sidebarMetadataFieldItems.map((item) => item.field)}
-                      strategy={verticalListSortingStrategy}
-                  >
-                      <div style={{ display: 'grid', gap: 0, borderTop: `1px solid ${overlayTheme.divider}` }}>
-                          {sidebarMetadataFieldItems.map((item) => {
-                              const checked = sidebarTableMetadataFields.includes(item.field);
-                              return (
-                                  <SidebarMetadataSortableRow
-                                      key={item.field}
-                                      field={item.field}
-                                      label={item.label}
-                                      checked={checked}
-                                      dividerColor={overlayTheme.divider}
-                                      titleColor={overlayTheme.titleText}
-                                      mutedColor={utilityMutedTextStyle.color as string}
-                                      onToggle={(selected) => toggleSidebarMetadataFieldFromSettings(item.field, selected)}
-                                  />
-                              );
-                          })}
-                      </div>
-                  </SortableContext>
-              </DndContext>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button
-                  onClick={() => {
-                      setQueryOptions({
-                          sidebarTableMetadataFields: DEFAULT_SIDEBAR_TABLE_METADATA_FIELDS,
-                          sidebarTableMetadataFieldOrder: [...SIDEBAR_TABLE_METADATA_FIELDS],
-                      });
-                  }}
-              >
-                  {t('app.theme.action.restore_defaults')}
-              </Button>
-          </div>
-      </div>
-  ), [
-      overlayTheme.divider,
-      overlayTheme.titleText,
-      setQueryOptions,
-      sidebarMetadataFieldItems,
-      sidebarMetadataDragSensors,
-      handleSidebarMetadataDragEnd,
-      sidebarTableMetadataFields,
-      t,
-      toggleSidebarMetadataFieldFromSettings,
-      utilityMutedTextStyle,
-      utilityPanelStyle,
-  ]);
-  const renderSidebarObjectVisibilitySettingsPane = useCallback(() => {
-      const hiddenObjectGroups = new Set(appearance.sidebarHiddenObjectGroups);
-      const objectGroupItems: Array<{ key: SidebarObjectGroupKey; label: string }> = buildSidebarObjectVisibilitySettings(t);
-      const setObjectGroupVisible = (key: SidebarObjectGroupKey, visible: boolean) => {
-          const nextHiddenObjectGroups = visible
-              ? appearance.sidebarHiddenObjectGroups.filter((item) => item !== key)
-              : Array.from(new Set([...appearance.sidebarHiddenObjectGroups, key]));
-          setAppearance({ sidebarHiddenObjectGroups: nextHiddenObjectGroups });
-      };
-
-      return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 0' }}>
-              <div style={utilityPanelStyle}>
-                  <div style={{ display: 'grid', gap: 0, borderTop: `1px solid ${overlayTheme.divider}` }}>
-                      {objectGroupItems.map((item) => (
-                          <div
-                              key={item.key}
-                              data-sidebar-object-group-setting={item.key}
-                              style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  gap: 12,
-                                  minHeight: 36,
-                                  padding: '0 2px',
-                                  borderBottom: `1px solid ${overlayTheme.divider}`,
-                              }}
-                          >
-                              <span>{item.label}</span>
-                              <Switch
-                                  checked={!hiddenObjectGroups.has(item.key)}
-                                  aria-label={item.label}
-                                  onChange={(visible) => setObjectGroupVisible(item.key, visible)}
-                              />
-                          </div>
-                      ))}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-                      <Button onClick={() => setAppearance({ sidebarHiddenObjectGroups: [] })}>
-                          {t('app.settings.sidebar_objects.action.show_all')}
-                      </Button>
-                      <Button
-                          type="primary"
-                          onClick={() => setAppearance({
-                              sidebarHiddenObjectGroups: SIDEBAR_OBJECT_GROUP_KEYS.filter((key) => key !== 'tables'),
-                          })}
-                      >
-                          {t('app.settings.sidebar_objects.action.tables_only')}
-                      </Button>
-                  </div>
-              </div>
-          </div>
-      );
-  }, [
-      appearance.sidebarHiddenObjectGroups,
-      overlayTheme.divider,
-      setAppearance,
-      t,
-      utilityMutedTextStyle,
-      utilityPanelStyle,
-  ]);
   const updateInstallActionLabel = updateInstallAction === 'install-and-restart'
       ? t('app.about.action.install_and_restart')
       : (updateInstallAction === 'launch-installer'
@@ -6697,10 +4134,6 @@ function App() {
               : []),
       ];
 
-      const aboutDownloadSourceDot = (darkMode
-          ? { cst: '#f59e0b', bero: '#38bdf8', github: '#cbd5e1' }
-          : { cst: '#d97706', bero: '#0284c7', github: '#475569' })[downloadSource] || '#94a3b8';
-
       return (
           <div className="gonavi-about-pane">
               <section className="gonavi-about-identity" aria-label="ServDeck">
@@ -6798,7 +4231,6 @@ function App() {
   const themeSettingsSections = [
       { value: 'theme' as const, label: t('app.theme.nav.theme.title'), icon: <SkinOutlined /> },
       { value: 'appearance' as const, label: t('app.theme.nav.appearance.title'), icon: <BgColorsOutlined /> },
-      { value: 'workspace' as const, label: t('app.theme.nav.workspace.title'), icon: <AppstoreOutlined /> },
   ];
 
   const renderThemeSettingsContentV2 = (options?: { hideSectionTabs?: boolean }) => (
@@ -6929,29 +4361,6 @@ function App() {
                                   <ToolbarButtonAppearanceSettings />,
                                   t('app.theme.toolbar_buttons.description'),
                               )}
-                              {renderThemeSettingsSection(
-                                  t('app.theme.ui_version.sidebar_search.title'),
-                                  <div className="gonavi-settings-pills" role="group" aria-label={t('app.theme.ui_version.sidebar_search.title')}>
-                                      {([
-                                          { value: 'command' as const, label: t('app.theme.ui_version.sidebar_search.command') },
-                                          { value: 'filter' as const, label: t('app.theme.ui_version.sidebar_search.filter') },
-                                      ]).map((item) => {
-                                          const active = (appearance.v2SidebarSearchMode ?? 'command') === item.value;
-                                          return (
-                                              <button
-                                                  key={item.value}
-                                                  type="button"
-                                                  className={`gonavi-settings-pill${active ? ' is-active' : ''}`}
-                                                  aria-pressed={active}
-                                                  onClick={() => setAppearance({ v2SidebarSearchMode: item.value })}
-                                              >
-                                                  {item.label}
-                                              </button>
-                                          );
-                                      })}
-                                  </div>,
-                                  t('app.theme.ui_version.sidebar_search.hint'),
-                              )}
                           </div>
                       ) : themeModalSection === 'appearance' ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -6959,11 +4368,6 @@ function App() {
                                   // 设置中心侧栏已显示「显示与字体」，内容区不再重复分区标题
                                   options?.hideSectionTabs ? null : t('app.theme.nav.appearance.title'),
                                   <>
-                                      {renderThemeSettingsRow({
-                                          label: t('app.theme.appearance.titlebar_menu_style_title'),
-                                          stacked: true,
-                                          control: <TitlebarMenuStyleSettings />,
-                                      })}
                                       {renderThemeSettingsRow({
                                           label: t('app.theme.appearance.ui_scale_title'),
                                           hint: t('app.theme.appearance.ui_scale_hint'),
@@ -7156,467 +4560,7 @@ function App() {
                                   </>,
                               )}
                           </div>
-                      ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                              {renderThemeSettingsSection(
-                                  t('app.theme.query_template.title'),
-                                  <>
-                                      <div className="gonavi-settings-section-hint" style={{ marginTop: 0 }}>{t('app.theme.query_template.description')}</div>
-                                      <Input.TextArea
-                                          value={newQuerySqlTemplate}
-                                          autoSize={{ minRows: 3, maxRows: 8 }}
-                                          spellCheck={false}
-                                          onChange={(event) => setAppearance({ newQuerySqlTemplate: event.target.value })}
-                                          style={{ fontFamily: 'var(--gn-font-mono)' }}
-                                      />
-                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
-                                          <div className="gonavi-settings-inline-meta" style={{ marginTop: 0 }}>{t('app.theme.query_template.hint')}</div>
-                                          <Button
-                                              size="small"
-                                              disabled={appearance.newQuerySqlTemplate === null}
-                                              onClick={() => setAppearance({ newQuerySqlTemplate: null })}
-                                          >
-                                              {t('app.theme.query_template.reset_default')}
-                                          </Button>
-                                      </div>
-                                  </>,
-                              )}
-                              {renderThemeSettingsSection(
-                                  t('app.theme.table_alias.title'),
-                                  <div style={{ display: 'grid', gap: 12 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                                          <div className="gonavi-settings-section-hint" style={{ marginTop: 0 }}>
-                                              {t('app.theme.table_alias.description')}
-                                          </div>
-                                          <Switch
-                                              checked={appearance.autoAddTableAlias !== false}
-                                              onChange={(checked) => setAppearance({ autoAddTableAlias: checked })}
-                                          />
-                                      </div>
-                                      <div style={{ display: 'grid', gap: 8 }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                                              <div>
-                                                  <div>{t('app.theme.table_alias.custom_prefix.title')}</div>
-                                                  <div className="gonavi-settings-section-hint" style={{ marginTop: 2 }}>
-                                                      {t('app.theme.table_alias.custom_prefix.description')}
-                                                  </div>
-                                              </div>
-                                              <Switch
-                                                  checked={appearance.customTableAliasPrefixEnabled}
-                                                  disabled={appearance.autoAddTableAlias === false}
-                                                  onChange={(checked) => setAppearance({ customTableAliasPrefixEnabled: checked })}
-                                              />
-                                          </div>
-                                          <Input
-                                              value={appearance.customTableAliasPrefix}
-                                              maxLength={24}
-                                              placeholder={t('app.theme.table_alias.custom_prefix.placeholder')}
-                                              disabled={appearance.autoAddTableAlias === false || !appearance.customTableAliasPrefixEnabled}
-                                              onChange={(event) => setAppearance({ customTableAliasPrefix: event.target.value })}
-                                          />
-                                      </div>
-                                  </div>,
-                              )}
-                              <section className="gonavi-settings-section" ref={tabDisplaySettingsPanelRef}>
-                                  <div className="gonavi-settings-section-title">{t('app.theme.tab_display.title')}</div>
-                                  <div className="gonavi-settings-section-hint">{t('app.theme.tab_display.description')}</div>
-                                  {renderThemeSettingsRow({
-                                      label: t('app.theme.tab_display.title'),
-                                      stacked: true,
-                                      control: (
-                                          <Segmented
-                                              className="gonavi-settings-segmented-choice"
-                                              block
-                                              options={[
-                                                  { label: t('app.theme.tab_display.layout.single'), value: 'single' },
-                                                  { label: t('app.theme.tab_display.layout.double'), value: 'double' },
-                                              ]}
-                                              value={tabDisplaySettings.layout}
-                                              onChange={(value) => setTabDisplayLayout(value as TabDisplayLayout)}
-                                          />
-                                      ),
-                                  })}
-                                  {renderThemeSettingsRow({
-                                      label: t('app.theme.tab_display.environment_accent_thickness'),
-                                      hint: t('app.theme.tab_display.environment_accent_thickness_hint'),
-                                      stacked: true,
-                                      control: (
-                                          <ThemeSettingsSlider
-                                              min={MIN_TAB_ENVIRONMENT_ACCENT_THICKNESS}
-                                              max={MAX_TAB_ENVIRONMENT_ACCENT_THICKNESS}
-                                              step={1}
-                                              marks={TAB_ENVIRONMENT_ACCENT_THICKNESS_SLIDER_MARKS}
-                                              value={effectiveTabEnvironmentAccentThickness}
-                                              unit="px"
-                                              onChange={(value) => setAppearance({
-                                                  tabEnvironmentAccentThickness: sanitizeTabEnvironmentAccentThickness(value),
-                                              })}
-                                          />
-                                      ),
-                                  })}
-                                  <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
-{tabDisplayElementOrder.map((key) => {
-                                          const checked = visibleTabDisplayElementKeys.has(key);
-                                          const row = tabDisplaySettings.secondaryElements.includes(key) ? 'secondary' : 'primary';
-                                          const currentRowElements = row === 'secondary'
-                                              ? tabDisplaySettings.secondaryElements
-                                              : tabDisplaySettings.primaryElements;
-                                          const indexInRow = currentRowElements.indexOf(key);
-                                          const canMoveUp = checked && indexInRow > 0;
-                                          const canMoveDown = checked && indexInRow >= 0 && indexInRow < currentRowElements.length - 1;
-                                          const isFocused = focusedTabDisplayElementKey === key;
-                                          return (
-                                              <div
-                                                  key={key}
-                                                  role="button"
-                                                  tabIndex={0}
-                                                  onClick={() => setFocusedTabDisplayElementKey(key)}
-                                                  onKeyDown={(event) => {
-                                                      if (event.key === 'Enter' || event.key === ' ') {
-                                                          event.preventDefault();
-                                                          setFocusedTabDisplayElementKey(key);
-                                                      }
-                                                  }}
-                                                  style={{
-                                                      display: 'grid',
-                                                      gridTemplateColumns: 'minmax(0, 1fr) auto',
-                                                      gap: 10,
-                                                      alignItems: 'center',
-                                                      padding: '8px 2px 8px 10px',
-                                                      borderRadius: 0,
-                                                      border: 'none',
-                                                      borderLeft: `3px solid ${isFocused
-                                                          ? (v2AntPrimaryColor)
-                                                          : 'transparent'}`,
-                                                      borderBottom: `1px solid ${overlayTheme.divider}`,
-                                                      boxShadow: 'none',
-                                                      background: isFocused
-                                                          ? (v2AntPrimaryBgColor)
-                                                          : 'transparent',
-                                                      cursor: 'pointer',
-                                                      transition: 'border-color 140ms ease, background-color 140ms ease',
-                                                  }}
-                                              >
-                                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                                                      <span style={{
-                                                          width: 22,
-                                                          height: 22,
-                                                          borderRadius: 0,
-                                                          display: 'inline-flex',
-                                                          alignItems: 'center',
-                                                          justifyContent: 'center',
-                                                          flexShrink: 0,
-                                                          fontFamily: resolvedMonoFontFamily,
-                                                          fontSize: 'var(--gn-font-size-sm, 12px)',
-                                                          fontWeight: 600,
-                                                          background: 'transparent',
-                                                          color: isFocused
-                                                              ? (v2AntPrimaryColor)
-                                                              : (darkMode ? 'rgba(255,255,255,0.56)' : 'rgba(16,24,40,0.5)'),
-                                                      }}>
-                                                          {checked && indexInRow >= 0 ? indexInRow + 1 : '-'}
-                                                      </span>
-                                                      <Switch
-                                                          size="small"
-                                                          checked={checked}
-                                                          onClick={(_, event) => event.stopPropagation()}
-                                                          onChange={(nextChecked) => updateTabDisplayElementVisibility(key, nextChecked)}
-                                                      />
-                                                      <div style={{ minWidth: 0 }}>
-                                                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                                                              <span style={{ fontWeight: 600 }}>{getTabDisplayElementLabel(key)}</span>
-                                                              {isFocused ? (
-                                                                  <span style={{
-                                                                      fontSize: 'var(--gn-font-size-sm, 12px)',
-                                                                      lineHeight: '16px',
-                                                                      padding: '0 6px',
-                                                                      borderRadius: 999,
-                                                                      background: v2AntPrimaryBgColor,
-                                                                      color: v2AntPrimaryColor,
-                                                                  }}>
-                                                                      {t('app.theme.tab_display.badge.current')}
-                                                                  </span>
-                                                              ) : null}
-                                                              {checked && tabDisplaySettings.layout === 'double' ? (
-                                                                  <span style={{
-                                                                      fontSize: 'var(--gn-font-size-sm, 12px)',
-                                                                      lineHeight: '16px',
-                                                                      padding: '0 6px',
-                                                                      borderRadius: 999,
-                                                                      background: row === 'secondary'
-                                                                          ? (darkMode ? 'rgba(56,189,248,0.14)' : 'rgba(2,132,199,0.08)')
-                                                                          : (darkMode ? 'rgba(34,197,94,0.14)' : 'rgba(22,163,74,0.08)'),
-                                                                      color: row === 'secondary'
-                                                                          ? (darkMode ? '#7dd3fc' : '#0369a1')
-                                                                          : (darkMode ? '#86efac' : '#15803d'),
-                                                                  }}>
-                                                                      {row === 'secondary'
-                                                                          ? t('app.theme.tab_display.row.secondary')
-                                                                          : t('app.theme.tab_display.row.primary')}
-                                                                  </span>
-                                                              ) : null}
-                                                          </div>
-                                                          <div style={{ ...utilityMutedTextStyle, marginTop: 2 }}>{getTabDisplayElementDescription(key)}</div>
-                                                      </div>
-                                                  </div>
-                                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                      {tabDisplaySettings.layout === 'double' && checked ? (
-                                                          <Segmented
-                                                              size="small"
-                                                              options={[
-                                                                  { label: t('app.theme.tab_display.row.primary'), value: 'primary' },
-                                                                  { label: t('app.theme.tab_display.row.secondary'), value: 'secondary' },
-                                                              ]}
-                                                              value={row}
-                                                              onChange={(value) => setTabDisplayElementRow(key, value as 'primary' | 'secondary')}
-                                                              onClick={(event) => event.stopPropagation()}
-                                                          />
-                                                      ) : null}
-                                                      <Button
-                                                          size="small"
-                                                          disabled={!canMoveUp}
-                                                          onClick={(event) => {
-                                                              event.stopPropagation();
-                                                              moveTabDisplayElement(key, -1);
-                                                          }}
-                                                      >
-                                                          {t('app.theme.tab_display.action.move_up')}
-                                                      </Button>
-                                                      <Button
-                                                          size="small"
-                                                          disabled={!canMoveDown}
-                                                          onClick={(event) => {
-                                                              event.stopPropagation();
-                                                              moveTabDisplayElement(key, 1);
-                                                          }}
-                                                      >
-                                                          {t('app.theme.tab_display.action.move_down')}
-                                                      </Button>
-                                                  </div>
-                                              </div>
-                                          );
-                                      })}
-                                  </div>
-                                  <div className="gonavi-settings-inline-meta">
-                                      {t('app.theme.tab_display.preview.prefix')}
-                                      {tabDisplaySettings.layout === 'double' ? `${t('app.theme.tab_display.row.primary')} ` : ''}
-                                      {tabDisplaySettings.primaryElements.map(getTabDisplayElementLabel).join(' / ') || t('app.theme.tab_display.preview.default_label')}
-                                      {tabDisplaySettings.layout === 'double' && tabDisplaySettings.secondaryElements.length > 0
-                                          ? t('app.theme.tab_display.preview.secondary', {
-                                              labels: tabDisplaySettings.secondaryElements.map(getTabDisplayElementLabel).join(' / '),
-                                          })
-                                          : ''}
-                                      {focusedTabDisplayElementKey
-                                          ? t('app.theme.tab_display.preview.focused', {
-                                              label: getTabDisplayElementLabel(focusedTabDisplayElementKey),
-                                          })
-                                          : ''}
-                                  </div>
-                              </section>
-                              {renderThemeSettingsSection(
-                                  t('app.theme.data_table.title'),
-                                  <>
-                                      {renderThemeSettingsRow({
-                                          label: t('app.theme.data_table.vertical_borders'),
-                                          hint: t('app.theme.data_table.vertical_borders_hint'),
-                                          control: (
-                                              <Switch
-                                                  checked={appearance.showDataTableVerticalBorders === true}
-                                                  onChange={(checked) => setAppearance({ showDataTableVerticalBorders: checked })}
-                                              />
-                                          ),
-                                      })}
-                                      {renderThemeSettingsRow({
-                                          label: t('app.theme.data_table.row_number'),
-                                          hint: t('app.theme.data_table.row_number_hint'),
-                                          control: (
-                                              <Switch
-                                                  checked={appearance.showDataTableRowNumber !== false}
-                                                  onChange={(checked) => setAppearance({ showDataTableRowNumber: checked })}
-                                              />
-                                          ),
-                                      })}
-                                      {renderThemeSettingsRow({
-                                          label: t('app.theme.data_table.table_double_click_action'),
-                                          hint: t('app.theme.data_table.table_double_click_action_hint'),
-                                          stacked: true,
-                                          control: (
-                                              <Segmented
-                                                  className="gonavi-settings-segmented-choice"
-                                                  block
-                                                  options={[
-                                                      { label: t('app.theme.data_table.table_double_click_action.open_data'), value: 'open-data' },
-                                                      { label: t('app.theme.data_table.table_double_click_action.open_design'), value: 'open-design' },
-                                                  ]}
-                                                  value={tableDoubleClickAction}
-                                                  onChange={(value) => setAppearance({ tableDoubleClickAction: value as 'open-data' | 'open-design' })}
-                                              />
-                                          ),
-                                      })}
-                                      {renderThemeSettingsRow({
-                                          label: t('app.theme.data_table.query_ctrl_click_action'),
-                                          hint: t('app.theme.data_table.query_ctrl_click_action_hint'),
-                                          stacked: true,
-                                          control: (
-                                              <Segmented
-                                                  className="gonavi-settings-segmented-choice"
-                                                  block
-                                                  options={[
-                                                      { label: t('app.theme.data_table.query_ctrl_click_action.open_design'), value: 'open-design' },
-                                                      { label: t('app.theme.data_table.query_ctrl_click_action.locate'), value: 'locate' },
-                                                  ]}
-                                                  value={queryTableCtrlClickAction}
-                                                  onChange={(value) => setAppearance({ queryTableCtrlClickAction: value as QueryTableCtrlClickAction })}
-                                              />
-                                          ),
-                                      })}
-                                      {renderThemeSettingsRow({
-                                          label: t('app.theme.data_table.density'),
-                                          hint: t('app.theme.data_table.density_hint'),
-                                          stacked: true,
-                                          control: (
-                                              <Segmented
-                                                  className="gonavi-settings-segmented-choice"
-                                                  block
-                                                  options={DENSITY_OPTIONS.map((option) => ({
-                                                      ...option,
-                                                      label: t(`app.theme.data_table.density.${option.value}`),
-                                                  }))}
-                                                  value={appearance.dataTableDensity}
-                                                  onChange={(value) => setAppearance({ dataTableDensity: sanitizeDataTableDensity(value) })}
-                                              />
-                                          ),
-                                      })}
-                                      {renderThemeSettingsRow({
-                                          label: (
-                                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                                  <span>{t('app.theme.data_table.sql_editor_font_size')}</span>
-                                                  <Button
-                                                      size="small"
-                                                      type={sqlEditorFontSizeFollowsGlobal ? 'primary' : 'default'}
-                                                      onClick={() => setAppearance({
-                                                          sqlEditorFontSizeFollowGlobal: !sqlEditorFontSizeFollowsGlobal,
-                                                          sqlEditorFontSize: sqlEditorFontSizeFollowsGlobal
-                                                              ? sanitizeSqlEditorFontSize(appearance.sqlEditorFontSize)
-                                                              : null,
-                                                      })}
-                                                  >
-                                                      {t('app.theme.data_table.follow_global')}
-                                                  </Button>
-                                              </span>
-                                          ),
-                                          stacked: true,
-                                          control: (
-                                              <ThemeSettingsSlider
-                                                  min={MIN_SQL_EDITOR_FONT_SIZE}
-                                                  max={MAX_SQL_EDITOR_FONT_SIZE}
-                                                  step={1}
-                                                  marks={SQL_EDITOR_FONT_SLIDER_MARKS}
-                                                  disabled={sqlEditorFontSizeFollowsGlobal}
-                                                  value={effectiveSqlEditorFontSize}
-                                                  unit="px"
-                                                  onChange={(value) => setAppearance({
-                                                      sqlEditorFontSize: sanitizeSqlEditorFontSize(value),
-                                                      sqlEditorFontSizeFollowGlobal: false,
-                                                  })}
-                                              />
-                                          ),
-                                      })}
-                                      {renderThemeSettingsRow({
-                                          label: (
-                                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                                  <span>{t('app.theme.data_table.font_size')}</span>
-                                                  <Button
-                                                      size="small"
-                                                      type={dataTableFontSizeFollowsGlobal ? 'primary' : 'default'}
-                                                      onClick={() => setAppearance({
-                                                          dataTableFontSizeFollowGlobal: !dataTableFontSizeFollowsGlobal,
-                                                          dataTableFontSize: dataTableFontSizeFollowsGlobal
-                                                              ? sanitizeDataTableFontSize(appearance.dataTableFontSize)
-                                                              : null,
-                                                      })}
-                                                  >
-                                                      {t('app.theme.data_table.follow_global')}
-                                                  </Button>
-                                              </span>
-                                          ),
-                                          stacked: true,
-                                          control: (
-                                              <ThemeSettingsSlider
-                                                  min={10}
-                                                  max={18}
-                                                  step={1}
-                                                  marks={DATA_TABLE_FONT_SLIDER_MARKS}
-                                                  disabled={dataTableFontSizeFollowsGlobal}
-                                                  value={effectiveDataTableFontSize}
-                                                  unit="px"
-                                                  onChange={(value) => setAppearance({
-                                                      dataTableFontSize: sanitizeDataTableFontSize(value),
-                                                      dataTableFontSizeFollowGlobal: false,
-                                                  })}
-                                              />
-                                          ),
-                                      })}
-                                      {renderThemeSettingsRow({
-                                          label: (
-                                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                                  <span>{t('app.theme.data_table.sidebar_tree_font_size')}</span>
-                                                  <Button
-                                                      size="small"
-                                                      type={sidebarTreeFontSizeFollowsGlobal ? 'primary' : 'default'}
-                                                      onClick={() => setAppearance({
-                                                          sidebarTreeFontSizeFollowGlobal: !sidebarTreeFontSizeFollowsGlobal,
-                                                          sidebarTreeFontSize: sidebarTreeFontSizeFollowsGlobal
-                                                              ? sanitizeSidebarTreeFontSize(appearance.sidebarTreeFontSize)
-                                                              : null,
-                                                      })}
-                                                  >
-                                                      {t('app.theme.data_table.follow_global')}
-                                                  </Button>
-                                              </span>
-                                          ),
-                                          stacked: true,
-                                          control: (
-                                              <ThemeSettingsSlider
-                                                  min={10}
-                                                  max={18}
-                                                  step={1}
-                                                  marks={DATA_TABLE_FONT_SLIDER_MARKS}
-                                                  disabled={sidebarTreeFontSizeFollowsGlobal}
-                                                  value={effectiveSidebarTreeFontSize}
-                                                  unit="px"
-                                                  onChange={(value) => setAppearance({
-                                                      sidebarTreeFontSize: sanitizeSidebarTreeFontSize(value),
-                                                      sidebarTreeFontSizeFollowGlobal: false,
-                                                  })}
-                                              />
-                                          ),
-                                      })}
-                                  </>,
-                              )}
-                              {renderThemeSettingsSection(
-                                  t('app.theme.startup_window.title'),
-                                  renderThemeSettingsRow({
-                                      label: t('app.theme.startup_window.maximised'),
-                                      hint: t('app.theme.startup_window.hint'),
-                                      control: (
-                                          <Switch checked={startupMaximised} onChange={(checked) => setStartupMaximised(checked)} />
-                                      ),
-                                  }),
-                              )}
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 12 }}>
-                                  <Button
-                                      onClick={() => {
-                                          setUiScale(DEFAULT_UI_SCALE);
-                                          setFontSize(DEFAULT_FONT_SIZE);
-                                          setAppearance({ ...DEFAULT_APPEARANCE });
-                                      }}
-                                  >
-                                      {t('app.theme.action.restore_defaults')}
-                                  </Button>
-                              </div>
-                          </div>
-                      )}
+                      ) : null}
                   </div>
               </div>
   );
@@ -7672,64 +4616,12 @@ function App() {
                       title: section.label,
                       description: section.value === 'appearance'
                           ? t('app.theme.nav.appearance.description')
-                          : section.value === 'workspace'
-                              ? t('app.theme.nav.workspace.description')
-                              : t('app.theme.nav.theme.description'),
+                          : t('app.theme.nav.theme.description'),
                       onClick: () => {
                           setThemeModalSection(section.value);
                           handleOpenSettingsCenterPane('preferences', 'theme');
                       },
                   })),
-              },
-              {
-                  key: 'sidebar-metadata',
-                  icon: <TableOutlined />,
-                  title: t('app.settings.sidebar_metadata.title'),
-                  description: t('app.settings.sidebar_metadata.description'),
-                  onClick: () => handleOpenSettingsCenterPane('preferences', 'sidebar-metadata'),
-              },
-              {
-                  key: 'sidebar-objects',
-                  icon: <FolderOpenOutlined />,
-                  title: t('app.settings.sidebar_objects.title'),
-                  description: t('app.settings.sidebar_objects.description'),
-                  onClick: () => handleOpenSettingsCenterPane('preferences', 'sidebar-objects'),
-              },
-          ],
-      },
-      {
-          key: 'services' as const,
-          icon: <GlobalOutlined />,
-          title: t('app.settings.group.services.title'),
-          description: t('app.settings.group.services.description'),
-          items: [
-              {
-                  key: 'proxy',
-                  icon: <GlobalOutlined />,
-                  title: t('app.settings.entry.proxy.title'),
-                  description: t('app.settings.entry.proxy.description'),
-                  onClick: () => handleOpenSettingsCenterPane('services', 'proxy'),
-              },
-              {
-                  key: 'download-source',
-                  icon: <CloudDownloadOutlined />,
-                  title: t('app.settings.entry.download_source.title'),
-                  description: t('app.settings.entry.download_source.description'),
-                  onClick: () => handleOpenSettingsCenterPane('services', 'download-source'),
-              },
-              ...(isWebRuntime ? [{
-                  key: 'web-auth' as const,
-                  icon: <SafetyCertificateOutlined />,
-                  title: t('app.settings.entry.web_auth.title'),
-                  description: t('app.settings.entry.web_auth.description'),
-                  onClick: () => handleOpenSettingsCenterPane('services', 'web-auth'),
-              }] : []),
-              {
-                  key: 'cloud-backup',
-                  icon: <CloudDownloadOutlined />,
-                  title: t('app.settings.entry.cloud_backup.title'),
-                  description: t('app.settings.entry.cloud_backup.description'),
-                  onClick: () => handleOpenSettingsCenterPane('services', 'cloud-backup'),
               },
           ],
       },
@@ -7786,33 +4678,6 @@ function App() {
               </div>
           );
       }
-      if (activeSettingsCenterPane.key === 'sidebar-metadata') {
-          return renderSidebarMetadataSettingsPane();
-      }
-      if (activeSettingsCenterPane.key === 'sidebar-objects') {
-          return renderSidebarObjectVisibilitySettingsPane();
-      }
-      if (activeSettingsCenterPane.key === 'proxy') {
-          return renderProxySettingsContent();
-      }
-      if (activeSettingsCenterPane.key === 'download-source') {
-          return renderDownloadSourceSettingsContent();
-      }
-      if (activeSettingsCenterPane.key === 'web-auth') {
-          return (
-              <WebAuthSettingsPanel
-                darkMode={darkMode}
-                dividerColor={overlayTheme.divider}
-                mutedColor={String(utilityMutedTextStyle.color || overlayTheme.mutedText)}
-                titleColor={overlayTheme.titleText}
-              />
-          );
-      }
-      if (activeSettingsCenterPane.key === 'cloud-backup') {
-          return (
-              <CloudBackupSettings t={t} />
-          );
-      }
       if (activeSettingsCenterPane.key === 'about-go-navi') {
           return renderSettingsCenterAboutPane();
       }
@@ -7855,7 +4720,6 @@ function App() {
           data-collapsed-sidebar-actions-docked={
               isCollapsedSidebarActionsDocked ? 'true' : 'false'
           }
-          data-security-update-banner-visible={isSecurityUpdateBannerVisible ? 'true' : 'false'}
           style={{
             height: '100vh',
             overflow: 'hidden',
@@ -7869,13 +4733,6 @@ function App() {
             ['--gn-v2-empty-workbench-titlebar-overlap' as any]: `${resolveDockedTitleBarBandOffset(effectiveUiScale, effectiveSidebarRailScale)}px`,
           }}
         >
-          <input
-            ref={browserConnectionImportInputRef}
-            type="file"
-            accept=".gonavi-conn,.json,.xml,.ncx,.xlsx"
-            style={{ display: 'none' }}
-            onChange={(event) => { void handleBrowserConnectionImportFileChange(event); }}
-          />
           {/* Custom Title Bar */}
           <div
             className={[
@@ -7956,12 +4813,6 @@ function App() {
                     onDataRoot={handleOpenDataRootPane}
                   />
                   <div id="gonavi-titlebar-quick-actions" className="gonavi-titlebar-quick-actions-slot" />
-                  {appearance.titlebarMenuStyle === 'view-menu' && (
-                      <TitleBarViewMenu
-                        label={t('app.view_menu.trigger')}
-                        entries={titleBarViewMenuEntries}
-                      />
-                  )}
               </div>
               {shouldDockCollapsedSidebarActionsInTitlebar && (
                   <div
@@ -8146,21 +4997,6 @@ function App() {
            <Content
              style={{ background: 'var(--gn-bg-panel-2)', overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}
            >
-             {isSecurityUpdateBannerVisible && (
-                <SecurityUpdateBanner
-                  status={securityUpdateStatus}
-                  darkMode={darkMode}
-                  overlayTheme={overlayTheme}
-                  surfaceOpacity={effectiveOpacity}
-                  onStart={handleStartSecurityUpdate}
-                  onRetry={handleRetrySecurityUpdate}
-                  onRestart={handleRestartSecurityUpdate}
-                  onOpenDetails={() => handleOpenSecurityUpdateSettings(
-                      hasSecurityUpdateRecentResult(securityUpdateStatus) ? 'recent_result' : null,
-                  )}
-                  onDismiss={() => setIsSecurityUpdateBannerDismissed(true)}
-                />
-             )}
              <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'row', position: 'relative' }}>
                <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'transparent', marginBottom: isLogPanelOpen ? 8 : 0, borderRadius: isLogPanelOpen ? 'var(--gonavi-border-radius)' : 0, clipPath: isLogPanelOpen ? 'inset(0 round var(--gonavi-border-radius))' : 'none' }}>
                   <TabManager onFocusSidebarSearch={handleFocusSidebarSearch} onAddService={() => setIsAddServiceModalOpen(true)} />
@@ -8177,179 +5013,19 @@ function App() {
             open={isModalOpen}
             onClose={handleCloseModal}
             initialValues={editingConnection}
-            onOpenDriverManager={handleOpenDriverManagerFromConnection}
             onSaved={handleConnectionSaved}
-            onOpenConnectionHealth={(connection) => {
-              handleCloseModal();
-              handleOpenConnectionHealth([connection.id]);
-            }}
           />
           )}
           {isSettingsModalOpen && (() => {
+            // 「数据目录」为顶层叶组（items 为空即渲染为不可展开的顶层行，
+            // 点击经 resolveSettingsCenterGroupInitialPane 直达对应面板），与「关于」同级。
             const toolCenterGroups: SettingsCenterNavigationGroup[] = [
               {
                 key: 'config',
-                icon: <SettingOutlined />,
-                title: t('app.tools.group.config.title'),
-                description: t('app.tools.group.config.description'),
-                items: [
-                  {
-                    key: 'import',
-                    icon: <UploadOutlined />,
-                    title: t('app.tools.entry.import.title'),
-                    description: t('app.tools.entry.import.description'),
-                    onClick: () => {
-                      handleOpenToolCenterPane('config', 'import');
-                    },
-                  },
-                  {
-                    key: 'export',
-                    icon: <DownloadOutlined />,
-                    title: t('app.tools.entry.export.title'),
-                    description: t('app.tools.entry.export.description'),
-                    onClick: () => {
-                      handleOpenToolCenterPane('config', 'export');
-                      void handleExportConnections('config');
-                    },
-                  },
-                  {
-                    key: 'connection-health',
-                    icon: <SafetyCertificateOutlined />,
-                    title: t('app.tools.entry.connection_health.title'),
-                    description: t('app.tools.entry.connection_health.description'),
-                    onClick: () => {
-                      handleOpenToolCenterPane('config', 'connection-health');
-                      handleOpenConnectionHealth();
-                    },
-                  },
-                  {
-                    key: 'data-root',
-                    icon: <HddOutlined />,
-                    title: t('app.tools.entry.data_root.title'),
-                    description: t('app.tools.entry.data_root.description'),
-                    onClick: () => {
-                      handleOpenToolCenterPane('config', 'data-root-application');
-                    },
-                    children: [
-                      {
-                        key: 'data-root-application',
-                        icon: <HddOutlined />,
-                        title: t('app.data_root.current_directory'),
-                        description: t('app.data_root.description'),
-                        onClick: () => handleOpenToolCenterPane('config', 'data-root-application'),
-                      },
-                      {
-                        key: 'data-root-saved-queries',
-                        icon: <FileTextOutlined />,
-                        title: t('app.data_root.saved_query_directory.title'),
-                        description: t('app.data_root.saved_query_directory.description'),
-                        onClick: () => handleOpenToolCenterPane('config', 'data-root-saved-queries'),
-                      },
-                    ],
-                  },
-                  {
-                    key: 'security-update',
-                    icon: <SafetyCertificateOutlined />,
-                    title: t('app.tools.entry.security_update.title'),
-                    description: securityUpdateEntryVisibility.showDetailEntry || securityUpdateHasLegacySensitiveItems
-                      ? t('app.tools.entry.security_update.status_description', { status: securityUpdateStatusMeta.label })
-                      : t('app.tools.entry.security_update.description'),
-                    onClick: () => {
-                      handleOpenToolCenterPane('config', 'security-update');
-                    },
-                  },
-                ],
-              },
-              {
-                key: 'workflow',
-                icon: <SwitcherOutlined />,
-                title: t('app.tools.group.workflow.title'),
-                description: t('app.tools.group.workflow.description'),
-                items: [
-                  {
-                    key: 'sync',
-                    icon: <UploadOutlined rotate={90} />,
-                    title: t('app.tools.entry.sync.title'),
-                    description: t('app.tools.entry.sync.description'),
-                    onClick: () => {
-                      handleOpenDataSyncWorkbench('sync');
-                    },
-                  },
-                  {
-                    key: 'compare',
-                    icon: <SwitcherOutlined />,
-                    title: t('app.tools.entry.compare.title'),
-                    description: t('app.tools.entry.compare.description'),
-                    onClick: () => {
-                      handleOpenDataSyncWorkbench('compare');
-                    },
-                  },
-                ],
-              },
-              {
-                key: 'workspace',
-                icon: <CodeOutlined />,
-                title: t('app.tools.group.workspace.title'),
-                description: t('app.tools.group.workspace.description'),
-                items: [
-                  {
-                    key: 'drivers',
-                    icon: <SettingOutlined />,
-                    title: t('app.tools.entry.drivers.title'),
-                    description: t('app.tools.entry.drivers.description'),
-                    onClick: () => {
-                      handleOpenToolCenterPane('workspace', 'drivers');
-                    },
-                  },
-                  {
-                    key: 'snippet-settings',
-                    icon: <CodeOutlined />,
-                    title: t('app.tools.entry.snippets.title'),
-                    description: t('app.tools.entry.snippets.description'),
-                    onClick: () => {
-                      handleOpenToolCenterPane('workspace', 'snippet-settings');
-                    },
-                  },
-                  {
-                    key: 'shortcut-settings',
-                    icon: <LinkOutlined />,
-                    title: t('app.tools.entry.shortcuts.title'),
-                    description: t('app.tools.entry.shortcuts.description'),
-                    onClick: () => {
-                      handleOpenToolCenterPane('workspace', 'shortcut-settings');
-                    },
-                  },
-                  {
-                    key: 'sql-audit',
-                    icon: <AuditOutlined />,
-                    title: t('app.tools.entry.sql_audit.title'),
-                    description: t('app.tools.entry.sql_audit.description'),
-                    onClick: () => {
-                      handleCancelSettingsCenterPane();
-                      addTab(buildSqlAuditWorkbenchTab());
-                    },
-                  },
-                  {
-                    key: 'request-diagnostics',
-                    icon: <BugOutlined />,
-                    title: t('app.tools.entry.request_diagnostics.title'),
-                    description: t('app.tools.entry.request_diagnostics.description'),
-                    onClick: () => {
-                      handleCancelSettingsCenterPane();
-                      addTab(buildRequestDiagnosticsWorkbenchTab());
-                    },
-                  },
-                  {
-                    key: 'dml-snapshot',
-                    icon: <SafetyCertificateOutlined />,
-                    title: t('dml_snapshot.workbench.title'),
-                    description: t('dml_snapshot.workbench.description'),
-                    onClick: () => {
-                      handleCancelSettingsCenterPane();
-                      addTab(buildDMLSnapshotWorkbenchTab());
-                    },
-                  },
-                ],
+                icon: <HddOutlined />,
+                title: t('app.tools.entry.data_root.title'),
+                description: t('app.tools.entry.data_root.description'),
+                items: [],
               },
             ];
             const combinedSettingsCenterGroups = [
@@ -8395,137 +5071,9 @@ function App() {
                 return null;
               }
 
-              if (activeSettingsCenterPane.key === 'import') {
-                return (
-                  <ConnectionImportSettingsPanel
-                    groupOptions={connectionImportGroupOptions}
-                    targetGroupId={connectionImportTargetTagId}
-                    password={connectionPackageDialog.mode === 'import' ? connectionPackageDialog.password : ''}
-                    protectedPackageReady={Boolean(pendingConnectionImportPayload)}
-                    busy={connectionPackageDialog.mode === 'import' && connectionPackageDialog.confirmLoading}
-                    error={connectionPackageDialog.mode === 'import' ? connectionPackageDialog.error : ''}
-                    notice={connectionImportNotice}
-                    onTargetGroupChange={(groupID) => {
-                        setConnectionImportTargetTagId(groupID);
-                        setConnectionImportNotice(null);
-                        setConnectionPackageDialog((current) => ({ ...current, error: '' }));
-                    }}
-                    onChooseFile={() => void handleImportConnections('config')}
-                    onPasswordChange={(value) => {
-                        setConnectionPackageDialog((current) => ({
-                            ...current,
-                            password: value,
-                            error: '',
-                        }));
-                    }}
-                    onConfirmProtectedPackage={() => void handleConfirmConnectionPackageDialog()}
-                    onDiscardProtectedPackage={() => {
-                        setPendingConnectionImportPayload(null);
-                        setConnectionPackageDialog((current) => ({
-                            ...current,
-                            open: false,
-                            password: '',
-                            error: '',
-                            confirmLoading: false,
-                        }));
-                    }}
-                  />
-                );
-              }
-
-              if (isConnectionPackageSettingsPaneKey(activeSettingsCenterPane.key)) {
-                if (!connectionPackageDialog.open) {
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 0' }}>
-                      <div style={utilityPanelStyle}>
-                        <div style={utilityMutedTextStyle}>
-                          {t('app.tools.entry.export.description')}
-                        </div>
-                        <div style={{ marginTop: 12, ...utilityMutedTextStyle }}>
-                          {t('app.connection_package.message.no_connections_to_export')}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                return (
-                  <ConnectionPackagePasswordModal
-                    embedded
-                    open={connectionPackageDialog.open}
-                    title={connectionPackageDialog.mode === 'export'
-                        ? t('app.connection_package.dialog.export_title')
-                        : t('app.connection_package.dialog.import_password_title')}
-                    mode={connectionPackageDialog.mode}
-                    includeSecrets={connectionPackageDialog.includeSecrets}
-                    useFilePassword={connectionPackageDialog.useFilePassword}
-                    password={connectionPackageDialog.password}
-                    error={connectionPackageDialog.error}
-                    confirmLoading={connectionPackageDialog.confirmLoading}
-                    connectionOptions={connections.map((item) => ({
-                      value: item.id,
-                      label: item.name || item.id,
-                      type: item.config?.type,
-                    }))}
-                    selectedConnectionIds={connectionPackageDialog.selectedConnectionIds}
-                    onSelectedConnectionIdsChange={(ids) => {
-                        setConnectionPackageDialog((current) => ({
-                            ...current,
-                            selectedConnectionIds: ids,
-                            error: '',
-                        }));
-                    }}
-                    confirmText={connectionPackageDialog.mode === 'export'
-                        ? t('app.connection_package.action.start_export')
-                        : t('app.connection_package.action.start_import')}
-                    onIncludeSecretsChange={(value) => {
-                        setConnectionPackageDialog((current) => ({
-                            ...current,
-                            includeSecrets: value,
-                            useFilePassword: value ? current.useFilePassword : false,
-                            password: value ? current.password : '',
-                            error: '',
-                        }));
-                    }}
-                    onUseFilePasswordChange={(value) => {
-                        setConnectionPackageDialog((current) => ({
-                            ...current,
-                            useFilePassword: value,
-                            password: value ? current.password : '',
-                            error: '',
-                        }));
-                    }}
-                    onPasswordChange={(value) => {
-                        setConnectionPackageDialog((current) => ({
-                            ...current,
-                            password: value,
-                            error: '',
-                        }));
-                    }}
-                    onConfirm={() => {
-                        void handleConfirmConnectionPackageDialog();
-                    }}
-                    onCancel={closeConnectionPackageDialog}
-                  />
-                );
-              }
-
-              if (activeSettingsCenterPane.key === 'connection-health') {
-                return (
-                  <ConnectionHealthModal
-                    embedded
-                    open
-                    targetConnectionIds={connectionHealthTargetIds}
-                    onClose={closeConnectionHealthSettingsPane}
-                  />
-                );
-              }
-
               if (activeSettingsCenterPane.key.startsWith('data-root')) {
-                const dataDirectorySection = activeSettingsCenterPane.key === 'data-root-saved-queries'
-                  ? 'saved-queries'
-                  : 'application';
                 if (isWebRuntime) {
-                  return renderDataDirectorySettings(dataDirectorySection, true);
+                  return renderDataDirectorySettings('application', true);
                 }
                 return (
                   <Modal
@@ -8545,163 +5093,7 @@ function App() {
                       footer: { background: 'transparent', borderTop: 'none', paddingTop: 10 },
                     }}
                   >
-                    {renderDataDirectorySettings(dataDirectorySection)}
-                  </Modal>
-                );
-              }
-
-              if (activeSettingsCenterPane.key === 'security-update') {
-                return (
-                  <SecurityUpdateSettingsModal
-                    embedded
-                    open
-                    darkMode={darkMode}
-                    overlayTheme={overlayTheme}
-                    surfaceOpacity={effectiveOpacity}
-                    status={securityUpdateStatus}
-                    focusTarget={securityUpdateSettingsFocusTarget}
-                    focusRequest={securityUpdateSettingsFocusRequest}
-                    onClose={handleCancelSettingsCenterPane}
-                    onStart={handleStartSecurityUpdate}
-                    onRetry={handleRetrySecurityUpdate}
-                    onRestart={handleRestartSecurityUpdate}
-                    onIssueAction={handleSecurityUpdateIssueAction}
-                  />
-                );
-              }
-
-              if (activeSettingsCenterPane.key === 'drivers') {
-                return (
-                  <div style={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                    <DriverManagerModal
-                      embedded
-                      open
-                      onClose={handleCancelSettingsCenterPane}
-                      onOpenGlobalProxySettings={() => handleOpenSettingsCenterPane('services', 'proxy')}
-                      onSwitchDownloadSource={() => void handleDownloadSourceChange(getNextDownloadSource(downloadSource))}
-                      downloadSourceSwitching={downloadSourceSaving}
-                      downloadSource={downloadSource}
-                    />
-                  </div>
-                );
-              }
-
-              if (activeSettingsCenterPane.key === 'snippet-settings') {
-                return (
-                  <SnippetSettingsModal
-                    embedded
-                    open
-                    onClose={handleCancelSettingsCenterPane}
-                    darkMode={darkMode}
-                    overlayTheme={overlayTheme}
-                  />
-                );
-              }
-
-              if (activeSettingsCenterPane.key === 'shortcut-settings') {
-                return (
-                  <Modal
-                    embedded
-                    open
-                    title={null}
-                    closable={false}
-                    onCancel={() => {
-                      setCapturingShortcutAction(null);
-                      handleCancelSettingsCenterPane();
-                    }}
-                    footer={(
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Button
-                        key="reset"
-                        style={{ marginRight: 'auto' }}
-                        onClick={() => {
-                           resetShortcutOptions();
-                           setCapturingShortcutAction(null);
-                           void message.success(t('app.shortcuts.message.restored_defaults'));
-                        }}
-                      >
-                        {t('app.shortcuts.action.restore_defaults')}
-                      </Button>
-                      <Button
-                        key="close"
-                        type="primary"
-                        onClick={() => {
-                          setCapturingShortcutAction(null);
-                          handleCancelSettingsCenterPane();
-                        }}
-                      >
-                         {t('common.close')}
-                      </Button>
-                      </div>
-                    )}
-                    styles={{
-                      header: { background: 'transparent', borderBottom: 'none', paddingBottom: 8 },
-                      body: { paddingTop: 8, overflow: 'hidden', flex: 1, minHeight: 0 },
-                      footer: { background: 'transparent', borderTop: 'none', paddingTop: 10 },
-                    }}
-                  >
-                    <div data-gonavi-shortcut-modal-scroll="true" className="gonavi-settings-center-pane-scroll" style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8, paddingRight: 4 }}>
-                      <div style={utilityPanelStyle}>
-                        <div style={{ fontSize: 12, color: darkMode ? 'rgba(255,255,255,0.5)' : 'rgba(16,24,40,0.55)' }}>
-                             {t('app.shortcuts.capture_hint')}
-                        </div>
-                      </div>
-                      {SHORTCUT_ACTION_ORDER.map((action) => {
-                        const meta = SHORTCUT_ACTION_META[action];
-                        if (meta.platformOnly === 'mac' && !isMacRuntime) {
-                            return null;
-                        }
-                        const binding = resolveShortcutBinding(shortcutOptions, action, activeShortcutPlatform);
-                        const isCapturing = capturingShortcutAction === action;
-                        const conflicts = shortcutConflictMap[action];
-                        const conflictInfo = conflicts?.length ? splitConflictsByContext(conflicts) : null;
-                        return (
-                            <div
-                                key={action}
-                                style={{
-                                    ...utilityPanelStyle,
-                                    display: 'grid',
-                                    gridTemplateColumns: '1fr auto',
-                                    gap: 12,
-                                    alignItems: 'center',
-                                    padding: '10px 12px',
-                                }}
-                            >
-                                <div>
-                                    <div style={{ fontWeight: 500 }}>{meta.label}</div>
-                                    <div style={{ fontSize: 12, color: darkMode ? 'rgba(255,255,255,0.5)' : 'rgba(16,24,40,0.55)' }}>{meta.description}</div>
-                                    {conflictInfo && (
-                                        <div style={{ fontSize: 11, color: darkMode ? '#faad14' : '#d48806', marginTop: 2 }}>
-                                            {conflictInfo.hasMonaco && (
-                                                <>⚠ {t('app.shortcuts.message.reserved_conflict_info', { labels: conflictInfo.monacoLabels })}</>
-                                             )}
-                                             {conflictInfo.hasOther && (
-                                                <>⚠ {t('app.shortcuts.message.reserved_conflict_warning', { contexts: conflictInfo.otherContexts, labels: conflictInfo.otherLabels })}</>
-                                             )}
-                                        </div>
-                                    )}
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <Input
-                                        readOnly
-                                        value={isCapturing ? t('app.shortcuts.capture_waiting') : getShortcutDisplayLabel(binding.combo, activeShortcutPlatform)}
-                                        style={{ width: 180, fontFamily: resolvedMonoFontFamily }}
-                                    />
-                                    <Button
-                                        size="small"
-                                        onClick={() => setCapturingShortcutAction((prev) => (prev === action ? null : action))}
-                                    >
-                                        {isCapturing ? t('common.cancel') : t('app.shortcuts.action.record')}
-                                    </Button>
-                                    <Switch
-                                        checked={binding.enabled}
-                                        onChange={(checked) => updateShortcut(action, { enabled: checked }, activeShortcutPlatform)}
-                                    />
-                                </div>
-                            </div>
-                        );
-                      })}
-                    </div>
+                    {renderDataDirectorySettings('application')}
                   </Modal>
                 );
               }
@@ -8807,76 +5199,6 @@ function App() {
             {renderDataDirectorySettings()}
           </Modal>
           )}
-          <SecurityUpdateIntroModal
-            open={isSecurityUpdateIntroOpen}
-            loading={isSecurityUpdateProgressOpen}
-            darkMode={darkMode}
-            overlayTheme={overlayTheme}
-            surfaceOpacity={effectiveOpacity}
-            onStart={handleStartSecurityUpdate}
-            onPostpone={handlePostponeSecurityUpdate}
-            onViewDetails={() => handleOpenSecurityUpdateSettings()}
-          />
-          <SecurityUpdateProgressModal
-            open={isSecurityUpdateProgressOpen}
-            zIndex={settingsChildModalZIndex}
-            stageText={securityUpdateProgressStage}
-            overlayTheme={overlayTheme}
-            surfaceOpacity={effectiveOpacity}
-          />
-          <ConnectionPackagePasswordModal
-            open={connectionPackageDialog.open && !(isSettingsModalOpen && isConnectionPackageSettingsPaneKey(activeSettingsCenterPane?.key))}
-            title={connectionPackageDialog.mode === 'export'
-                ? t('app.connection_package.dialog.export_title')
-                : t('app.connection_package.dialog.import_password_title')}
-            mode={connectionPackageDialog.mode}
-            includeSecrets={connectionPackageDialog.includeSecrets}
-            useFilePassword={connectionPackageDialog.useFilePassword}
-            password={connectionPackageDialog.password}
-            error={connectionPackageDialog.error}
-            confirmLoading={connectionPackageDialog.confirmLoading}
-            connectionOptions={connections.map((item) => ({ value: item.id, label: item.name || item.id }))}
-            selectedConnectionIds={connectionPackageDialog.selectedConnectionIds}
-            onSelectedConnectionIdsChange={(ids) => {
-                setConnectionPackageDialog((current) => ({
-                    ...current,
-                    selectedConnectionIds: ids,
-                    error: '',
-                }));
-            }}
-            confirmText={connectionPackageDialog.mode === 'export'
-                ? t('app.connection_package.action.start_export')
-                : t('app.connection_package.action.start_import')}
-            onBack={toolCenterBackGroupKey === 'config' ? () => handleReturnToToolCenter(closeConnectionPackageDialog) : undefined}
-            onIncludeSecretsChange={(value) => {
-                setConnectionPackageDialog((current) => ({
-                    ...current,
-                    includeSecrets: value,
-                    useFilePassword: value ? current.useFilePassword : false,
-                    password: value ? current.password : '',
-                    error: '',
-                }));
-            }}
-            onUseFilePasswordChange={(value) => {
-                setConnectionPackageDialog((current) => ({
-                    ...current,
-                    useFilePassword: value,
-                    password: value ? current.password : '',
-                    error: '',
-                }));
-            }}
-            onPasswordChange={(value) => {
-                setConnectionPackageDialog((current) => ({
-                    ...current,
-                    password: value,
-                    error: '',
-                }));
-            }}
-            onConfirm={() => {
-                void handleConfirmConnectionPackageDialog();
-            }}
-            onCancel={closeConnectionPackageDialog}
-          />
           <UpdateReleaseNotesModal
               open={releaseNotesModalVisible}
               onClose={closeReleaseNotesModal}
@@ -8971,19 +5293,13 @@ function App() {
               title={renderUtilityModalTitle(
                   themeModalSection === 'theme'
                       ? <SkinOutlined />
-                      : themeModalSection === 'appearance'
-                          ? <BgColorsOutlined />
-                          : <AppstoreOutlined />,
+                      : <BgColorsOutlined />,
                   themeModalSection === 'theme'
                       ? t('app.theme.theme_settings_title')
-                      : themeModalSection === 'appearance'
-                          ? t('app.theme.appearance_settings_title')
-                          : t('app.theme.workspace_settings_title'),
+                      : t('app.theme.appearance_settings_title'),
                   themeModalSection === 'theme'
                       ? t('app.theme.theme_settings_description')
-                      : themeModalSection === 'appearance'
-                          ? t('app.theme.appearance_settings_description')
-                          : t('app.theme.workspace_settings_description')
+                      : t('app.theme.appearance_settings_description')
               )}
               open={isThemeModalOpen}
               onCancel={() => { setIsThemeModalOpen(false); }}
@@ -8992,20 +5308,6 @@ function App() {
               styles={{ content: utilityModalShellStyle, header: { background: 'transparent', borderBottom: 'none', paddingBottom: 8 }, body: { paddingTop: 8, height: 620, overflow: 'hidden' }, footer: { background: 'transparent', borderTop: 'none', paddingTop: 10 } }}
           >
               {renderThemeSettingsContent()}
-          </Modal>
-          )}
-
-          {isProxyModalOpen && (
-          <Modal
-              title={renderUtilityModalTitle(<GlobalOutlined />, t('app.proxy.title'), t('app.proxy.description'))}
-              open={isProxyModalOpen}
-              zIndex={settingsChildModalZIndex}
-              onCancel={handleCloseGlobalProxySettings}
-              footer={null}
-              width={680}
-              styles={{ content: utilityModalShellStyle, header: { background: 'transparent', borderBottom: 'none', paddingBottom: 8 }, body: { paddingTop: 8 }, footer: { background: 'transparent', borderTop: 'none', paddingTop: 10 } }}
-          >
-              {renderProxySettingsContent()}
           </Modal>
           )}
 

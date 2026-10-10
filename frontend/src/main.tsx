@@ -184,8 +184,6 @@ if (
         logDirectoryEditable: true,
         logDirectoryRestartRequired: false,
         savedQueryDirectory: 'C:/mock/.gonavi/saved_queries',
-        defaultSavedQueryDirectory: 'C:/mock/.gonavi/saved_queries',
-        savedQueryDirectorySource: 'default',
     };
     const upsertMockConnection = (view: any) => {
         const index = mockConnections.findIndex((item) => item.id === view.id);
@@ -710,7 +708,6 @@ if (
                 OpenDriverDownloadDirectory: async (path: string) => ({ success: true, data: { path } }),
                 OpenDataRootDirectory: async () => ({ success: true }),
                 OpenLogDirectory: async () => ({ success: true }),
-                OpenSavedQueryDirectory: async () => ({ success: true }),
                 SelectSQLDirectory: async (currentPath: string) => ({ success: false, message: currentPath ? '已取消' : '已取消' }),
                 ListSQLDirectory: async () => ({ success: true, data: [] }),
                 ReadSQLFile: async () => ({ success: false, message: '已取消' }),
@@ -754,34 +751,6 @@ if (
                 WriteSQLFile: async (_filePath: string, _content: string) => ({ success: true }),
                 ExportSQLFile: async (_defaultName: string, _content: string) => ({ success: false, message: t('app.browser_mock.export_sql_unsupported') }),
                 InstallUpdateAndRestart: async (_closeAllWindowsInstancesConfirmed: boolean) => ({ success: false }),
-                ImportConfigFile: async () => ({ success: false, message: '已取消' }),
-                ImportConnectionsPayload: async (raw: string, _password?: string) => {
-                    try {
-                        const parsed = JSON.parse(raw);
-                        if (Array.isArray(parsed)) {
-                            return {
-                                connections: parsed.map((item) => saveMockConnection(item)),
-                                redisDbAliases: {},
-                            };
-                        }
-                        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.connections)) {
-                            return {
-                                connections: parsed.connections.map((item: unknown) => saveMockConnection(item)),
-                                redisDbAliases: parsed.redisDbAliases && typeof parsed.redisDbAliases === 'object'
-                                    ? parsed.redisDbAliases
-                                    : {},
-                            };
-                        }
-                    } catch {
-                        throw new Error(t('app.browser_mock.import_connection_package_unsupported'));
-                    }
-                    throw new Error(t('app.browser_mock.import_connection_package_unsupported'));
-                },
-                ExportConnectionsPackage: async (_options?: {
-                    includeSecrets?: boolean;
-                    filePassword?: string;
-                    redisDbAliases?: Record<string, Record<string, string>>;
-                }) => ({ success: false, message: t('app.browser_mock.export_connection_package_unsupported') }),
                 ExportData: async () => ({ success: false }),
                 GetGlobalProxyConfig: async () => ({ success: true, data: cloneBrowserMockValue(mockGlobalProxy) }),
                 GetDownloadSourceConfig: async () => ({ source: mockDownloadSource }),
@@ -837,25 +806,6 @@ if (
                     return {
                         success: true,
                         message: t('app.data_root.log_directory.message.updated'),
-                        data: cloneBrowserMockValue(mockDataRootInfo),
-                    };
-                },
-                SelectSavedQueryDirectory: async (currentPath: string) => ({
-                    success: true,
-                    data: { directory: currentPath || mockDataRootInfo.defaultSavedQueryDirectory },
-                }),
-                ApplySavedQueryDirectory: async (path: string) => {
-                    const nextPath = String(path || mockDataRootInfo.defaultSavedQueryDirectory);
-                    mockDataRootInfo = {
-                        ...mockDataRootInfo,
-                        savedQueryDirectory: nextPath,
-                        savedQueryDirectorySource: nextPath === mockDataRootInfo.defaultSavedQueryDirectory
-                            ? 'default'
-                            : 'custom',
-                    };
-                    return {
-                        success: true,
-                        message: t('app.data_root.saved_query_directory.message.updated'),
                         data: cloneBrowserMockValue(mockDataRootInfo),
                     };
                 },

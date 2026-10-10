@@ -17,7 +17,7 @@ const collectTreeNodes = (nodes: Array<{ key: string; title: string; children?: 
   return result;
 };
 
-describe('useSidebarSearchModel search filtering', () => {
+describe('useSidebarSearchModel command search index', () => {
   let renderer: ReactTestRenderer | null = null;
 
   afterEach(() => {
@@ -25,7 +25,7 @@ describe('useSidebarSearchModel search filtering', () => {
     renderer = null;
   });
 
-  it('does not repeat a table when the filtered tree contains duplicate keys', () => {
+  it('does not repeat a table when the visible tree contains duplicate keys', () => {
     const connection = {
       id: 'conn-1',
       name: 'MySQL',
@@ -63,10 +63,6 @@ describe('useSidebarSearchModel search filtering', () => {
     let model: ReturnType<typeof useSidebarSearchModel> | undefined;
     const Harness = () => {
       model = useSidebarSearchModel({
-        searchScopes: ['smart'],
-        setSearchScopes: () => undefined,
-        setSearchValue: () => undefined,
-        deferredSearchValue: 'type',
         deferredV2CommandSearchValue: '',
         v2CommandSearchValue: '',
         setV2CommandActiveIndex: () => undefined,
@@ -100,15 +96,12 @@ describe('useSidebarSearchModel search filtering', () => {
       renderer = create(<Harness />);
     });
 
-    const displayNodes = collectTreeNodes(model?.displayTreeData || []);
     const visibleNodes = collectTreeNodes(model?.v2VisibleTreeData || []);
-    expect(displayNodes.filter((node) => node.title === 'ldf_application_type')).toHaveLength(1);
     expect(visibleNodes.filter((node) => node.title === 'ldf_application_type')).toHaveLength(1);
-    expect(new Set(displayNodes.map((node) => node.key)).size).toBe(displayNodes.length);
     expect(new Set(visibleNodes.map((node) => node.key)).size).toBe(visibleNodes.length);
   });
 
-  it('includes message objects in explorer object scope and command search', () => {
+  it('includes message objects in command search', () => {
     const connection = {
       id: 'mqtt-1',
       name: 'MQTT',
@@ -155,10 +148,6 @@ describe('useSidebarSearchModel search filtering', () => {
     let model: ReturnType<typeof useSidebarSearchModel> | undefined;
     const Harness = () => {
       model = useSidebarSearchModel({
-        searchScopes: ['object'],
-        setSearchScopes: () => undefined,
-        setSearchValue: () => undefined,
-        deferredSearchValue: 'telemetry',
         deferredV2CommandSearchValue: '@telemetry',
         v2CommandSearchValue: '@telemetry',
         setV2CommandActiveIndex: () => undefined,
@@ -192,10 +181,6 @@ describe('useSidebarSearchModel search filtering', () => {
       renderer = create(<Harness />);
     });
 
-    expect(collectTreeNodes(model?.displayTreeData || []))
-      .toEqual(expect.arrayContaining([
-        expect.objectContaining({ key: messageObject.key, title: messageObject.title }),
-      ]));
     expect(model?.commandSearchTreeItems)
       .toEqual(expect.arrayContaining([
         expect.objectContaining({
@@ -208,7 +193,7 @@ describe('useSidebarSearchModel search filtering', () => {
       .toContain(`node-${messageObject.key}`);
   });
 
-  it('finds a RabbitMQ VHost through database scope and command search', () => {
+  it('finds a RabbitMQ VHost through command search', () => {
     const connection = {
       id: 'rabbit-1',
       name: 'RabbitMQ',
@@ -242,10 +227,6 @@ describe('useSidebarSearchModel search filtering', () => {
     let model: ReturnType<typeof useSidebarSearchModel> | undefined;
     const Harness = () => {
       model = useSidebarSearchModel({
-        searchScopes: ['database'],
-        setSearchScopes: () => undefined,
-        setSearchValue: () => undefined,
-        deferredSearchValue: 'orders',
         deferredV2CommandSearchValue: 'orders',
         v2CommandSearchValue: 'orders',
         setV2CommandActiveIndex: () => undefined,
@@ -279,10 +260,6 @@ describe('useSidebarSearchModel search filtering', () => {
       renderer = create(<Harness />);
     });
 
-    expect(collectTreeNodes(model?.displayTreeData || []))
-      .toEqual(expect.arrayContaining([
-        expect.objectContaining({ key: namespace.key, title: namespace.title }),
-      ]));
     expect(model?.commandSearchTreeItems)
       .toEqual(expect.arrayContaining([
         expect.objectContaining({
@@ -293,7 +270,7 @@ describe('useSidebarSearchModel search filtering', () => {
       ]));
   });
 
-  it('matches tables by comment in smart scope and command search', () => {
+  it('matches tables by comment in command search', () => {
     const connection = {
       id: 'conn-1',
       name: 'MySQL',
@@ -341,18 +318,12 @@ describe('useSidebarSearchModel search filtering', () => {
     }];
 
     const buildHarness = (args: {
-      deferredSearchValue: string;
-      searchScopes?: any[];
       isV2CommandSearchOpen?: boolean;
       v2CommandSearchValue?: string;
     }) => {
       let model: ReturnType<typeof useSidebarSearchModel> | undefined;
       const Harness = () => {
         model = useSidebarSearchModel({
-          searchScopes: args.searchScopes ?? ['smart'],
-          setSearchScopes: () => undefined,
-          setSearchValue: () => undefined,
-          deferredSearchValue: args.deferredSearchValue,
           deferredV2CommandSearchValue: args.v2CommandSearchValue ?? '',
           v2CommandSearchValue: args.v2CommandSearchValue ?? '',
           setV2CommandActiveIndex: () => undefined,
@@ -388,21 +359,8 @@ describe('useSidebarSearchModel search filtering', () => {
       return model;
     };
 
-    // Smart scope: comment keyword surfaces the table in the filtered tree.
-    const smartModel = buildHarness({ deferredSearchValue: '订单主表' });
-    const smartMatchedKeys = collectTreeNodes(smartModel?.displayTreeData || []).map((node) => node.key);
-    expect(smartMatchedKeys).toContain(orderTable.key);
-    expect(smartMatchedKeys).not.toContain(userTable.key);
-
-    // Object scope: comment keyword also matches through the scoped filter.
-    const objectModel = buildHarness({ deferredSearchValue: '系统用户', searchScopes: ['object'] });
-    const objectMatchedKeys = collectTreeNodes(objectModel?.displayTreeData || []).map((node) => node.key);
-    expect(objectMatchedKeys).toContain(userTable.key);
-    expect(objectMatchedKeys).not.toContain(orderTable.key);
-
     // Command search: comment keyword matches via the default node index.
     const commandModel = buildHarness({
-      deferredSearchValue: '订单主表',
       isV2CommandSearchOpen: true,
       v2CommandSearchValue: '订单主表',
     });
@@ -415,19 +373,7 @@ describe('useSidebarSearchModel search filtering', () => {
     const orderItem = commandModel?.commandSearchTreeItems.find((item) => item.key === `node-${orderTable.key}`);
     expect(orderItem?.meta).toBe('MySQL · app — 订单主表');
 
-    const underscoreTree = collectTreeNodes(
-      buildHarness({ deferredSearchValue: '_user' })?.displayTreeData || [],
-    ).map((node) => node.key);
-    expect(underscoreTree).toContain(userTable.key);
-    expect(underscoreTree).not.toContain(orderTable.key);
-
-    const fullwidthTree = collectTreeNodes(
-      buildHarness({ deferredSearchValue: 'sys＿user' })?.displayTreeData || [],
-    ).map((node) => node.key);
-    expect(fullwidthTree).toContain(userTable.key);
-
     const commandUnderscore = buildHarness({
-      deferredSearchValue: '',
       isV2CommandSearchOpen: true,
       v2CommandSearchValue: 't_order',
     });

@@ -59,8 +59,6 @@ export const NATIVE_DETACHED_HOST_EVENT_NAMES = [
   'gonavi:insert-sql',
   'gonavi:insert-sql-to-tab',
   'gonavi:jvm-apply-diagnostic-plan',
-  'gonavi:open-download-source-settings',
-  'gonavi:open-global-proxy-settings',
 ] as const;
 
 export type NativeDetachedHostEventName = typeof NATIVE_DETACHED_HOST_EVENT_NAMES[number];

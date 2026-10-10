@@ -93,20 +93,9 @@ const getTabKindLabel = (tab: TabData): string => {
   if (tab.type === 'table-overview') return t('tab_manager.kind_badge.table_overview');
   if (tab.type === 'table-export') return t('tab_manager.kind_badge.table_export');
   if (tab.type === 'data-import') return t('tab_manager.kind_badge.data_import');
-  if (tab.type === 'data-sync') {
-    return t(
-      tab.dataSyncEntryMode === 'compare' ||
-        tab.dataSyncEntryMode === 'schemaCompare' ||
-        tab.dataSyncEntryMode === 'dataCompare'
-        ? 'app.tools.entry.compare.title'
-        : 'app.tools.entry.sync.title',
-    );
-  }
   if (tab.type === 'sql-file-execution') return t('sidebar.sql_file_exec.title');
   if (tab.type === 'sql-analysis') return t('tab_manager.kind_badge.sql_analysis');
   if (tab.type === 'sql-audit') return t('tab_manager.kind_badge.sql_audit');
-  if (tab.type === 'dml-snapshot') return t('tab_manager.kind_badge.dml_snapshot');
-  if (tab.type === 'driver-manager') return t('tab_manager.kind_badge.driver_manager');
   // 设置中心：标题「设置中心」已表意，不叠加类型角标（用户反馈：去掉 SETTINGS 英文）
   if (tab.type === 'settings-center') return '';
   // 服务详情：服务名已是完整标题，去掉 SVC 缩写角标（用户反馈）

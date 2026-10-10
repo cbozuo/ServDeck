@@ -1,4 +1,4 @@
-import { GlobalProxyConfig, SavedConnection } from '../types';
+import { SavedConnection } from '../types';
 
 export const LEGACY_PERSIST_KEY = 'lite-db-storage';
 
@@ -45,43 +45,18 @@ const parsePersistedEnvelope = (payload: string | null | undefined): Record<stri
 
 export function readLegacyPersistedSecrets(payload: string | null | undefined): {
   connections: SavedConnection[];
-  globalProxy: GlobalProxyConfig | null;
 } {
   const state = parsePersistedEnvelope(payload);
   const connections = Array.isArray(state.connections)
     ? state.connections.filter((item): item is SavedConnection => !!item && typeof item === 'object')
     : [];
 
-  const proxyRaw = state.globalProxy && typeof state.globalProxy === 'object'
-    ? state.globalProxy as Record<string, unknown>
-    : null;
-  if (!proxyRaw) {
-    return { connections, globalProxy: null };
-  }
-
-  const type = normalizeProxyType(proxyRaw.type);
-  const password = toTrimmedString(proxyRaw.password);
-  const globalProxy: GlobalProxyConfig = {
-    enabled: proxyRaw.enabled === true,
-    type,
-    host: toTrimmedString(proxyRaw.host),
-    port: normalizePort(proxyRaw.port, type === 'http' ? 8080 : 1080),
-    user: toTrimmedString(proxyRaw.user),
-    password,
-    hasPassword: proxyRaw.hasPassword === true || password !== '',
-    secretRef: toTrimmedString(proxyRaw.secretRef) || undefined,
-  };
-
-  const hasMeaningfulProxyState = globalProxy.enabled || globalProxy.host !== '' || globalProxy.user !== '' || globalProxy.password !== '' || globalProxy.hasPassword === true;
-  return {
-    connections,
-    globalProxy: hasMeaningfulProxyState ? globalProxy : null,
-  };
+  return { connections };
 }
 
 export function hasLegacyMigratableSensitiveItems(payload: string | null | undefined): boolean {
   const legacy = readLegacyPersistedSecrets(payload);
-  return legacy.connections.length > 0 || legacy.globalProxy !== null;
+  return legacy.connections.length > 0;
 }
 
 export function stripLegacyPersistedSecrets(payload: string | null | undefined): string {

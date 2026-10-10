@@ -1,11 +1,9 @@
 import {
-  GlobalProxyConfig,
   SavedConnection,
   SecurityUpdateIssue,
   SecurityUpdateStatus,
   SecurityUpdateSummary,
 } from '../types';
-import { createGlobalProxyDraft } from './globalProxyDraft';
 import {
   LEGACY_PERSIST_KEY,
   hasLegacyMigratableSensitiveItems,
@@ -15,11 +13,6 @@ import {
 import { stripLegacySavedQueries } from './savedQueryPersistence';
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
-
-type BackendGlobalProxyResult = {
-  success?: boolean;
-  data?: Partial<GlobalProxyConfig>;
-};
 
 type SecurityUpdateBackend = {
   GetSecurityUpdateStatus?: () => Promise<Partial<SecurityUpdateStatus> | undefined>;
@@ -32,7 +25,6 @@ type SecurityUpdateBackend = {
     };
   }) => Promise<Partial<SecurityUpdateStatus> | undefined>;
   GetSavedConnections?: () => Promise<SavedConnection[]>;
-  GetGlobalProxyConfig?: () => Promise<BackendGlobalProxyResult | undefined>;
 };
 
 type SecureConfigBootstrapArgs = {
@@ -40,7 +32,6 @@ type SecureConfigBootstrapArgs = {
   storage?: StorageLike;
   autoStartLegacySecurityUpdate?: boolean;
   replaceConnections: (connections: SavedConnection[]) => void;
-  replaceGlobalProxy: (proxy: GlobalProxyConfig) => void;
   t?: SecureConfigBootstrapTranslator;
 };
 
@@ -109,19 +100,6 @@ const buildLegacyPendingDetails = (
     action: 'open_connection',
     message: secureConfigBootstrapText('security_update.bootstrap.legacy.connection.message', t),
   }));
-
-  if (legacy.globalProxy) {
-    issues.push({
-      id: 'legacy-global-proxy-default',
-      scope: 'global_proxy',
-      title: secureConfigBootstrapText('security_update.bootstrap.legacy.global_proxy.title', t),
-      severity: 'medium',
-      status: 'pending',
-      reasonCode: 'migration_required',
-      action: 'open_proxy_settings',
-      message: secureConfigBootstrapText('security_update.bootstrap.legacy.global_proxy.message', t),
-    });
-  }
 
   return {
     hasLegacyItems: issues.length > 0,
@@ -282,21 +260,16 @@ const resolveStorage = (storage?: StorageLike): StorageLike | undefined => {
 const applyLegacyVisibleConfig = (
   rawPayload: string | null,
   replaceConnections: (connections: SavedConnection[]) => void,
-  replaceGlobalProxy: (proxy: GlobalProxyConfig) => void,
 ) => {
   const legacy = readLegacyPersistedSecrets(rawPayload);
   if (legacy.connections.length > 0) {
     replaceConnections(legacy.connections);
-  }
-  if (legacy.globalProxy) {
-    replaceGlobalProxy(createGlobalProxyDraft(legacy.globalProxy));
   }
 };
 
 const refreshVisibleConfigFromBackend = async (
   backend: SecurityUpdateBackend | undefined,
   replaceConnections: (connections: SavedConnection[]) => void,
-  replaceGlobalProxy: (proxy: GlobalProxyConfig) => void,
   allowEmptyConnections: boolean,
 ) => {
   if (typeof backend?.GetSavedConnections === 'function') {
@@ -304,17 +277,6 @@ const refreshVisibleConfigFromBackend = async (
       const connections = await backend.GetSavedConnections();
       if (Array.isArray(connections) && (allowEmptyConnections || connections.length > 0)) {
         replaceConnections(connections);
-      }
-    } catch {
-      // Keep current visible state as fallback.
-    }
-  }
-
-  if (typeof backend?.GetGlobalProxyConfig === 'function') {
-    try {
-      const proxyResult = await backend.GetGlobalProxyConfig();
-      if (proxyResult?.success && proxyResult.data) {
-        replaceGlobalProxy(createGlobalProxyDraft(proxyResult.data));
       }
     } catch {
       // Keep current visible state as fallback.
@@ -353,7 +315,7 @@ export async function finalizeSecurityUpdateStatus(
   const status = mergeSecurityUpdateStatusWithLegacySource(rawStatus, rawPayload, { t: args.t });
 
   if (status.overallStatus === 'completed') {
-    await refreshVisibleConfigFromBackend(args.backend, args.replaceConnections, args.replaceGlobalProxy, true);
+    await refreshVisibleConfigFromBackend(args.backend, args.replaceConnections, true);
     cleanupLegacySourceIfCompleted(storage, rawPayload, status);
   }
 
@@ -365,7 +327,7 @@ export async function bootstrapSecureConfig(args: SecureConfigBootstrapArgs): Pr
   let rawPayload = storage?.getItem(LEGACY_PERSIST_KEY) ?? null;
   let hasLegacySensitiveItems = hasLegacyMigratableSensitiveItems(rawPayload);
 
-  applyLegacyVisibleConfig(rawPayload, args.replaceConnections, args.replaceGlobalProxy);
+  applyLegacyVisibleConfig(rawPayload, args.replaceConnections);
 
   const backendStatus = typeof args.backend?.GetSecurityUpdateStatus === 'function'
     ? await args.backend.GetSecurityUpdateStatus()
@@ -387,9 +349,9 @@ export async function bootstrapSecureConfig(args: SecureConfigBootstrapArgs): Pr
   }
 
   if (!hasLegacySensitiveItems) {
-    await refreshVisibleConfigFromBackend(args.backend, args.replaceConnections, args.replaceGlobalProxy, true);
+    await refreshVisibleConfigFromBackend(args.backend, args.replaceConnections, true);
   } else if (status.overallStatus === 'completed') {
-    await refreshVisibleConfigFromBackend(args.backend, args.replaceConnections, args.replaceGlobalProxy, true);
+    await refreshVisibleConfigFromBackend(args.backend, args.replaceConnections, true);
     cleanupLegacySourceIfCompleted(storage, rawPayload, status);
   }
 
@@ -426,7 +388,7 @@ export async function startSecurityUpdateFromBootstrap(args: SecureConfigBootstr
   const rawPayload = storage?.getItem(LEGACY_PERSIST_KEY) ?? null;
   const startPayload = rawPayload ?? '';
 
-  applyLegacyVisibleConfig(rawPayload, args.replaceConnections, args.replaceGlobalProxy);
+  applyLegacyVisibleConfig(rawPayload, args.replaceConnections);
 
   if (typeof args.backend?.StartSecurityUpdate !== 'function') {
     return {
@@ -447,13 +409,13 @@ export async function startSecurityUpdateFromBootstrap(args: SecureConfigBootstr
     const status = mergeSecurityUpdateStatusWithLegacySource(rawStatus, rawPayload, { t: args.t });
 
     if (status.overallStatus === 'completed') {
-      await refreshVisibleConfigFromBackend(args.backend, args.replaceConnections, args.replaceGlobalProxy, true);
+      await refreshVisibleConfigFromBackend(args.backend, args.replaceConnections, true);
       cleanupLegacySourceIfCompleted(storage, rawPayload, status);
     }
 
     return { status, error: null };
   } catch (error) {
-    applyLegacyVisibleConfig(rawPayload, args.replaceConnections, args.replaceGlobalProxy);
+    applyLegacyVisibleConfig(rawPayload, args.replaceConnections);
     return {
       status: null,
       error: error instanceof Error ? error : new Error(String(error)),
@@ -462,7 +424,6 @@ export async function startSecurityUpdateFromBootstrap(args: SecureConfigBootstr
 }
 
 export type {
-  BackendGlobalProxyResult,
   MergeSecurityUpdateStatusOptions,
   PrepareExternalMCPResult,
   SecurityUpdateBackend,

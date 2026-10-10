@@ -77,14 +77,11 @@ describe('store appearance persistence', () => {
     expect(appearance).not.toHaveProperty('useNativeMacWindowControls');
     expect(appearance.tableDoubleClickAction).toBe('open-data');
     expect(appearance.queryTableCtrlClickAction).toBe('open-design');
-    expect(appearance.v2SidebarSearchMode).toBe('command');
     expect(appearance).not.toHaveProperty('v2CommandSearchPersistentFilterEnabled');
-    expect(appearance.v2SidebarPersistedFilter).toBe('');
     expect(appearance.v2SidebarRailScale).toBe(1);
     expect(appearance.tabEnvironmentAccentThickness).toBe(2);
     expect(appearance.toolbarButtonColorOverrides).toEqual({});
     expect(appearance.sidebarSingleDatabaseExpansion).toBe(false);
-    expect(appearance.sidebarHiddenObjectGroups).toEqual([]);
     expect(appearance.showDataTableVerticalBorders).toBe(false);
     expect(appearance.showDataTableRowNumber).toBe(true);
     expect(appearance.dataTableDensity).toBe('comfortable');
@@ -386,34 +383,7 @@ describe('store appearance persistence', () => {
     });
   });
 
-  it('persists and sanitizes hidden sidebar object groups', async () => {
-    const { useStore } = await importStore();
-
-    useStore.getState().setAppearance({
-      sidebarHiddenObjectGroups: ['views', 'routines', 'views'],
-    });
-
-    const persisted = JSON.parse(storage.getItem('lite-db-storage') || '{}');
-    expect(persisted.state.appearance.sidebarHiddenObjectGroups).toEqual(['views', 'routines']);
-
-    vi.resetModules();
-    const reloaded = await importStore();
-    expect(reloaded.useStore.getState().appearance.sidebarHiddenObjectGroups).toEqual(['views', 'routines']);
-
-    storage.setItem('lite-db-storage', JSON.stringify({
-      state: {
-        appearance: {
-          sidebarHiddenObjectGroups: ['tables', 'unknown', 'tables', 1],
-        },
-      },
-      version: 16,
-    }));
-    vi.resetModules();
-    const sanitized = await importStore();
-    expect(sanitized.useStore.getState().appearance.sidebarHiddenObjectGroups).toEqual(['tables']);
-  });
-
-  it('migrates legacy sidebar table comment settings into metadata fields and persists explicit selections', async () => {
+  it('migrates legacy sidebar table comment settings and persists explicit selections', async () => {
     storage.setItem('lite-db-storage', JSON.stringify({
       state: {
         queryOptions: {
@@ -424,23 +394,13 @@ describe('store appearance persistence', () => {
     }));
 
     const { useStore } = await importStore();
-    expect(useStore.getState().queryOptions.sidebarTableMetadataFields).toEqual(['comment', 'rows']);
     expect(useStore.getState().queryOptions.showSidebarTableComment).toBe(true);
 
     useStore.getState().setQueryOptions({
-      sidebarTableMetadataFields: ['size', 'updatedAt'],
-      sidebarTableMetadataFieldOrder: ['updatedAt', 'size', 'rows', 'comment', 'createdAt'],
+      showSidebarTableComment: false,
     });
 
     const persisted = JSON.parse(storage.getItem('lite-db-storage') || '{}');
-    expect(persisted.state.queryOptions.sidebarTableMetadataFields).toEqual(['updatedAt', 'size']);
-    expect(persisted.state.queryOptions.sidebarTableMetadataFieldOrder).toEqual([
-      'updatedAt',
-      'size',
-      'rows',
-      'comment',
-      'createdAt',
-    ]);
     expect(persisted.state.queryOptions.showSidebarTableComment).toBe(false);
   });
 
@@ -707,59 +667,6 @@ describe('store appearance persistence', () => {
     vi.resetModules();
     reloaded = await importStore();
     expect(reloaded.useStore.getState().appearance.autoAddTableAlias).toBe(true);
-  });
-
-  it('persists the titlebar menu style and falls back to classic for unknown values', async () => {
-    const { useStore } = await importStore();
-
-    expect(useStore.getState().appearance.titlebarMenuStyle).toBe('classic');
-
-    useStore.getState().setAppearance({ titlebarMenuStyle: 'view-menu' });
-    expect(JSON.parse(storage.getItem('lite-db-storage') || '{}').state.appearance.titlebarMenuStyle).toBe('view-menu');
-
-    vi.resetModules();
-    let reloaded = await importStore();
-    expect(reloaded.useStore.getState().appearance.titlebarMenuStyle).toBe('view-menu');
-
-    // 老配置里没有该字段、或写入了非法值时，都必须回到经典模式，避免升级后标题栏突变
-    storage.setItem('lite-db-storage', JSON.stringify({
-      state: { appearance: { titlebarMenuStyle: 'compact' } },
-      version: 21,
-    }));
-    vi.resetModules();
-    reloaded = await importStore();
-    expect(reloaded.useStore.getState().appearance.titlebarMenuStyle).toBe('classic');
-
-    storage.setItem('lite-db-storage', JSON.stringify({
-      state: { appearance: {} },
-      version: 21,
-    }));
-    vi.resetModules();
-    reloaded = await importStore();
-    expect(reloaded.useStore.getState().appearance.titlebarMenuStyle).toBe('classic');
-  });
-
-  it('persists v2 sidebar search preferences and sanitizes filter text', async () => {
-    const { useStore } = await importStore();
-
-    useStore.getState().setAppearance({
-      v2SidebarSearchMode: 'filter',
-      v2SidebarPersistedFilter: `  ${'orders'.repeat(40)}  `,
-    });
-
-    const persisted = JSON.parse(storage.getItem('lite-db-storage') || '{}');
-    expect(persisted.state.appearance.v2SidebarSearchMode).toBe('filter');
-    expect(persisted.state.appearance).not.toHaveProperty('v2CommandSearchPersistentFilterEnabled');
-    expect(persisted.state.appearance.v2SidebarPersistedFilter).toHaveLength(120);
-    expect(persisted.state.appearance.v2SidebarPersistedFilter.startsWith('orders')).toBe(true);
-
-    vi.resetModules();
-    const reloaded = await importStore();
-    const appearance = reloaded.useStore.getState().appearance;
-
-    expect(appearance.v2SidebarSearchMode).toBe('filter');
-    expect(appearance).not.toHaveProperty('v2CommandSearchPersistentFilterEnabled');
-    expect(appearance.v2SidebarPersistedFilter).toHaveLength(120);
   });
 
   it('persists wider sidebar widths and clamps oversized restored values', async () => {
@@ -2356,27 +2263,6 @@ describe('store appearance persistence', () => {
     expect(useStore.getState().tableAccessCount).toEqual({
       [buildTableAccessCountKey('conn-prod', 'main', 'orders')]: 1,
     });
-  });
-
-  it('keeps legacy global proxy password during hydration until explicit cleanup', async () => {
-    storage.setItem('lite-db-storage', JSON.stringify({
-      state: {
-        globalProxy: {
-          enabled: true,
-          type: 'http',
-          host: '127.0.0.1',
-          port: 8080,
-          user: 'ops',
-          password: 'proxy-secret',
-        },
-      },
-      version: 7,
-    }));
-
-    const { useStore } = await importStore();
-
-    expect(useStore.getState().globalProxy.password).toBe('proxy-secret');
-    expect(useStore.getState().globalProxy.hasPassword).toBe(true);
   });
 
   it('persists external SQL directories and keeps distinct connection bindings after reload', async () => {

@@ -1,6 +1,5 @@
 import type React from 'react';
 import type { SavedConnection } from '../types';
-import { t as catalogTranslate } from '../i18n/catalog';
 import {
   isPostgresSchemaDialect as resolveIsPostgresSchemaDialect,
   normalizeDriverType as normalizeConnectionDriverType,
@@ -12,11 +11,6 @@ export const SIDEBAR_CONTEXT_MENU_FALLBACK_WIDTH = 264;
 export const SIDEBAR_CONTEXT_MENU_FALLBACK_HEIGHT = 420;
 
 export type ExternalSQLFileModalMode = 'create' | 'rename' | 'create-directory' | 'rename-directory';
-export type SearchScope = 'smart' | 'object' | 'database' | 'host' | 'tag';
-
-type SidebarCoreTranslate = (key: string) => string;
-
-const translateSidebarCoreZhCN: SidebarCoreTranslate = (key) => catalogTranslate('zh-CN', key);
 
 type SidebarObjectNodeLike = {
   title?: string;
@@ -121,23 +115,6 @@ export const isConnectionTreeKey = (key: React.Key, connectionId: string): boole
 export const normalizeDriverType = normalizeConnectionDriverType;
 export const resolveSavedConnectionDriverType = resolveSavedConnectionDriverTypeBase;
 export const isPostgresSchemaDialect = resolveIsPostgresSchemaDialect;
-
-export const buildSearchScopeOptions = (
-  translate: SidebarCoreTranslate = translateSidebarCoreZhCN,
-): Array<{ value: SearchScope; label: string }> => [
-  { value: 'smart', label: translate('sidebar.search.scope.smart') },
-  { value: 'object', label: translate('sidebar.search.scope.object') },
-  { value: 'database', label: translate('sidebar.search.scope.database') },
-  { value: 'host', label: translate('sidebar.search.scope.host') },
-  { value: 'tag', label: translate('sidebar.search.scope.tag') },
-];
-
-export const SEARCH_SCOPE_OPTIONS: Array<{ value: SearchScope; label: string }> = buildSearchScopeOptions();
-
-export const SEARCH_SCOPE_LABEL_MAP: Record<SearchScope, string> = SEARCH_SCOPE_OPTIONS.reduce((acc, option) => {
-  acc[option.value] = option.label;
-  return acc;
-}, {} as Record<SearchScope, string>);
 
 export const normalizeMySQLViewDDLForEditing = (viewName: string, rawDefinition: unknown): string => {
   const text = String(rawDefinition || '').trim();

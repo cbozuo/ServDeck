@@ -1,7 +1,7 @@
 import type { TabData } from '../types';
 
 export const isBackgroundTaskWorkbenchTab = (tab: Pick<TabData, 'type'>): boolean => (
-  tab.type === 'table-export' || tab.type === 'data-import' || tab.type === 'data-sync'
+  tab.type === 'table-export' || tab.type === 'data-import'
 );
 
 /** These tabs keep UI/state coupled to the main window (settings center renders

@@ -4067,49 +4067,6 @@ body[data-theme='dark'] .driver-manager-embedded-layout > .driver-manager-footer
     border-top-color: rgba(255, 255, 255, 0.10);
 }
 
-.security-update-action-btn.ant-btn,
-.security-update-action-btn.ant-btn-default,
-.security-update-action-btn.ant-btn-primary,
-.security-update-action-btn.ant-btn-text {
-    box-shadow: none !important;
-}
-
-.security-update-action-btn.ant-btn:focus,
-.security-update-action-btn.ant-btn:focus-visible,
-.security-update-action-btn.ant-btn-default:focus,
-.security-update-action-btn.ant-btn-default:focus-visible,
-.security-update-action-btn.ant-btn-primary:focus,
-.security-update-action-btn.ant-btn-primary:focus-visible,
-.security-update-action-btn.ant-btn-text:focus,
-.security-update-action-btn.ant-btn-text:focus-visible {
-    outline: none !important;
-    box-shadow: none !important;
-}
-
-.security-update-banner {
-    position: relative;
-    isolation: isolate;
-}
-
-.security-update-result-card {
-    transition: background 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
-}
-
-.security-update-result-card-active {
-    animation: security-update-result-pulse 1.8s ease;
-}
-
-@keyframes security-update-result-pulse {
-    0% {
-        transform: translateY(0);
-    }
-    30% {
-        transform: translateY(-2px);
-    }
-    100% {
-        transform: translateY(0);
-    }
-}
 .gonavi-query-editor-link-hint {
   color: #1677ff !important;
   cursor: pointer;
@@ -6115,55 +6072,6 @@ body .gonavi-theme-settings .gonavi-settings-tab.is-active {
 body .gonavi-theme-settings .gonavi-settings-tab-icon {
   display: inline-flex;
   font-size: 14px;
-}
-
-body .gonavi-theme-settings .gonavi-settings-inline-choice-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--gn-settings-line);
-}
-
-body .gonavi-theme-settings .gonavi-settings-pills {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: flex-end;
-}
-
-body .gonavi-theme-settings .gonavi-settings-pill {
-  margin: 0;
-  padding: 6px 12px;
-  border: 1px solid var(--gn-settings-line);
-  border-radius: 8px;
-  background: var(--gn-settings-card-bg);
-  color: var(--gn-settings-muted);
-  font: inherit;
-  font-size: var(--gn-settings-font-secondary, var(--gn-font-size-sm, 12px));
-  font-weight: 600;
-  line-height: 1.2;
-  cursor: pointer;
-}
-
-body .gonavi-theme-settings .gonavi-settings-pill:hover {
-  border-color: #cbd5e1;
-  color: var(--gn-settings-fg);
-}
-
-body .gonavi-theme-settings .gonavi-settings-pill.is-active {
-  border-color: var(--gn-settings-accent);
-  background: var(--gn-settings-accent-soft);
-  color: var(--gn-settings-accent);
-  font-weight: 700;
-}
-
-body[data-theme='dark'] .gonavi-theme-settings .gonavi-settings-pill.is-active {
-  color: #86efac;
-  border-color: color-mix(in srgb, var(--gn-settings-accent) 70%, rgba(255, 255, 255, 0.2));
-  background: color-mix(in srgb, var(--gn-settings-accent) 22%, transparent);
 }
 
 body .gonavi-theme-settings .gonavi-settings-inline-meta {

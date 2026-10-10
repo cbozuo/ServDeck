@@ -1,19 +1,14 @@
 import React, { useCallback, useEffect, useMemo, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
-import { Checkbox } from 'antd';
 import {
   BarsOutlined,
-  CheckOutlined,
   ClockCircleOutlined,
-  CloudOutlined,
   CodeOutlined,
   DatabaseOutlined,
   EyeOutlined,
-  FilterOutlined,
   KeyOutlined,
   LinkOutlined,
   PlusOutlined,
   TableOutlined,
-  TagOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 
@@ -30,7 +25,6 @@ import {
   parseV2CommandSearchQuery,
   type V2ExplorerFilter,
 } from './sidebarHelpers';
-import type { SearchScope } from '../sidebarCoreUtils';
 import {
   buildV2CommandSearchTreeIndex,
   dedupeSidebarTreeNodesByKey,
@@ -43,32 +37,7 @@ import {
   type V2CommandSearchItem,
 } from '../sidebarV2Utils';
 
-const SEARCH_SCOPE_OPTIONS: Array<{ value: SearchScope; labelKey: string }> = [
-  { value: 'smart', labelKey: 'sidebar.command_search.scope.smart' },
-  { value: 'object', labelKey: 'sidebar.command_search.scope.object' },
-  { value: 'database', labelKey: 'sidebar.command_search.scope.database' },
-  { value: 'host', labelKey: 'sidebar.command_search.scope.host' },
-  { value: 'tag', labelKey: 'sidebar.command_search.scope.tag' },
-];
-
-const SEARCH_SCOPE_LABEL_KEY_MAP: Record<SearchScope, string> = SEARCH_SCOPE_OPTIONS.reduce((acc, option) => {
-  acc[option.value] = option.labelKey;
-  return acc;
-}, {} as Record<SearchScope, string>);
-
-const SEARCH_SCOPE_ICON_MAP: Record<SearchScope, React.ReactNode> = {
-  smart: <ThunderboltOutlined />,
-  object: <TableOutlined />,
-  database: <DatabaseOutlined />,
-  host: <CloudOutlined />,
-  tag: <TagOutlined />,
-};
-
 type SidebarSearchModelArgs = {
-  searchScopes: SearchScope[];
-  setSearchScopes: Dispatch<SetStateAction<SearchScope[]>>;
-  setSearchValue: Dispatch<SetStateAction<string>>;
-  deferredSearchValue: string;
   deferredV2CommandSearchValue: string;
   v2CommandSearchValue: string;
   setV2CommandActiveIndex: Dispatch<SetStateAction<number>>;
@@ -99,10 +68,6 @@ type SidebarSearchModelArgs = {
 };
 
 export const useSidebarSearchModel = ({
-  searchScopes,
-  setSearchScopes,
-  setSearchValue,
-  deferredSearchValue,
   deferredV2CommandSearchValue,
   v2CommandSearchValue,
   setV2CommandActiveIndex,
@@ -125,213 +90,12 @@ export const useSidebarSearchModel = ({
   onToggleLogPanel,
   extractObjectName,
 }: SidebarSearchModelArgs) => {
-  const onSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
-    setSearchValue(value);
-  };
-
-  const toggleSearchScope = (scope: SearchScope) => {
-    setSearchScopes((prev) => {
-      if (scope === 'smart') {
-        return ['smart'];
-      }
-      const withoutSmart = prev.filter((item) => item !== 'smart');
-      if (withoutSmart.includes(scope)) {
-        const next = withoutSmart.filter((item) => item !== scope);
-        return next.length > 0 ? next : ['smart'];
-      }
-      return [...withoutSmart, scope];
-    });
-  };
-
-  const setSearchScopeChecked = (scope: SearchScope, checked: boolean) => {
-    if (scope === 'smart') {
-      if (checked) {
-        setSearchScopes(['smart']);
-      } else if (searchScopes.length === 1 && searchScopes[0] === 'smart') {
-        setSearchScopes(['smart']);
-      } else {
-        setSearchScopes((prev) => {
-          const next = prev.filter((item) => item !== 'smart');
-          return next.length > 0 ? next : ['smart'];
-        });
-      }
-      return;
-    }
-
-    if (checked) {
-      setSearchScopes((prev) => {
-        const withoutSmart = prev.filter((item) => item !== 'smart');
-        if (withoutSmart.includes(scope)) {
-          return withoutSmart;
-        }
-        return [...withoutSmart, scope];
-      });
-    } else {
-      setSearchScopes((prev) => {
-        const next = prev.filter((item) => item !== scope && item !== 'smart');
-        return next.length > 0 ? next : ['smart'];
-      });
-    }
-  };
-
   const currentLanguage = getCurrentLanguage();
   const connectionById = useMemo(
     () => new Map(connections.map((connection) => [connection.id, connection])),
     [connections],
   );
 
-  const searchScopeSummary = useMemo(() => {
-    if (searchScopes.includes('smart')) {
-      return t('sidebar.command_search.scope.summary_smart');
-    }
-    return searchScopes.map((scope) => t(SEARCH_SCOPE_LABEL_KEY_MAP[scope])).join(' + ');
-  }, [searchScopes, currentLanguage]);
-
-  const searchScopePopoverContent = useMemo(() => {
-    const smartSelected = searchScopes.includes('smart');
-    const scopedOptions = SEARCH_SCOPE_OPTIONS.filter((option) => option.value !== 'smart');
-    const borderColor = overlayTheme.sectionBorder.replace('1px solid ', '');
-    const mutedTextColor = overlayTheme.mutedText;
-    const titleColor = overlayTheme.titleText;
-    const panelBg = overlayTheme.shellBg;
-    const smartBg = smartSelected
-      ? (darkMode ? 'linear-gradient(135deg, rgba(255,214,102,0.22) 0%, rgba(255,179,71,0.16) 100%)' : 'linear-gradient(135deg, rgba(255,214,102,0.26) 0%, rgba(255,244,204,0.92) 100%)')
-      : (darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.72)');
-    const smartBorder = smartSelected
-      ? (darkMode ? 'rgba(255,214,102,0.42)' : 'rgba(245,176,65,0.34)')
-      : borderColor;
-    const getOptionCardStyle = (checked: boolean) => ({
-      display: 'flex',
-      alignItems: 'center' as const,
-      justifyContent: 'space-between' as const,
-      gap: 12,
-      padding: '10px 12px',
-      borderRadius: 12,
-      border: `1px solid ${checked ? (darkMode ? 'rgba(118,169,250,0.44)' : 'rgba(24,144,255,0.32)') : borderColor}`,
-      background: checked
-        ? (darkMode ? 'rgba(64,124,255,0.18)' : 'rgba(24,144,255,0.08)')
-        : (darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.76)'),
-      transition: 'all 120ms ease',
-    });
-    return (
-      <div style={{ minWidth: 280, display: 'flex', flexDirection: 'column', background: panelBg, padding: 14, gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.4, color: mutedTextColor, textTransform: 'uppercase' }}>{t('sidebar.command_search.scope.title')}</div>
-            <div style={{ marginTop: 4, fontSize: 13, lineHeight: 1.5, color: mutedTextColor }}>{t('sidebar.command_search.scope.description')}</div>
-          </div>
-          <div style={{ width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(17,24,39,0.06)', color: darkMode ? '#ffd666' : '#1677ff', flexShrink: 0 }}>
-            <FilterOutlined />
-          </div>
-        </div>
-
-        <label style={{ display: 'block', cursor: 'pointer' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, border: `1px solid ${smartBorder}`, background: smartBg, boxShadow: smartSelected ? (darkMode ? '0 10px 24px rgba(0,0,0,0.24)' : '0 10px 24px rgba(245,176,65,0.14)') : 'none' }}>
-            <Checkbox
-              checked={smartSelected}
-              onChange={(e) => setSearchScopeChecked('smart', e.target.checked)}
-            />
-            <div style={{ width: 30, height: 30, borderRadius: 10, display: 'grid', placeItems: 'center', background: darkMode ? 'rgba(255,214,102,0.16)' : 'rgba(255,214,102,0.3)', color: darkMode ? '#ffd666' : '#ad6800', flexShrink: 0 }}>
-              {SEARCH_SCOPE_ICON_MAP.smart}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: titleColor }}>{t('sidebar.command_search.scope.smart')}</span>
-                <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700, color: darkMode ? '#ffe58f' : '#ad6800', background: darkMode ? 'rgba(255,214,102,0.16)' : 'rgba(255,214,102,0.35)' }}>{t('sidebar.command_search.scope.recommended')}</span>
-              </div>
-              <div style={{ marginTop: 3, fontSize: 12, lineHeight: 1.5, color: mutedTextColor }}>{t('sidebar.command_search.scope.smart_help')}</div>
-            </div>
-          </div>
-        </label>
-
-        <div style={{ height: 1, background: overlayTheme.divider, opacity: 0.9 }} />
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.3, color: mutedTextColor, textTransform: 'uppercase' }}>{t('sidebar.command_search.scope.manual_title')}</div>
-          <div style={{ fontSize: 12, color: mutedTextColor }}>{t('sidebar.command_search.scope.multi_select')}</div>
-        </div>
-
-        <div style={{ display: 'grid', gap: 8 }}>
-          {scopedOptions.map((option) => {
-            const checked = searchScopes.includes(option.value);
-            return (
-              <label key={option.value} style={{ display: 'block', cursor: 'pointer' }}>
-                <div style={getOptionCardStyle(checked)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                    <Checkbox
-                      checked={checked}
-                      onChange={(e) => setSearchScopeChecked(option.value, e.target.checked)}
-                    />
-                    <div style={{ width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', background: checked ? (darkMode ? 'rgba(118,169,250,0.2)' : 'rgba(24,144,255,0.12)') : (darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(17,24,39,0.06)'), color: checked ? (darkMode ? '#91caff' : '#1677ff') : mutedTextColor, flexShrink: 0 }}>
-                      {SEARCH_SCOPE_ICON_MAP[option.value]}
-                    </div>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: titleColor, whiteSpace: 'nowrap' }}>{t(option.labelKey)}</span>
-                  </div>
-                  <div style={{ width: 18, display: 'flex', justifyContent: 'center', color: checked ? (darkMode ? '#91caff' : '#1677ff') : 'transparent', flexShrink: 0 }}>
-                    <CheckOutlined />
-                  </div>
-                </div>
-              </label>
-            );
-          })}
-        </div>
-
-        <div style={{ padding: '10px 12px', borderRadius: 12, background: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(17,24,39,0.04)', color: mutedTextColor, fontSize: 12, lineHeight: 1.6 }}>
-          {t('sidebar.command_search.scope.manual_help')}
-        </div>
-      </div>
-    );
-  }, [darkMode, overlayTheme, searchScopes, currentLanguage]);
-
-  const getConnectionHostSearchText = (node: TreeNode): string => {
-    if (node.type !== 'connection') return '';
-    const config = node.dataRef?.config || {};
-    return resolveConnectionHostTokens(config).join(' ');
-  };
-
-  const getConnectionNameSearchText = (node: TreeNode): string => {
-    if (node.type !== 'connection') return '';
-    const name = node.dataRef?.name ?? node.title;
-    return String(name || '');
-  };
-
-  // Table comments live on dataRef regardless of whether the user displays
-  // them, so the keyword should match them in both smart and object scopes.
-  const getObjectCommentSearchText = (node: TreeNode): string => (
-    isV2SidebarObjectNode(node)
-      ? String(node?.dataRef?.tableComment || '')
-      : ''
-  );
-
-  const matchByScopes = (node: TreeNode, keyword: string, scopes: SearchScope[]): boolean => {
-    const title = String(node.title || '');
-    if (
-      scopes.includes('database')
-      && (node.type === 'database' || node.type === 'message-namespace')
-      && matchesSidebarSearchText(title, keyword)
-    ) {
-      return true;
-    }
-    if (scopes.includes('tag') && node.type === 'tag' && matchesSidebarSearchText(title, keyword)) {
-      return true;
-    }
-    if (scopes.includes('host') && node.type === 'connection' && matchesSidebarSearchText(getConnectionHostSearchText(node), keyword)) {
-      return true;
-    }
-    if (
-      scopes.includes('object')
-      && (isV2SidebarObjectNode(node) || node.type === 'object-group' || node.type === 'message-object-group')
-      && (matchesSidebarSearchText(title, keyword) || matchesSidebarSearchText(getObjectCommentSearchText(node), keyword))
-    ) {
-      return true;
-    }
-    if (node.type === 'external-sql-root' || node.type === 'external-sql-directory' || node.type === 'external-sql-folder' || node.type === 'external-sql-file') {
-      const pathText = String(node?.dataRef?.path || '');
-      return matchesSidebarSearchText(title, keyword) || matchesSidebarSearchText(pathText, keyword);
-    }
-    return false;
-  };
 
   // Metadata refreshes can briefly expose the same keyed node more than once.
   // Normalize before filtering so rc-tree's virtual list never receives
@@ -340,51 +104,6 @@ export const useSidebarSearchModel = ({
     () => dedupeSidebarTreeNodesByKey(treeData),
     [treeData],
   );
-
-  const loop = (data: TreeNode[], keyword: string): TreeNode[] => {
-    const isSmartMode = searchScopes.includes('smart');
-    const result: TreeNode[] = [];
-    data.forEach((item) => {
-      const titleMatch = matchesSidebarSearchText(item.title, keyword);
-      const smartMatch = item.type === 'connection'
-        ? matchesSidebarSearchText(getConnectionNameSearchText(item), keyword)
-          || matchesSidebarSearchText(getConnectionHostSearchText(item), keyword)
-        : titleMatch || matchesSidebarSearchText(getObjectCommentSearchText(item), keyword);
-      const scopedMatch = matchByScopes(item, keyword, searchScopes);
-      const selfMatch = isSmartMode ? smartMatch : scopedMatch;
-      const filteredChildren = item.children ? loop(item.children, keyword) : [];
-
-      if (selfMatch) {
-        const shouldKeepFullSubtree = isSmartMode
-          || item.type === 'connection'
-          || item.type === 'database'
-          || item.type === 'message-namespace'
-          || item.type === 'tag'
-          || item.type === 'external-sql-root'
-          || item.type === 'external-sql-directory'
-          || item.type === 'external-sql-folder';
-        if (item.children && shouldKeepFullSubtree) {
-          result.push(item);
-        } else if (item.children && filteredChildren.length > 0) {
-          result.push({ ...item, children: filteredChildren });
-        } else {
-          result.push(item);
-        }
-        return;
-      }
-
-      if (filteredChildren.length > 0) {
-        result.push({ ...item, children: filteredChildren });
-      }
-    });
-    return result;
-  };
-
-  const displayTreeData = useMemo(() => {
-    const keyword = String(deferredSearchValue || '').trim();
-    if (!keyword) return normalizedTreeData;
-    return loop(normalizedTreeData, keyword);
-  }, [deferredSearchValue, normalizedTreeData, searchScopes]);
 
   const commandSearchTreeItems = useMemo(() => {
     if (!isV2CommandSearchOpen) {
@@ -581,9 +300,9 @@ export const useSidebarSearchModel = ({
     return String(activeTab?.dbName || '').trim();
   }, [activeContext, activeTab?.dbName]);
   const activeConnectionTreeData = useMemo(() => {
-    const externalSQLNodes = displayTreeData.filter((node) => node.type === 'external-sql-root');
-    if (!activeConnection) return displayTreeData;
-    const activeConnectionNode = displayTreeData.find((node) => node.type === 'connection' && node.key === activeConnection.id);
+    const externalSQLNodes = normalizedTreeData.filter((node) => node.type === 'external-sql-root');
+    if (!activeConnection) return normalizedTreeData;
+    const activeConnectionNode = normalizedTreeData.find((node) => node.type === 'connection' && node.key === activeConnection.id);
     if (activeConnectionNode) {
       return dedupeSidebarTreeNodesByKey([
         ...(activeConnectionNode.children && activeConnectionNode.children.length > 0 ? activeConnectionNode.children : []),
@@ -601,15 +320,15 @@ export const useSidebarSearchModel = ({
       return [{ ...node, children: node.children ? filterTree(node.children) : undefined }];
     });
 
-    const filtered = filterTree(displayTreeData);
+    const filtered = filterTree(normalizedTreeData);
     return dedupeSidebarTreeNodesByKey([...filtered, ...externalSQLNodes]);
-  }, [activeConnection, displayTreeData]);
+  }, [activeConnection, normalizedTreeData]);
   const v2VisibleTreeData = useMemo(() => {
     if (v2ExplorerFilter === 'all') {
-      return displayTreeData;
+      return normalizedTreeData;
     }
     return filterV2ExplorerTreeByKind(activeConnectionTreeData, v2ExplorerFilter);
-  }, [activeConnectionTreeData, displayTreeData, v2ExplorerFilter]);
+  }, [activeConnectionTreeData, normalizedTreeData, v2ExplorerFilter]);
   const effectiveTreeHeight = resolveSidebarTreeVirtualHeight(treeHeight);
   const v2TreeMetrics = useMemo(() => {
     const databaseTableCounts = new Map<React.Key, number>();
@@ -653,12 +372,6 @@ export const useSidebarSearchModel = ({
   }, [v2VisibleTreeData]);
 
   return {
-    onSearch,
-    toggleSearchScope,
-    setSearchScopeChecked,
-    searchScopeSummary,
-    searchScopePopoverContent,
-    displayTreeData,
     commandSearchTreeItems,
     commandSearchRecentItems,
     commandSearchActionItems,

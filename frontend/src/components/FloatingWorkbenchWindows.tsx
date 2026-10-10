@@ -33,12 +33,9 @@ const getTabKindLabel = (type: string): string => {
   if (type === 'table-overview') return t('tab_manager.kind_badge.table_overview');
   if (type === 'table-export') return t('tab_manager.kind_badge.table_export');
   if (type === 'data-import') return t('tab_manager.kind_badge.data_import');
-  if (type === 'data-sync') return t('app.tools.entry.sync.title');
   if (type === 'sql-file-execution') return t('sidebar.sql_file_exec.title');
   if (type === 'sql-analysis') return t('tab_manager.kind_badge.sql_analysis');
   if (type === 'sql-audit') return t('tab_manager.kind_badge.sql_audit');
-  if (type === 'dml-snapshot') return t('tab_manager.kind_badge.dml_snapshot');
-  if (type === 'driver-manager') return t('tab_manager.kind_badge.driver_manager');
   if (type === 'settings-center') return t('tab_manager.kind_badge.settings_center');
   if (type === 'service-detail') return t('tab_manager.kind_badge.service_detail');
   if (type.startsWith('redis')) return t('tab_manager.kind_badge.redis');

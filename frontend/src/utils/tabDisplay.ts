@@ -489,9 +489,6 @@ const buildCompactObjectTabTitle = (tab: TabData, translate: TabDisplayTranslate
   if (tab.type === 'query') {
     return compactQueryTabTitle(tab, translate);
   }
-  if (tab.type === 'driver-manager') {
-    return translate('app.tools.entry.drivers.title');
-  }
   if (tab.type === 'settings-center') {
     return translate('app.settings.title');
   }
@@ -502,9 +499,6 @@ const buildCompactObjectTabTitle = (tab: TabData, translate: TabDisplayTranslate
       .getState()
       .services.find((entry) => entry.name === name)?.displayName;
     return (displayName && displayName.trim()) || name;
-  }
-  if (tab.type === 'request-diagnostics') {
-    return translate('app.tools.entry.request_diagnostics.title');
   }
   if (tab.type === 'table') {
     return stripSchemaFromTabObjectLabel(tab.tableName || tab.title) || tab.title;
@@ -552,22 +546,12 @@ export const getTabDisplayKindLabel = (tab: TabData): string => {
   if (tab.type === 'table-overview') return 'DB';
   if (tab.type === 'table-export') return 'EXPORT';
   if (tab.type === 'data-import') return 'IMPORT';
-  if (tab.type === 'data-sync') {
-    return tab.dataSyncEntryMode === 'compare' ||
-      tab.dataSyncEntryMode === 'schemaCompare' ||
-      tab.dataSyncEntryMode === 'dataCompare'
-      ? 'COMPARE'
-      : 'SYNC';
-  }
   if (tab.type === 'sql-analysis') return 'ANALYZE';
   if (tab.type === 'sql-audit') return 'AUDIT';
-  if (tab.type === 'dml-snapshot') return 'SNAPSHOT';
-  if (tab.type === 'driver-manager') return 'DRIVER';
   // 设置中心：标题已表意，不再叠加英文类型角标（用户反馈）
   if (tab.type === 'settings-center') return '';
   // 服务详情：服务名已是完整标题，去掉 SVC 缩写角标
   if (tab.type === 'service-detail') return '';
-  if (tab.type === 'request-diagnostics') return 'TRACE';
   if (tab.type.startsWith('redis')) return 'REDIS';
   if (tab.type.startsWith('jvm')) return 'JVM';
   if (tab.type === 'trigger') return 'TRG';
@@ -593,10 +577,8 @@ const getTabRawObjectLabel = (tab: TabData, translate: TabDisplayTranslate = def
   if (tab.resourcePath) return tab.resourcePath;
   if (tab.filePath) return getFileNameFromPath(tab.filePath);
   if (tab.type.startsWith('redis')) return `db${tab.redisDB ?? 0}`;
-  if (tab.type === 'sql-audit' || tab.type === 'dml-snapshot') return tab.title;
-  if (tab.type === 'driver-manager') return translate('app.tools.entry.drivers.title');
+  if (tab.type === 'sql-audit') return tab.title;
   if (tab.type === 'settings-center') return translate('app.settings.title');
-  if (tab.type === 'request-diagnostics') return translate('app.tools.entry.request_diagnostics.title');
   return tab.title;
 };
 

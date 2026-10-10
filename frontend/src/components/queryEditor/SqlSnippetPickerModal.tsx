@@ -14,7 +14,6 @@ interface SqlSnippetPickerModalProps {
   filteredSnippets: SqlSnippet[];
   emptyLabel: string;
   onInsertSnippet: (snippet: SqlSnippet) => void;
-  onManageSnippets: () => void;
   onClose: () => void;
 }
 
@@ -27,7 +26,6 @@ const SqlSnippetPickerModal: React.FC<SqlSnippetPickerModalProps> = ({
   filteredSnippets,
   emptyLabel,
   onInsertSnippet,
-  onManageSnippets,
   onClose,
 }) => (
       <Modal
@@ -171,10 +169,7 @@ const SqlSnippetPickerModal: React.FC<SqlSnippetPickerModalProps> = ({
               </div>
             ) : null}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <Button onClick={onManageSnippets}>
-              {translate('query_editor.snippet_picker.manage')}
-            </Button>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
             <Button onClick={onClose}>
               {translate('common.cancel')}
             </Button>

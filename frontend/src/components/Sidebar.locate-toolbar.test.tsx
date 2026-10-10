@@ -48,10 +48,6 @@ import Sidebar, {
   sortSidebarTableEntries,
 } from './Sidebar';
 import {
-  buildSearchScopeOptions as buildCoreSearchScopeOptions,
-  SEARCH_SCOPE_OPTIONS as CORE_SEARCH_SCOPE_OPTIONS,
-} from './sidebarCoreUtils';
-import {
   buildSidebarTableChildrenForUi as buildV2UtilsSidebarTableChildrenForUi,
   buildV2ExplorerFilterOptions,
   buildV2SidebarTableSectionedChildren as buildV2UtilsSidebarTableSectionedChildren,
@@ -131,7 +127,6 @@ const mocks = vi.hoisted(() => ({
       enabled: true,
       opacity: 1,
       blur: 0,
-      sidebarHiddenObjectGroups: [],
     } as any,
     shortcutOptions: null as any,
   },
@@ -346,7 +341,6 @@ describe('Sidebar locate toolbar', () => {
       enabled: true,
       opacity: 1,
       blur: 0,
-      sidebarHiddenObjectGroups: [],
     };
     mocks.state.shortcutOptions = cloneShortcutOptions(DEFAULT_SHORTCUT_OPTIONS);
   });
@@ -1067,7 +1061,7 @@ describe('Sidebar locate toolbar', () => {
     expect(css).not.toContain('.gn-v2-active-connection-header');
   });
 
-  it('places driver management in the titlebar and does not render a More overflow', () => {
+  it('keeps the titlebar quick actions aligned with the data workflow menu and does not render a More overflow', () => {
     const source = readSourceFile('./Sidebar.tsx');
     const actionsStart = source.indexOf('const v2TitlebarQuickActions: TitleBarQuickAction[] = [');
     const actionsEnd = source.indexOf('\n  ];', actionsStart);
@@ -1076,29 +1070,24 @@ describe('Sidebar locate toolbar', () => {
     expect(actionsEnd).toBeGreaterThan(actionsStart);
 
     const actionsSource = source.slice(actionsStart, actionsEnd);
-    const driverIndex = actionsSource.indexOf("key: 'drivers'");
 
     expect(actionsSource).toContain("key: 'data-workflow'");
     expect(actionsSource).toContain('label: v2DataWorkflowLabel');
     expect(actionsSource).toContain("key: 'batch-connections'");
     expect(actionsSource).toContain("key: 'batch-tables'");
     expect(actionsSource).toContain("key: 'batch-databases'");
-    expect(actionsSource).toContain("key: 'compare'");
-    expect(actionsSource).toContain("action: 'compare'");
-    expect(actionsSource).not.toContain("key: 'schema-compare'");
-    expect(actionsSource).not.toContain("key: 'data-compare'");
-    expect(actionsSource).toContain("key: 'sync'");
-    expect(actionsSource).toContain("action: 'sync'");
+    expect(actionsSource).toContain("key: 'data-import'");
+    // 数据同步 / 数据对比 / 驱动管理入口已随功能删除，不得回流标题栏快捷菜单。
+    expect(actionsSource).not.toContain("key: 'compare'");
+    expect(actionsSource).not.toContain("key: 'sync'");
+    expect(actionsSource).not.toContain("key: 'drivers'");
     expect(actionsSource).not.toContain("key: 'batch-actions'");
     expect(actionsSource).toContain("key: 'sql-tools'");
-    expect(driverIndex).toBeGreaterThan(actionsSource.indexOf("key: 'sql-tools'"));
     expect(actionsSource).not.toContain("key: 'settings-about'");
     expect(actionsSource).not.toContain("key: 'settings-workspace'");
     expect(actionsSource).not.toContain("key: 'settings-preferences'");
     expect(actionsSource).not.toContain("key: 'open-external-sql-file'");
     expect(actionsSource).not.toContain("priority: 'secondary'");
-    expect(actionsSource).toContain("label: t('app.tools.entry.drivers.title')");
-    expect(actionsSource).toContain("action: 'drivers'");
 
     // 标题栏「关于」动作当前为空数组（关于入口收敛进设置中心），只保留空态与挂载断言。
     const aboutActionsStart = source.indexOf('const v2TitlebarAboutActions: TitleBarQuickAction[] = [];');
@@ -1160,12 +1149,9 @@ describe('Sidebar locate toolbar', () => {
     expect(source).toContain("app.tools.group.workflow.title");
     expect(source).toContain("key: 'sql-tools'");
     expect(source).toContain("sidebar.action.sql_tools");
-    expect(source).toContain("key: 'compare'");
-    expect(source).toContain("onOpenSettingsNavigation?.({ group: 'workflow', action: 'compare' })");
-    expect(source).not.toContain("key: 'schema-compare'");
-    expect(source).not.toContain("key: 'data-compare'");
-    expect(source).toContain("key: 'sync'");
-    expect(source).toContain("onOpenSettingsNavigation?.({ group: 'workflow', action: 'sync' })");
+    // 数据同步 / 数据对比入口已随功能删除，不得回流 v2 rail。
+    expect(source).not.toContain("key: 'compare'");
+    expect(source).not.toContain("key: 'sync'");
     expect(source).toContain('showObjectActions: false');
     expect(source).not.toContain("key: 'locate-current-table'");
     expect(markup).not.toContain('data-gonavi-new-query-action="true"');
@@ -1179,20 +1165,6 @@ describe('Sidebar locate toolbar', () => {
       source.indexOf('const openV2ConnectionContextMenu = ('),
       source.indexOf('const getV2TreeMetaText = (node: any): string => {'),
     );
-  });
-
-  it('can render the sidebar with the persistent filter input', () => {
-    mocks.state.appearance.v2SidebarSearchMode = 'filter';
-    mocks.state.appearance.v2SidebarPersistedFilter = 'fs_org';
-
-    const markup = renderSidebarMarkup({  });
-
-    expect(markup).toContain('data-v2-sidebar-search-mode="filter"');
-    expect(markup).toContain('gn-v2-explorer-search');
-    expect(markup).not.toContain('data-sidebar-command-search-action="true"');
-    expect(markup).toContain(`placeholder="${t('sidebar.search.placeholder')}"`);
-    expect(markup).toContain('value="fs_org"');
-    expect(markup).toContain('重置侧栏筛选');
   });
 
   it('localizes the v2 command search scope shell and object filters through catalog keys', () => {
@@ -1232,11 +1204,6 @@ describe('Sidebar locate toolbar', () => {
 
   it('localizes extracted sidebar util search and v2 filter labels through injected translators', () => {
     const translate = (key: string) => ({
-      'sidebar.search.scope.smart': 'Smart',
-      'sidebar.search.scope.object': 'Object',
-      'sidebar.search.scope.database': 'Database',
-      'sidebar.search.scope.host': 'Host',
-      'sidebar.search.scope.tag': 'Tag',
       'sidebar.command_search.object_kind.all': 'All',
       'sidebar.command_search.object_kind.tables': 'Tables',
       'sidebar.command_search.object_kind.views': 'Views',
@@ -1248,14 +1215,6 @@ describe('Sidebar locate toolbar', () => {
       'table_overview.section.all': 'All',
     } as Record<string, string>)[key] || key;
 
-    expect(buildCoreSearchScopeOptions(translate).map((option) => option.label)).toEqual(['Smart', 'Object', 'Database', 'Host', 'Tag']);
-    expect(CORE_SEARCH_SCOPE_OPTIONS.map((option) => option.label)).toEqual([
-      t('sidebar.search.scope.smart', undefined, 'zh-CN'),
-      t('sidebar.search.scope.object', undefined, 'zh-CN'),
-      t('sidebar.search.scope.database', undefined, 'zh-CN'),
-      t('sidebar.search.scope.host', undefined, 'zh-CN'),
-      t('sidebar.search.scope.tag', undefined, 'zh-CN'),
-    ]);
     expect(buildV2ExplorerFilterOptions(translate).map((option) => option.label)).toEqual(['All', 'Tables', 'Views', 'Sequences', 'Routines', 'Packages', 'Events']);
     expect(V2_UTILS_EXPLORER_FILTER_OPTIONS.map((option) => option.label)).toEqual(['全部', '表', '视图', '序列', '函数', '存储包', '事件']);
 
@@ -1324,7 +1283,6 @@ describe('Sidebar locate toolbar', () => {
       enabled: true,
       opacity: 1,
       blur: 0,
-      sidebarHiddenObjectGroups: [],
     };
 
     const markup = renderSidebarMarkup({ onCreateConnection: mocks.noop });
@@ -1513,7 +1471,6 @@ describe('Sidebar locate toolbar', () => {
       enabled: true,
       opacity: 1,
       blur: 0,
-      sidebarHiddenObjectGroups: [],
     };
 
     const markup = renderSidebarMarkup({  });
@@ -1546,7 +1503,6 @@ describe('Sidebar locate toolbar', () => {
       enabled: true,
       opacity: 1,
       blur: 0,
-      sidebarHiddenObjectGroups: [],
     };
 
     const markup = renderSidebarMarkup({  });

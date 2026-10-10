@@ -219,15 +219,6 @@ export const applyNativeDetachedWindowEvent = (
       && String(hostEvent.id || '').trim()
       && NATIVE_DETACHED_HOST_EVENT_NAMES.includes(hostEvent.name as NativeDetachedHostEventName)
     ) {
-      if (
-        !localWindowId
-        && (
-          hostEvent.name === 'gonavi:open-global-proxy-settings'
-          || hostEvent.name === 'gonavi:open-download-source-settings'
-        )
-      ) {
-        showMainWindow();
-      }
       callbacks.onHostEvent?.(hostEvent);
     }
     return;

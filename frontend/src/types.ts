@@ -382,12 +382,6 @@ export interface SchemaVisibilityRule {
   schemas: string[];
 }
 
-export interface GlobalProxyConfig extends ProxyConfig {
-  enabled: boolean;
-  hasPassword?: boolean;
-  secretRef?: string;
-}
-
 export interface ConnectionTag {
   id: string;
   name: string;
@@ -516,15 +510,11 @@ export interface TabData {
     | "query"
     | "table"
     | "design"
-    | "data-sync"
     | "sql-file-execution"
     | "sql-analysis"
     | "sql-audit"
-    | "dml-snapshot"
-    | "driver-manager"
     | "settings-center"
     | "service-detail"
-    | "request-diagnostics"
     | "message-queue"
     | "redis-keys"
     | "redis-command"
@@ -773,7 +763,6 @@ export type SecurityUpdateIssueReasonCode =
   | "environment_blocked";
 export type SecurityUpdateIssueAction =
   | "open_connection"
-  | "open_proxy_settings"
   | "retry_update"
   | "view_details";
 

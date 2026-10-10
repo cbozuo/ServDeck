@@ -4,11 +4,11 @@ import { Tooltip, TreeSelect, type TreeSelectProps } from 'antd';
 import {
   buildDataSyncConnectionTreeData,
   type DataSyncConnectionTreeDataNode,
-} from './data-sync/DataSyncConnectionTreeSelect';
+} from './connection-tree/DataSyncConnectionTreeSelect';
 import type {
   DataSyncConnectionTreeItem,
   DataSyncSavedConnectionView,
-} from './data-sync/model';
+} from './connection-tree/DataSyncConnectionTreeSelect';
 import type {
   ConnectionDisplaySortMode,
   ConnectionSortMode,
@@ -27,7 +27,6 @@ import {
 import { resolveConnectionIconType } from '../utils/connectionVisual';
 import { resolveConnectionHostSummary } from '../utils/tabDisplay';
 import { hintTooltipTiming } from './common/tooltipTiming';
-import './data-sync/DataSyncWorkbench.css';
 import './BatchConnectionTreeSelect.css';
 
 const BrowserSafeTreeSelect: React.FC<

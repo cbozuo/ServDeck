@@ -185,37 +185,4 @@ describe('connection sidebar manual order', () => {
       state.rootConnectionSortMode,
     ).map((item) => item.id)).toEqual(['newer', 'old', 'imported']);
   }, 30_000);
-
-  it('keeps an existing grouped connection in place when import updates sortable fields', async () => {
-    const { useStore } = await importStore();
-    const { buildSidebarConnectionTagTree } = await import('./components/sidebarV2Utils');
-    const { resolveConnectionImportPlacement } = await import('./components/settings/ConnectionImportSettingsPanel');
-    useStore.getState().replaceConnections([
-      { id: 'z', name: 'Zulu', createdAt: 1, config: { id: 'z', type: 'mysql', host: 'z', port: 3306, user: 'root' } },
-      { id: 'a', name: 'Alpha', createdAt: 2, config: { id: 'a', type: 'mysql', host: 'a', port: 3306, user: 'root' } },
-    ]);
-    useStore.getState().addConnectionTag({ id: 'group', name: 'Group', connectionIds: ['z', 'a'] });
-    useStore.getState().setConnectionDisplaySortMode('group', 'name');
-
-    const beforeImport = useStore.getState();
-    const placement = resolveConnectionImportPlacement(['z'], '', beforeImport.connectionTags);
-    placement.manualOrderTargetGroupIds.forEach((groupID) => {
-      useStore.getState().setConnectionDisplaySortMode(groupID, 'manual');
-    });
-    useStore.getState().replaceConnections(beforeImport.connections.map((connection) => (
-      connection.id === 'z'
-        ? { ...connection, name: 'Aardvark', createdAt: 3 }
-        : connection
-    )));
-
-    const state = useStore.getState();
-    const group = buildSidebarConnectionTagTree(
-      state.connections,
-      state.connectionTags,
-      state.sidebarRootOrder,
-      state.rootSortMode,
-      state.rootConnectionSortMode,
-    ).find((item) => item.id === 'group');
-    expect(group?.kind === 'tag' ? group.children.map((item) => item.id) : []).toEqual(['a', 'z']);
-  }, 30_000);
 });

@@ -14,7 +14,6 @@ import {
   ConnectionSidebarLayoutInput,
   ConnectionDisplaySortMode,
   ConnectionSortMode,
-  GlobalProxyConfig,
   ExternalSQLDirectory,
   JVMDiagnosticCommandDraft,
   JVMDiagnosticEventChunk,
@@ -53,7 +52,6 @@ type ActiveContext = {
 
 const sanitizeBrandIconIdLocal = (_value: unknown): string =>
   DEFAULT_BRAND_ICON_ID;
-import { toPersistedGlobalProxy } from "./utils/globalProxyDraft";
 import {
   DEFAULT_DATA_GRID_DISPLAY_SETTINGS,
   sanitizeDataGridDisplaySettings,
@@ -130,18 +128,6 @@ import {
 } from "./utils/queryEditorSplitLayout";
 import { sanitizeSidebarWidth } from "./utils/sidebarLayout";
 import {
-  DEFAULT_SIDEBAR_TABLE_METADATA_FIELDS,
-  applySidebarTableMetadataFieldOrder,
-  resolveSidebarTableMetadataFieldOrder,
-  resolveSidebarTableMetadataFields,
-  sanitizeSidebarTableMetadataFields,
-  type SidebarTableMetadataField,
-} from "./utils/sidebarTableMetadata";
-import {
-  sanitizeSidebarHiddenObjectGroups,
-  type SidebarObjectGroupKey,
-} from "./utils/sidebarObjectVisibility";
-import {
   CONNECTION_TYPE_GROUPS,
   getConnectionTypeDefaultPort,
 } from "./utils/connectionTypeCatalog";
@@ -181,7 +167,6 @@ export type TableDoubleClickAction = "open-data" | "open-design";
 export type QueryTableCtrlClickAction = "open-design" | "locate";
 export type ThemeMode = "light" | "dark";
 export type ThemePreference = ThemeMode | "system";
-export type TitlebarMenuStyle = 'classic' | 'view-menu';
 
 export interface AppearanceSettings
   extends DataGridDisplaySettings, SqlEditorTypographySettings {
@@ -190,14 +175,10 @@ export interface AppearanceSettings
   blur: number;
   tableDoubleClickAction: TableDoubleClickAction;
   queryTableCtrlClickAction: QueryTableCtrlClickAction;
-  titlebarMenuStyle: TitlebarMenuStyle;
-  v2SidebarSearchMode: "command" | "filter";
-  v2SidebarPersistedFilter: string;
   v2SidebarRailScale: number;
   tabEnvironmentAccentThickness: number;
   toolbarButtonColorOverrides: ToolbarButtonColorOverrides;
   sidebarSingleDatabaseExpansion: boolean;
-  sidebarHiddenObjectGroups: SidebarObjectGroupKey[];
   customUIFontFamily: string | null;
   customMonoFontFamily: string | null;
   newQuerySqlTemplate: string | null;
@@ -221,14 +202,10 @@ export const DEFAULT_APPEARANCE: AppearanceSettings = {
   blur: 0,
   tableDoubleClickAction: "open-data",
   queryTableCtrlClickAction: "open-design",
-  titlebarMenuStyle: "classic",
-  v2SidebarSearchMode: "command",
-  v2SidebarPersistedFilter: "",
   v2SidebarRailScale: DEFAULT_V2_SIDEBAR_RAIL_SCALE,
   tabEnvironmentAccentThickness: DEFAULT_TAB_ENVIRONMENT_ACCENT_THICKNESS,
   toolbarButtonColorOverrides: { ...DEFAULT_TOOLBAR_BUTTON_COLOR_OVERRIDES },
   sidebarSingleDatabaseExpansion: false,
-  sidebarHiddenObjectGroups: [],
   customUIFontFamily: null,
   customMonoFontFamily: null,
   newQuerySqlTemplate: null,
@@ -258,14 +235,7 @@ const AUTO_CHECK_FOR_UPDATES_INTERVAL_OPTIONS_SET = new Set<number>(
 );
 const LEGACY_DEFAULT_OPACITY = 0.95;
 const OPACITY_EPSILON = 1e-6;
-const MAX_SIDEBAR_PERSISTED_FILTER_LENGTH = 120;
 const MAX_NEW_QUERY_SQL_TEMPLATE_LENGTH = 32 * 1024;
-
-const sanitizeV2SidebarSearchMode = (
-  value: unknown,
-): AppearanceSettings["v2SidebarSearchMode"] => {
-  return value === "filter" ? "filter" : DEFAULT_APPEARANCE.v2SidebarSearchMode;
-};
 
 const sanitizeTableDoubleClickAction = (
   value: unknown,
@@ -277,18 +247,6 @@ const sanitizeQueryTableCtrlClickAction = (
   value: unknown,
 ): QueryTableCtrlClickAction => {
   return value === "locate" ? "locate" : DEFAULT_APPEARANCE.queryTableCtrlClickAction;
-};
-
-/** 未知值一律回退经典模式，保证老配置升级后标题栏外观不变。 */
-export const sanitizeTitlebarMenuStyle = (value: unknown): TitlebarMenuStyle => {
-  return value === "view-menu" ? "view-menu" : DEFAULT_APPEARANCE.titlebarMenuStyle;
-};
-
-const sanitizeV2SidebarPersistedFilter = (value: unknown): string => {
-  if (typeof value !== "string") {
-    return DEFAULT_APPEARANCE.v2SidebarPersistedFilter;
-  }
-  return value.trim().slice(0, MAX_SIDEBAR_PERSISTED_FILTER_LENGTH);
 };
 
 const sanitizeNewQuerySqlTemplate = (value: unknown): string | null => {
@@ -356,16 +314,6 @@ const DEFAULT_CONNECTION_TYPE = "mysql";
 const DEFAULT_JVM_PORT = 9010;
 const DEFAULT_LANGUAGE_PREFERENCE: LanguagePreference = "system";
 const MAX_REDIS_DATABASE_INDEX = Number.MAX_SAFE_INTEGER;
-const DEFAULT_GLOBAL_PROXY: GlobalProxyConfig = {
-  enabled: false,
-  type: "socks5",
-  host: "",
-  port: 1080,
-  user: "",
-  password: "",
-  hasPassword: false,
-};
-
 const isFrontendTestRuntime = (): boolean => {
   const env = (import.meta as unknown as { env?: Record<string, unknown> }).env || {};
   return env.MODE === "test" || env.VITEST === true || env.VITEST === "true";
@@ -1942,8 +1890,6 @@ export interface QueryOptions {
   tableOverviewViewMode?: TableOverviewViewMode;
   showColumnComment: boolean;
   showSidebarTableComment?: boolean;
-  sidebarTableMetadataFields?: SidebarTableMetadataField[];
-  sidebarTableMetadataFieldOrder?: SidebarTableMetadataField[];
   showColumnType: boolean;
   alignNumericTemporalCellsRight: boolean;
   showQueryResultsPanel: boolean;
@@ -2009,7 +1955,6 @@ interface AppState {
   autoCheckForUpdates: boolean;
   /** 自动检查更新间隔（分钟），默认 30 */
   autoCheckForUpdatesIntervalMinutes: number;
-  globalProxy: GlobalProxyConfig;
   sqlFormatOptions: { keywordCase: "upper" | "lower" };
   queryOptions: QueryOptions;
   dataEditTransactionOptions: DataEditTransactionOptions;
@@ -2169,8 +2114,6 @@ interface AppState {
   setStartupFullscreen: (enabled: boolean) => void;
   setAutoCheckForUpdates: (enabled: boolean) => void;
   setAutoCheckForUpdatesIntervalMinutes: (minutes: number) => void;
-  setGlobalProxy: (proxy: Partial<GlobalProxyConfig>) => void;
-  replaceGlobalProxy: (proxy: Partial<GlobalProxyConfig>) => void;
   setSqlFormatOptions: (options: { keywordCase: "upper" | "lower" }) => void;
   setQueryOptions: (options: Partial<QueryOptions>) => void;
   setDataEditTransactionOptions: (
@@ -3042,18 +2985,7 @@ const sanitizeQueryOptions = (value: unknown): QueryOptions => {
   const showSidebarTableComment =
     typeof raw.showSidebarTableComment === "boolean"
       ? raw.showSidebarTableComment
-      : false;
-  const sidebarTableMetadataFields = Array.isArray(raw.sidebarTableMetadataFields)
-    ? sanitizeSidebarTableMetadataFields(raw.sidebarTableMetadataFields, [])
-    : resolveSidebarTableMetadataFields(undefined, showSidebarTableComment);
-  const sidebarTableMetadataFieldOrder = resolveSidebarTableMetadataFieldOrder(
-    raw.sidebarTableMetadataFieldOrder,
-  );
-  const orderedSidebarTableMetadataFields = applySidebarTableMetadataFieldOrder(
-    sidebarTableMetadataFields,
-    sidebarTableMetadataFieldOrder,
-  );
-  const derivedShowSidebarTableComment = orderedSidebarTableMetadataFields.includes("comment");
+      : true;
   const showColumnType =
     typeof raw.showColumnType === "boolean" ? raw.showColumnType : true;
   const alignNumericTemporalCellsRight =
@@ -3071,9 +3003,7 @@ const sanitizeQueryOptions = (value: unknown): QueryOptions => {
       wordWrap,
       tableOverviewViewMode,
       showColumnComment,
-      showSidebarTableComment: derivedShowSidebarTableComment,
-      sidebarTableMetadataFields: orderedSidebarTableMetadataFields,
-      sidebarTableMetadataFieldOrder,
+      showSidebarTableComment: showSidebarTableComment,
       showColumnType,
       alignNumericTemporalCellsRight,
       showQueryResultsPanel,
@@ -3085,9 +3015,7 @@ const sanitizeQueryOptions = (value: unknown): QueryOptions => {
     wordWrap,
     tableOverviewViewMode,
     showColumnComment,
-    showSidebarTableComment: derivedShowSidebarTableComment,
-    sidebarTableMetadataFields: orderedSidebarTableMetadataFields,
-    sidebarTableMetadataFieldOrder,
+    showSidebarTableComment: showSidebarTableComment,
     showColumnType,
     alignNumericTemporalCellsRight,
     showQueryResultsPanel,
@@ -3275,15 +3203,6 @@ const sanitizeAppearance = (
     queryTableCtrlClickAction: sanitizeQueryTableCtrlClickAction(
       appearance.queryTableCtrlClickAction,
     ),
-    titlebarMenuStyle: sanitizeTitlebarMenuStyle(
-      appearance.titlebarMenuStyle,
-    ),
-    v2SidebarSearchMode: sanitizeV2SidebarSearchMode(
-      appearance.v2SidebarSearchMode,
-    ),
-    v2SidebarPersistedFilter: sanitizeV2SidebarPersistedFilter(
-      appearance.v2SidebarPersistedFilter,
-    ),
     v2SidebarRailScale: sanitizeV2SidebarRailScale(
       appearance.v2SidebarRailScale,
     ),
@@ -3295,9 +3214,6 @@ const sanitizeAppearance = (
     ),
     sidebarSingleDatabaseExpansion:
       appearance.sidebarSingleDatabaseExpansion === true,
-    sidebarHiddenObjectGroups: sanitizeSidebarHiddenObjectGroups(
-      appearance.sidebarHiddenObjectGroups,
-    ),
     customUIFontFamily: sanitizeFontFamilyInput(appearance.customUIFontFamily),
     customMonoFontFamily: sanitizeFontFamilyInput(appearance.customMonoFontFamily),
     newQuerySqlTemplate: sanitizeNewQuerySqlTemplate(appearance.newQuerySqlTemplate),
@@ -3372,33 +3288,6 @@ const sanitizeFontSize = (value: unknown): number => {
     MIN_FONT_SIZE,
     MAX_FONT_SIZE,
   );
-};
-
-const sanitizeGlobalProxy = (
-  value: unknown,
-  options: { allowPassword?: boolean } = {},
-): GlobalProxyConfig => {
-  const raw =
-    value && typeof value === "object"
-      ? (value as Record<string, unknown>)
-      : {};
-  const typeRaw = toTrimmedString(
-    raw.type,
-    DEFAULT_GLOBAL_PROXY.type,
-  ).toLowerCase();
-  const type: "socks5" | "http" = typeRaw === "http" ? "http" : "socks5";
-  const fallbackPort = type === "http" ? 8080 : 1080;
-  const password = toTrimmedString(raw.password);
-  return {
-    enabled: raw.enabled === true,
-    type,
-    host: toTrimmedString(raw.host),
-    port: normalizePort(raw.port, fallbackPort),
-    user: toTrimmedString(raw.user),
-    password: options.allowPassword === false ? "" : password,
-    hasPassword: raw.hasPassword === true || password !== "",
-    secretRef: toTrimmedString(raw.secretRef) || undefined,
-  };
 };
 
 const sanitizeWindowState = (
@@ -3513,7 +3402,6 @@ const PERSISTED_STATE_DEPENDENCY_KEYS = [
   "startupFullscreen",
   "autoCheckForUpdates",
   "autoCheckForUpdatesIntervalMinutes",
-  "globalProxy",
   "sqlFormatOptions",
   "queryOptions",
   "dataEditTransactionOptions",
@@ -3574,10 +3462,6 @@ const buildPersistedStateProjection = (
     autoCheckForUpdates: state.autoCheckForUpdates,
     autoCheckForUpdatesIntervalMinutes:
       state.autoCheckForUpdatesIntervalMinutes,
-    globalProxy:
-      toTrimmedString(state.globalProxy.password) !== ""
-        ? { ...state.globalProxy }
-        : toPersistedGlobalProxy(state.globalProxy),
     sqlFormatOptions: state.sqlFormatOptions,
     queryOptions: state.queryOptions,
     dataEditTransactionOptions: state.dataEditTransactionOptions,
@@ -3710,15 +3594,12 @@ export const useStore = create<AppState>()(
       autoCheckForUpdates: DEFAULT_AUTO_CHECK_FOR_UPDATES,
       autoCheckForUpdatesIntervalMinutes:
         DEFAULT_AUTO_CHECK_FOR_UPDATES_INTERVAL_MINUTES,
-      globalProxy: { ...DEFAULT_GLOBAL_PROXY },
       sqlFormatOptions: { keywordCase: "upper" },
       queryOptions: {
         maxRows: 5000,
         wordWrap: false,
         showColumnComment: true,
         showSidebarTableComment: false,
-        sidebarTableMetadataFields: ["rows"],
-        sidebarTableMetadataFieldOrder: [...DEFAULT_SIDEBAR_TABLE_METADATA_FIELDS],
         showColumnType: true,
         alignNumericTemporalCellsRight: false,
         showQueryResultsPanel: false,
@@ -5406,18 +5287,6 @@ export const useStore = create<AppState>()(
             sanitizeAutoCheckForUpdatesIntervalMinutes(minutes),
         });
       },
-      setGlobalProxy: (proxy) =>
-        set((state) => ({
-          globalProxy: sanitizeGlobalProxy({ ...state.globalProxy, ...proxy }),
-        })),
-      replaceGlobalProxy: (proxy) =>
-        set((state) => ({
-          globalProxy: sanitizeGlobalProxy({
-            ...DEFAULT_GLOBAL_PROXY,
-            ...proxy,
-          }),
-          shortcutOptions: readPersistedShortcutOptions() ?? state.shortcutOptions,
-        })),
       setSqlFormatOptions: (options) => set({ sqlFormatOptions: options }),
       setQueryOptions: (options) =>
         set((state) => ({
@@ -5841,7 +5710,6 @@ export const useStore = create<AppState>()(
           sanitizeAutoCheckForUpdatesIntervalMinutes(
             state.autoCheckForUpdatesIntervalMinutes,
           );
-        nextState.globalProxy = sanitizeGlobalProxy(state.globalProxy);
         nextState.sqlFormatOptions = sanitizeSqlFormatOptions(
           state.sqlFormatOptions,
         );
@@ -5973,7 +5841,6 @@ export const useStore = create<AppState>()(
             sanitizeAutoCheckForUpdatesIntervalMinutes(
               state.autoCheckForUpdatesIntervalMinutes,
             ),
-          globalProxy: sanitizeGlobalProxy(state.globalProxy),
           tableSortPreference: sanitizeTableSortPreference(
             state.tableSortPreference,
           ),

@@ -4,13 +4,11 @@ import Editor, { type BeforeMount, type OnMount } from './MonacoEditor';
 import { message, Input, Form, MenuProps, Button, Segmented, type InputRef } from 'antd';
 import {
     ApiOutlined,
-    CodeOutlined,
     ClockCircleOutlined,
     EditOutlined,
     ExportOutlined,
     FileTextOutlined,
     HistoryOutlined,
-    KeyOutlined,
     SaveOutlined,
     SearchOutlined,
     UndoOutlined,
@@ -2541,11 +2539,6 @@ const QueryEditor: React.FC<{ tab: TabData; isActive?: boolean }> = ({ tab, isAc
       setSqlSnippetPickerKeyword('');
       setIsSqlSnippetPickerOpen(true);
   }, []);
-
-  const handleOpenSnippetSettingsFromPicker = useCallback(() => {
-      handleCloseSqlSnippetPicker();
-      window.dispatchEvent(new CustomEvent('gonavi:open-snippet-settings'));
-  }, [handleCloseSqlSnippetPicker]);
 
   const registerInsertSqlSnippetContextMenuAction = useCallback((editor: any) => {
       if (insertSqlSnippetActionRef.current) {
@@ -7918,25 +7911,6 @@ const QueryEditor: React.FC<{ tab: TabData; isActive?: boolean }> = ({ tab, isAc
               },
           ],
       },
-      {
-          type: 'group',
-          key: 'format-settings',
-          label: translate('settings.title'),
-          children: [
-              {
-                  key: 'snippet-settings',
-                  label: translate('query_editor.format.snippet_settings'),
-                  icon: <CodeOutlined />,
-                  onClick: () => window.dispatchEvent(new CustomEvent('gonavi:open-snippet-settings')),
-              },
-              {
-                  key: 'shortcut-settings',
-                  label: translate('query_editor.format.shortcut_settings'),
-                  icon: <KeyOutlined />,
-                  onClick: () => window.dispatchEvent(new CustomEvent('gonavi:open-shortcut-settings')),
-              },
-          ],
-      },
   ];
 
   const splitSQLStatements = (sql: string, dbType = ''): string[] => {
@@ -12011,7 +11985,6 @@ const QueryEditor: React.FC<{ tab: TabData; isActive?: boolean }> = ({ tab, isAc
         filteredSnippets={filteredSqlSnippets}
         emptyLabel={sqlSnippetPickerEmptyLabel}
         onInsertSnippet={handleInsertSqlSnippet}
-        onManageSnippets={handleOpenSnippetSettingsFromPicker}
         onClose={handleCloseSqlSnippetPicker}
       />
       <DuckDBAttachPickerModal

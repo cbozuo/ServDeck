@@ -639,55 +639,6 @@ body .gonavi-theme-settings .gonavi-settings-tab-icon {
   font-size: 14px;
 }
 
-body .gonavi-theme-settings .gonavi-settings-inline-choice-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--gn-settings-line);
-}
-
-body .gonavi-theme-settings .gonavi-settings-pills {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: flex-end;
-}
-
-body .gonavi-theme-settings .gonavi-settings-pill {
-  margin: 0;
-  padding: 6px 12px;
-  border: 1px solid var(--gn-settings-line);
-  border-radius: 8px;
-  background: var(--gn-settings-card-bg);
-  color: var(--gn-settings-muted);
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 1.2;
-  cursor: pointer;
-}
-
-body .gonavi-theme-settings .gonavi-settings-pill:hover {
-  border-color: #cbd5e1;
-  color: var(--gn-settings-fg);
-}
-
-body .gonavi-theme-settings .gonavi-settings-pill.is-active {
-  border-color: var(--gn-settings-accent);
-  background: var(--gn-settings-accent-soft);
-  color: var(--gn-settings-accent);
-  font-weight: 700;
-}
-
-body[data-theme='dark'] .gonavi-theme-settings .gonavi-settings-pill.is-active {
-  color: #86efac;
-  border-color: color-mix(in srgb, var(--gn-settings-accent) 70%, rgba(255, 255, 255, 0.2));
-  background: color-mix(in srgb, var(--gn-settings-accent) 22%, transparent);
-}
-
 body .gonavi-theme-settings .gonavi-settings-inline-meta {
   margin-top: 8px;
   color: var(--gn-settings-muted);

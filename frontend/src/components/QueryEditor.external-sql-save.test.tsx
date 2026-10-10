@@ -7356,10 +7356,11 @@ describe('QueryEditor external SQL save', () => {
 
     expect(findExactButton(renderer, 'Uppercase keywords')).toBeTruthy();
     expect(findExactButton(renderer, 'Lowercase keywords')).toBeTruthy();
-    expect(findExactButton(renderer, 'Snippet settings...')).toBeTruthy();
-    expect(findExactButton(renderer, 'Shortcut settings...')).toBeTruthy();
     expect(findExactButton(renderer, '关键字大写')).toBeUndefined();
     expect(findExactButton(renderer, '关键字小写')).toBeUndefined();
+    // 代码片段管理 / 快捷键管理菜单项已随功能删除，不得回流格式菜单。
+    expect(findExactButton(renderer, 'Snippet settings...')).toBeUndefined();
+    expect(findExactButton(renderer, 'Shortcut settings...')).toBeUndefined();
     expect(findExactButton(renderer, '代码片段管理...')).toBeUndefined();
     expect(findExactButton(renderer, '快捷键管理...')).toBeUndefined();
   });

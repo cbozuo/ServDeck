@@ -385,10 +385,8 @@ const ConnectionModal: React.FC<{
   onClose: () => void;
   initialValues?: SavedConnection | null;
   modalZIndex?: number;
-  onOpenDriverManager?: () => void;
   onSaved?: (savedConnection: SavedConnection) => void | Promise<void>;
-  onOpenConnectionHealth?: (savedConnection: SavedConnection) => void;
-}> = ({ open, onClose, initialValues, modalZIndex = APP_FOREGROUND_MODAL_Z_INDEX, onOpenDriverManager, onSaved, onOpenConnectionHealth }) => {
+}> = ({ open, onClose, initialValues, modalZIndex = APP_FOREGROUND_MODAL_Z_INDEX, onSaved }) => {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
@@ -1358,9 +1356,6 @@ const ConnectionModal: React.FC<{
         }),
       okText: t("connection.modal.driver.installAction"),
       cancelText: t("common.action.cancel"),
-      onOk: () => {
-        onOpenDriverManager?.();
-      },
     });
   };
 
@@ -3051,13 +3046,6 @@ const ConnectionModal: React.FC<{
           description={
             <Space size={8}>
               <span>{typeSelectWarning.reason}</span>
-              <Button
-                type="link"
-                size="small"
-                onClick={() => onOpenDriverManager?.()}
-              >
-                {t("connection.modal.driver.installAction")}
-              </Button>
             </Space>
           }
           onClose={() => setTypeSelectWarning(null)}
@@ -3320,7 +3308,6 @@ const ConnectionModal: React.FC<{
         normalizeRedisDatabaseSelection,
         normalizedJvmAllowedModes,
         oceanBaseProtocol,
-        onOpenDriverManager,
         oracleMode,
         primaryPasswordVisible,
         handlePrimaryPasswordVisibleChange,
@@ -3437,17 +3424,6 @@ const ConnectionModal: React.FC<{
           )}
         </div>
         <Space size={8} className="gn-conn-studio-foot-right">
-          {initialValues?.id && onOpenConnectionHealth && (
-            <Button
-              key="connection-health"
-              className="gn-conn-studio-button"
-              icon={<SafetyCertificateOutlined />}
-              disabled={saving || testingConnection}
-              onClick={() => onOpenConnectionHealth(initialValues)}
-            >
-              {t("connection_health.action.open")}
-            </Button>
-          )}
           <Button
             key="test"
             className="gn-conn-studio-button"

@@ -4557,7 +4557,7 @@ body[data-ui-version="v2"] .gn-v2-empty-resource-empty .ant-btn {
    workbench already has clear space above its heading, so let that one screen
    reclaim the band instead of shifting every landing-page element downward. */
 body[data-ui-version="v2"]
-  [data-gonavi-close-shortcut-scope="workspace"][data-empty-workbench='true'][data-collapsed-sidebar-actions-docked='true'][data-security-update-banner-visible='false']
+  [data-gonavi-close-shortcut-scope="workspace"][data-empty-workbench='true'][data-collapsed-sidebar-actions-docked='true']
   > .ant-layout {
   margin-top: calc(-1 * var(--gn-v2-empty-workbench-titlebar-overlap, 0px));
 }
@@ -4566,7 +4566,7 @@ body[data-ui-version="v2"]
    following content on their normal left edge while moving this short label
    just past the six scaled toolbar actions. */
 body[data-ui-version="v2"]
-  [data-gonavi-close-shortcut-scope="workspace"][data-empty-workbench='true'][data-collapsed-sidebar-actions-docked='true'][data-security-update-banner-visible='false']
+  [data-gonavi-close-shortcut-scope="workspace"][data-empty-workbench='true'][data-collapsed-sidebar-actions-docked='true']
   .gn-v2-empty-eyebrow {
   padding-left: max(
     0px,

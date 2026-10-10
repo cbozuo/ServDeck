@@ -14,14 +14,6 @@ const sidebarSource = readFileSync(
   fileURLToPath(new globalThis.URL('./components/Sidebar.tsx', import.meta.url)),
   'utf8',
 );
-const driverWorkbenchSource = readFileSync(
-  fileURLToPath(new globalThis.URL('./components/DriverManagerWorkbench.tsx', import.meta.url)),
-  'utf8',
-);
-const driverModalSource = readFileSync(
-  fileURLToPath(new globalThis.URL('./components/DriverManagerModal.tsx', import.meta.url)),
-  'utf8',
-);
 
 describe('settings center tool entries', () => {
 
@@ -146,7 +138,6 @@ describe('settings center tool entries', () => {
     expect(appSource).toContain('SettingsCenterWorkbenchRegistrar');
     expect(appSource).not.toMatch(/rootClassName=\{`gonavi-settings-center-modal/);
     expect(appSource).toContain("return { key: 'language', group }");
-    expect(appSource).toContain("return { key: 'proxy', group }");
     expect(appSource).toContain("return { key: 'data-root-application', group }");
     expect(appSource).not.toContain('handleBackFromSettingsCenterPane');
     expect(appSource).not.toContain('gonavi-settings-center-group-tab');
@@ -154,20 +145,21 @@ describe('settings center tool entries', () => {
     expect(appSource).toContain("key: `theme-${section.value}`");
     expect(appSource).toContain('renderThemeSettingsContent({ hideSectionTabs: true })');
     expect(appSource).toContain("key: 'data-root-application'");
-    expect(appSource).toContain("key: 'data-root-saved-queries'");
-    expect(appSource).toContain("handleOpenToolCenterPane('config', 'data-root-saved-queries')");
-    expect(appSource).toContain("handleOpenToolCenterPane('workspace', 'drivers')");
-    expect(appSource).toContain("activeSettingsCenterPane.key === 'drivers'");
-    expect(appSource).not.toMatch(/handleCancelSettingsCenterPane\(\);\s*handleOpenDriverManagerWorkbench\(\);/);
-    expect(appSource).toContain("handleOpenToolCenterPane('config', 'import')");
-    expect(appSource).toContain("handleOpenToolCenterPane('config', 'export')");
-    expect(appSource).toContain("handleOpenToolCenterPane('config', 'connection-health')");
-    expect(appSource).toContain("activeSettingsCenterPane.key === 'connection-health'");
-    expect(appSource).not.toMatch(/handleCancelSettingsCenterPane\(\);\s*handleOpenConnectionHealth\(\);/);
-    expect(appSource).toContain("handleOpenDataSyncWorkbench('compare')");
-    expect(appSource).toContain("handleOpenDataSyncWorkbench('sync')");
-    expect(appSource).not.toContain("handleOpenDataSyncWorkbench('schemaCompare')");
-    expect(appSource).not.toContain("handleOpenDataSyncWorkbench('dataCompare')");
+    expect(appSource).not.toContain('data-root-saved-queries');
+    expect(appSource).not.toContain('connection-health');
+    expect(appSource).not.toContain('<ConnectionImportSettingsPanel');
+    // 「数据目录」为顶层叶组（items: [] 不可展开），与「关于」同级；「安全更新」已整删。
+    // 注意 not.toContain('SecurityUpdate') 会误伤保留的 bootstrap 管线参数 autoStartLegacySecurityUpdate，
+    // 故改断言组件名与 pane key。
+    expect(appSource).toContain("title: t('app.tools.entry.data_root.title')");
+    expect(appSource).toMatch(/key: 'config',\s*icon: <HddOutlined \/>/);
+    expect(appSource).not.toContain('security-update');
+    expect(appSource).not.toContain('SecurityUpdateBanner');
+    expect(appSource).not.toContain('SecurityUpdateSettingsModal');
+    expect(appSource).not.toContain('SecurityUpdateIntroModal');
+    expect(appSource).not.toContain('SecurityUpdateProgressModal');
+    expect(appSource).not.toContain('view-menu');
+    expect(appSource).not.toContain('TitleBarViewMenu');
     expect(appSource).not.toContain('LazyDataSyncWorkbench');
     expect(appSource).not.toMatch(/handleCancelSettingsCenterPane\(\);\s*addTab\(buildDataSyncWorkbenchTab/);
     expect(appSource).toContain("title: t('app.settings.entry.about.title')");
@@ -192,50 +184,10 @@ describe('settings center tool entries', () => {
     expect(appCss).toContain('grid-template-columns: 220px minmax(0, 1fr) !important;');
   });
 
-  it('keeps connection import, export, and health checks inside settings panes', () => {
-    expect(appSource).toContain("activeSettingsCenterPane.key === 'import'");
-    expect(appSource).toContain('<ConnectionImportSettingsPanel');
-    expect(appSource).toContain("setActiveSettingsCenterPane({ key: 'export', group: sourceGroup })");
-    expect(appSource).toMatch(/isConnectionPackageSettingsPaneKey\(activeSettingsCenterPane\.key\)[\s\S]*?<ConnectionPackagePasswordModal[\s\S]*?embedded/);
-    expect(appSource).toContain("activeSettingsCenterPane.key === 'connection-health'");
-    expect(appSource).toMatch(/activeSettingsCenterPane\.key === 'connection-health'[\s\S]*?<ConnectionHealthModal[\s\S]*?embedded/);
-    expect(appSource).not.toContain('isConnectionHealthModalOpen');
-
-    const toolCenterGroupsStart = appSource.indexOf('const toolCenterGroups:');
-    const importEntryStart = appSource.indexOf("key: 'import',", toolCenterGroupsStart);
-    const exportEntryStart = appSource.indexOf("key: 'export',", importEntryStart);
-    const importEntrySource = appSource.slice(importEntryStart, exportEntryStart);
-    expect(importEntrySource).toContain("handleOpenToolCenterPane('config', 'import')");
-    expect(importEntrySource).not.toContain('handleImportConnections');
-
-    const titlebarImportStart = appSource.indexOf("if (spec.action === 'import-connections')");
-    const titlebarExportStart = appSource.indexOf("if (spec.action === 'export-connections')", titlebarImportStart);
-    const titlebarImportSource = appSource.slice(titlebarImportStart, titlebarExportStart);
-    expect(titlebarImportSource).toContain("handleOpenToolCenterPane('config', 'import')");
-    expect(titlebarImportSource).not.toContain('handleImportConnections');
-  });
-
   it('keeps button loading indicators animated when reduced motion is enabled', () => {
     expect(appCss).toMatch(
       /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\.gonavi-settings-center-modal \.ant-btn-loading-icon \.anticon-spin \{[^}]*animation-duration: 1s !important;[^}]*animation-iteration-count: infinite !important;[^}]*\}/,
     );
-  });
-
-  it('switches mirrors in place from the Driver Manager without navigating settings', () => {
-    // 关于页重构后,镜像切换入口收敛到 Driver Manager(workbench / modal / drivers pane)。
-    const driverPaneStart = appSource.indexOf("activeSettingsCenterPane.key === 'drivers'");
-    const driverPaneEnd = appSource.indexOf("activeSettingsCenterPane.key === 'snippet-settings'", driverPaneStart);
-    const driverPaneSource = appSource.slice(driverPaneStart, driverPaneEnd);
-
-    expect(appSource).not.toContain('className="gonavi-about-download-source"');
-    expect(appSource).not.toContain('handleOpenDownloadSourceSettings');
-    expect(driverPaneStart).toBeGreaterThanOrEqual(0);
-    expect(driverPaneSource).toContain('onSwitchDownloadSource');
-    expect(driverPaneSource).not.toContain("handleOpenSettingsCenterPane('services', 'download-source')");
-    expect(driverWorkbenchSource).toContain('handleSwitchDownloadSource');
-    expect(driverWorkbenchSource).not.toContain('requestDownloadSourceSettings');
-    expect(driverModalSource).toContain('onSwitchDownloadSource');
-    expect(driverModalSource).not.toContain('onOpenDownloadSourceSettings');
   });
 
   it('waits for the unsaved SQL confirmation before continuing an update install request', () => {

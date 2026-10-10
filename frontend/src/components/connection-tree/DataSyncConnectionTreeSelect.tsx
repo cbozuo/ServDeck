@@ -3,11 +3,25 @@ import { FolderOutlined } from '@ant-design/icons';
 import { TreeSelect, type TreeSelectProps } from 'antd';
 
 import { getDbIcon } from '../DatabaseIcons';
-import type {
-  DataSyncConnectionTreeItem,
-  DataSyncEndpointRef,
-  DataSyncSavedConnectionView,
-} from './model';
+export type DataSyncSavedConnectionView = {
+  id: string;
+  name: string;
+  type: string;
+  readable: boolean;
+  writable: boolean;
+};
+
+export type DataSyncConnectionTreeItem =
+  | {
+      kind: 'group';
+      id: string;
+      name: string;
+      children: DataSyncConnectionTreeItem[];
+    }
+  | {
+      kind: 'connection';
+      connectionId: string;
+    };
 
 const CONNECTION_VALUE_PREFIX = 'connection:';
 const GROUP_VALUE_PREFIX = 'group:';
@@ -174,6 +188,14 @@ const firstMatchingConnectionValue = (
     }
   }
   return null;
+};
+
+export type DataSyncEndpointRef = {
+  connectionId: string;
+  connectionName: string;
+  type: string;
+  database: string;
+  schema: string;
 };
 
 export const DataSyncConnectionTreeSelect: React.FC<{

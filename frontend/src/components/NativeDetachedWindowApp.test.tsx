@@ -59,7 +59,6 @@ const workbenchTabTypes: TabData['type'][] = [
   'sql-file-execution',
   'sql-analysis',
   'sql-audit',
-  'driver-manager',
   'settings-center',
   'redis-keys',
   'redis-command',
@@ -554,57 +553,6 @@ describe('NativeDetachedWindowApp', () => {
     });
   });
 
-  it('routes the driver manager body close action through the native window lifecycle', async () => {
-    const tab: TabData = {
-      id: 'driver-manager',
-      title: 'Driver Manager',
-      type: 'driver-manager',
-      connectionId: '',
-    };
-    const bootstrap: NativeDetachedWindowBootstrap = {
-      id: 'workbench:driver-manager',
-      kind: 'workbench',
-      title: tab.title,
-      payload: {
-        storeState: {
-          tabs: [tab],
-          activeTabId: tab.id,
-          theme: 'light',
-          appearance: {  },
-        },
-        tab,
-      },
-    };
-    const client = {
-      load: vi.fn(async () => bootstrap),
-      ready: vi.fn(async () => undefined),
-      sync: vi.fn(async () => undefined),
-      attach: vi.fn(async () => undefined),
-      close: vi.fn(async () => undefined),
-      cancelCloseRequest: vi.fn(async () => undefined),
-      closeCurrentWindow: vi.fn(async () => undefined),
-    };
-
-    let renderer: TestRenderer.ReactTestRenderer;
-    await act(async () => {
-      renderer = TestRenderer.create(<NativeDetachedWindowApp client={client} />);
-      await flushEffects();
-    });
-
-    await act(async () => {
-      renderer!.root.findByProps({ 'data-workbench-request-close': true }).props.onClick();
-      await flushEffects();
-      await flushEffects();
-    });
-
-    expect(client.close).toHaveBeenCalledWith(expect.objectContaining({
-      id: bootstrap.id,
-      kind: 'workbench',
-    }));
-    expect(client.closeCurrentWindow).toHaveBeenCalledOnce();
-    await act(async () => renderer!.unmount());
-  });
-
   it('syncs edited query-result rows before the result window is restored', async () => {
     vi.useFakeTimers();
     const bootstrap: NativeDetachedWindowBootstrap = {
@@ -907,84 +855,6 @@ describe('NativeDetachedWindowApp', () => {
       expect(syncCalls[1]?.[0].revision).toBeGreaterThan(syncCalls[0]?.[0].revision || 0);
     } finally {
       vi.useRealTimers();
-    }
-  });
-
-  it.each([
-    'gonavi:open-global-proxy-settings',
-    'gonavi:open-download-source-settings',
-  ] as const)('forwards driver manager %s requests to the main window', async (eventName) => {
-    const previousWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
-    const eventTarget = new EventTarget();
-    Object.defineProperty(globalThis, 'window', {
-      configurable: true,
-      value: Object.assign(eventTarget, {
-        clearTimeout: globalThis.clearTimeout,
-        innerWidth: 960,
-        outerHeight: 720,
-        outerWidth: 960,
-        screenX: 40,
-        screenY: 40,
-        setTimeout: globalThis.setTimeout,
-      }),
-    });
-    const tab: TabData = {
-      id: 'driver-manager',
-      title: 'Driver Manager',
-      type: 'driver-manager',
-      connectionId: '',
-    };
-    const bootstrap: NativeDetachedWindowBootstrap = {
-      id: 'workbench:driver-manager',
-      kind: 'workbench',
-      title: tab.title,
-      payload: {
-        storeState: {
-          appearance: {  },
-          theme: 'light',
-          tabs: [tab],
-          activeTabId: tab.id,
-        },
-        tab,
-      },
-    };
-    const client = {
-      load: vi.fn(async () => bootstrap),
-      ready: vi.fn(async () => undefined),
-      sync: vi.fn(async () => undefined),
-      attach: vi.fn(async () => undefined),
-      close: vi.fn(async () => undefined),
-      hostEvent: vi.fn(async () => undefined),
-      closeCurrentWindow: vi.fn(async () => undefined),
-    };
-    let renderer: TestRenderer.ReactTestRenderer | undefined;
-
-    try {
-      await act(async () => {
-        renderer = TestRenderer.create(<NativeDetachedWindowApp client={client} />);
-        await flushEffects();
-      });
-      await act(async () => {
-        eventTarget.dispatchEvent(new Event(eventName));
-        await flushEffects();
-      });
-
-      expect(client.hostEvent).toHaveBeenCalledWith(expect.objectContaining({
-        id: bootstrap.id,
-        kind: 'workbench',
-        hostEvent: expect.objectContaining({
-          name: eventName,
-        }),
-      }));
-    } finally {
-      await act(async () => {
-        renderer?.unmount();
-      });
-      if (previousWindowDescriptor) {
-        Object.defineProperty(globalThis, 'window', previousWindowDescriptor);
-      } else {
-        Reflect.deleteProperty(globalThis, 'window');
-      }
     }
   });
 

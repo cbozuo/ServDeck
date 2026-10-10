@@ -222,65 +222,11 @@ describe("i18n catalog", () => {
     expect(catalogs["en-US"]["app.data_root.log_directory.restart_hint"]).toContain("gonavi.log");
   });
 
-  it("keeps saved query directory copy complete across all catalogs", () => {
-    const savedQueryDirectoryKeys = [
-      "app.data_root.saved_query_directory.backend.dialog.select_directory",
-      "app.data_root.saved_query_directory.backend.error.desktop_only",
-      "app.data_root.saved_query_directory.backend.error.directory_unavailable",
-      "app.data_root.saved_query_directory.backend.error.migrate_failed",
-      "app.data_root.saved_query_directory.backend.error.open_directory_failed",
-      "app.data_root.saved_query_directory.backend.error.open_directory_unsupported",
-      "app.data_root.saved_query_directory.backend.error.query_file_unavailable",
-      "app.data_root.saved_query_directory.backend.error.query_id_required",
-      "app.data_root.saved_query_directory.backend.error.query_not_found",
-      "app.data_root.saved_query_directory.backend.error.reveal_failed",
-      "app.data_root.saved_query_directory.backend.error.reveal_unsupported",
-      "app.data_root.saved_query_directory.backend.error.save_failed",
-      "app.data_root.saved_query_directory.backend.message.opened",
-      "app.data_root.saved_query_directory.backend.message.revealed",
-      "app.data_root.saved_query_directory.backend.message.unchanged",
-      "app.data_root.saved_query_directory.backend.message.updated",
-      "app.data_root.saved_query_directory.current_directory",
-      "app.data_root.saved_query_directory.default_directory",
-      "app.data_root.saved_query_directory.description",
-      "app.data_root.saved_query_directory.message.apply_failed_with_error",
-      "app.data_root.saved_query_directory.message.open_failed_with_error",
-      "app.data_root.saved_query_directory.message.select_failed_with_error",
-      "app.data_root.saved_query_directory.message.select_valid_first",
-      "app.data_root.saved_query_directory.message.updated",
-      "app.data_root.saved_query_directory.placeholder",
-      "app.data_root.saved_query_directory.title",
-    ] as const;
-    const base = catalogs["en-US"];
-
-    for (const language of SUPPORTED_LANGUAGES) {
-      for (const key of savedQueryDirectoryKeys) {
-        expect(catalogs[language]).toHaveProperty(key);
-        expect(catalogs[language][key]).toBeTruthy();
-        expect(getPlaceholders(catalogs[language][key])).toEqual(getPlaceholders(base[key]));
-      }
-    }
-
-    expect(catalogs["zh-CN"]["app.data_root.saved_query_directory.title"]).toBe("已存查询目录");
-    expect(catalogs["zh-CN"]["app.data_root.saved_query_directory.description"]).toContain(".sql");
-    expect(catalogs["en-US"]["app.data_root.saved_query_directory.description"]).toContain("independent .sql file");
-  });
-
   it("includes App shell keys required by every supported language", () => {
     const appShellKeys = [
       "app.tools.title",
-      "app.tools.group.config.title",
-      "app.tools.group.config.description",
       "app.tools.group.workflow.title",
       "app.tools.group.workflow.description",
-      "app.tools.group.workspace.title",
-      "app.tools.group.workspace.description",
-      "app.tools.entry.import.title",
-      "app.tools.entry.security_update.description",
-      "app.tools.entry.security_update.status_description",
-      "app.tools.entry.security_update.title",
-      "app.tools.entry.snippets.description",
-      "app.tools.entry.snippets.title",
       "app.data_root.title",
       "app.data_root.action.switch_only",
       "app.data_root.message.apply_failed",
@@ -293,15 +239,6 @@ describe("i18n catalog", () => {
       "app.data_root.message.select_failed_with_error",
       "app.data_root.message.select_valid_first",
       "app.data_root.message.updated",
-      "app.security_update.error.capability_unavailable",
-      "app.security_update.message.completed",
-      "app.security_update.message.needs_attention",
-      "app.security_update.message.not_finished_retry_later",
-      "app.security_update.message.postpone_failed",
-      "app.security_update.message.rolled_back",
-      "app.security_update.stage.checking_saved_config",
-      "app.security_update.stage.updating_secure_storage",
-      "app.security_update.stage.verifying_result",
       "app.sidebar.collapse",
       "app.sidebar.expand",
       "app.sidebar.resize_width",
@@ -354,26 +291,9 @@ describe("i18n catalog", () => {
       "app.theme.nav.appearance.title",
       "app.theme.nav.theme.description",
       "app.theme.nav.theme.title",
-      "app.theme.nav.workspace.description",
-      "app.theme.nav.workspace.title",
       "app.theme.navigation_title",
-      "app.theme.workspace_settings_description",
-      "app.theme.workspace_settings_title",
-      "app.theme.query_template.description",
-      "app.theme.query_template.hint",
-      "app.theme.query_template.reset_default",
-      "app.theme.query_template.title",
-      "app.theme.table_alias.description",
-      "app.theme.table_alias.custom_prefix.description",
-      "app.theme.table_alias.custom_prefix.placeholder",
-      "app.theme.table_alias.custom_prefix.title",
-      "app.theme.table_alias.title",
       "app.theme.theme_settings_description",
       "app.theme.theme_settings_title",
-      "app.theme.ui_version.sidebar_search.title",
-      "app.theme.ui_version.sidebar_search.command",
-      "app.theme.ui_version.sidebar_search.filter",
-      "app.theme.ui_version.sidebar_search.hint",
     ] as const;
 
     for (const language of SUPPORTED_LANGUAGES) {
@@ -382,24 +302,6 @@ describe("i18n catalog", () => {
         expect(catalogs[language][key]).toBeTruthy();
       }
     }
-  });
-
-  it("renders the table alias setting in theme settings", () => {
-    const source = readAppSource();
-    const v2Source = sliceBetween(
-      source,
-      "const renderThemeSettingsContentV2 =",
-      "const renderThemeSettingsContent =",
-    );
-
-    expect(v2Source).toContain("app.theme.table_alias.title");
-    expect(v2Source).toContain("app.theme.table_alias.description");
-    expect(v2Source).toContain("setAppearance({ autoAddTableAlias: checked })");
-    expect(v2Source).toContain("app.theme.table_alias.custom_prefix.title");
-    expect(v2Source).toContain("app.theme.table_alias.custom_prefix.description");
-    expect(v2Source).toContain("app.theme.table_alias.custom_prefix.placeholder");
-    expect(v2Source).toContain("setAppearance({ customTableAliasPrefixEnabled: checked })");
-    expect(v2Source).toContain("setAppearance({ customTableAliasPrefix: event.target.value })");
   });
 
   it("includes App shortcut modal keys required by every supported language", () => {
@@ -468,8 +370,6 @@ describe("i18n catalog", () => {
       "app.shortcuts.reserved.editor_rename_symbol",
       "app.shortcuts.reserved.editor_replace",
       "app.shortcuts.title",
-      "app.tools.entry.shortcuts.description",
-      "app.tools.entry.shortcuts.title",
       "common.cancel",
       "common.close",
     ] as const;
@@ -862,8 +762,6 @@ describe("i18n catalog", () => {
     const formatMenuKeys = [
       "query_editor.format.keyword_upper",
       "query_editor.format.keyword_lower",
-      "query_editor.format.snippet_settings",
-      "query_editor.format.shortcut_settings",
     ] as const;
     const source = readQueryEditorSource();
     const formatMenuSource = sliceBetween(
@@ -1633,7 +1531,6 @@ describe("i18n catalog", () => {
       "query_editor.snippet_picker.search_placeholder",
       "query_editor.snippet_picker.empty",
       "query_editor.snippet_picker.empty_filtered",
-      "query_editor.snippet_picker.manage",
       "snippet_settings.tag.builtin",
     ] as const;
     const snippetPickerLiteralGuardKeys = [
@@ -1643,7 +1540,6 @@ describe("i18n catalog", () => {
       "query_editor.snippet_picker.search_placeholder",
       "query_editor.snippet_picker.empty",
       "query_editor.snippet_picker.empty_filtered",
-      "query_editor.snippet_picker.manage",
     ] as const;
     const source = readQueryEditorSource();
 

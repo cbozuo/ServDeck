@@ -1671,7 +1671,8 @@ describe("ConnectionModal i18n", () => {
 
     const pageText = textContent(renderer!.toJSON());
     expect(pageText).toContain("Dameng (达梦) driver unavailable");
-    expect(pageText).toContain("Install in Driver Manager");
+    // 驱动安装按钮已删（Driver Manager 入口清理），alert 只剩内置 fallback 提示文本。
+    expect(pageText).toContain("Install it in Driver Manager first");
   });
 
   it("renders English tail copy for SSL hints, driver confirm, Mongo discovery, ClickHouse auto, and examples", async () => {

@@ -18,7 +18,6 @@ const DefinitionViewer = React.lazy(() => import('./DefinitionViewer'));
 const TableOverview = React.lazy(() => import('./TableOverview'));
 const TableExportWorkbench = React.lazy(() => import('./TableExportWorkbench'));
 const DataImportWorkbench = React.lazy(() => import('./DataImportWorkbench'));
-const DataSyncWorkbench = React.lazy(() => import('./DataSyncWorkbench'));
 const SQLFileExecutionWorkbench = React.lazy(() => import('./SQLFileExecutionWorkbench'));
 const JVMOverview = React.lazy(() => import('./JVMOverview'));
 const JVMResourceBrowser = React.lazy(() => import('./JVMResourceBrowser'));
@@ -27,13 +26,10 @@ const JVMDiagnosticConsole = React.lazy(() => import('./JVMDiagnosticConsole'));
 const JVMMonitoringDashboard = React.lazy(() => import('./JVMMonitoringDashboard'));
 const SqlAnalysisWorkbench = React.lazy(() => import('./explain/SqlAnalysisWorkbench'));
 const SqlAuditWorkbench = React.lazy(() => import('./audit/SqlAuditWorkbench'));
-const DriverManagerWorkbench = React.lazy(() => import('./DriverManagerWorkbench'));
 const SettingsCenterWorkbench = React.lazy(() => import('./settings/SettingsCenterWorkbench'));
 const ServiceDetailWorkbench = React.lazy(
   () => import('./serviceDetail/ServiceDetail') as Promise<{ default: React.ComponentType<{ name: string }> }>,
 );
-const RequestDiagnosticsWorkbench = React.lazy(() => import('./requestDiagnostics/RequestDiagnosticsWorkbench'));
-const DMLSnapshotWorkbench = React.lazy(() => import('./dmlSnapshot/DMLSnapshotWorkbench'));
 const MessageQueueWorkbench = React.lazy(() => import('./MessageQueueWorkbench'));
 
 const QueryWorkbenchContent: React.FC<{ tab: TabData; isActive: boolean }> = React.memo(({
@@ -155,30 +151,16 @@ export const WorkbenchTabContent: React.FC<WorkbenchTabContentProps> = React.mem
     content = <TableExportWorkbench tab={tab} />;
   } else if (tab.type === 'data-import') {
     content = <DataImportWorkbench tab={tab} />;
-  } else if (tab.type === 'data-sync') {
-    content = <DataSyncWorkbench tab={tab} />;
   } else if (tab.type === 'sql-file-execution') {
     content = <SQLFileExecutionWorkbench tab={tab} />;
   } else if (tab.type === 'sql-analysis') {
     content = <SqlAnalysisWorkbench tab={tab} />;
   } else if (tab.type === 'sql-audit') {
     content = <SqlAuditWorkbench tab={tab} isActive={isActive} />;
-  } else if (tab.type === 'dml-snapshot') {
-    content = <DMLSnapshotWorkbench isActive={isActive} />;
-  } else if (tab.type === 'driver-manager') {
-    content = (
-      <DriverManagerWorkbench
-        tab={tab}
-        isActive={isActive}
-        onRequestClose={onRequestClose}
-      />
-    );
   } else if (tab.type === 'settings-center') {
     content = <SettingsCenterWorkbench tab={tab} isActive={isActive} />;
   } else if (tab.type === 'service-detail') {
     content = <ServiceDetailWorkbench name={tab.serviceName ?? ''} />;
-  } else if (tab.type === 'request-diagnostics') {
-    content = <RequestDiagnosticsWorkbench tab={tab} isActive={isActive} />;
   } else if (tab.type === 'message-queue') {
     content = <MessageQueueWorkbench tab={tab} isActive={isActive} />;
   } else if (tab.type === 'jvm-overview') {

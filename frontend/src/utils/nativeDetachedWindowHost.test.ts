@@ -122,7 +122,6 @@ describe('nativeDetachedWindowHost', () => {
       'sql-file-execution',
       'sql-analysis',
       'sql-audit',
-      'driver-manager',
       'settings-center',
       'redis-keys',
       'redis-command',

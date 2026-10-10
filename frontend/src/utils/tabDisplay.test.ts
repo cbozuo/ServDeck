@@ -151,40 +151,6 @@ describe('tabDisplay', () => {
     expect(buildTabDisplayTitle(importTab, redisConnection)).toBe('[订单缓存] 导入 orders');
   });
 
-  it('derives the driver manager label from the current translator instead of the stored title', () => {
-    const driverManagerTab: TabData = {
-      id: 'driver-manager',
-      title: '驱动管理',
-      type: 'driver-manager',
-      connectionId: '',
-    };
-    const translate = (key: string) => (
-      key === 'app.tools.entry.drivers.title' ? 'Treiberverwaltung' : key
-    );
-
-    expect(buildTabDisplayTitle(driverManagerTab, undefined, undefined, translate))
-      .toBe('Treiberverwaltung');
-    expect(buildTabDisplayModel(driverManagerTab, undefined, undefined, translate).primaryText)
-      .toBe('Treiberverwaltung');
-  });
-
-  it('re-resolves the request diagnostics tab title through the active translate', () => {
-    const requestDiagnosticsTab: TabData = {
-      id: 'request-diagnostics-center',
-      title: '请求诊断',
-      type: 'request-diagnostics',
-      connectionId: '',
-    };
-    const translate = (key: string) => (
-      key === 'app.tools.entry.request_diagnostics.title' ? 'Request Diagnostics' : key
-    );
-
-    expect(buildTabDisplayTitle(requestDiagnosticsTab, undefined, undefined, translate))
-      .toBe('Request Diagnostics');
-    expect(buildTabDisplayModel(requestDiagnosticsTab, undefined, undefined, translate).primaryText)
-      .toBe('Request Diagnostics');
-  });
-
   it('hides schema prefixes from schema-qualified table tab labels', () => {
     const connection: SavedConnection = {
       id: 'kingbase-1',

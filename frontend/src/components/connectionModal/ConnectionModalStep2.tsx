@@ -164,7 +164,6 @@ const ConnectionModalStep2: React.FC<ConnectionModalStep2Props> = (props) => {
     normalizeRedisDatabaseSelection,
     normalizedJvmAllowedModes,
     oceanBaseProtocol,
-    onOpenDriverManager,
     oracleMode,
     primaryPasswordVisible,
     handlePrimaryPasswordVisibleChange,
@@ -2991,13 +2990,6 @@ const ConnectionModalStep2: React.FC<ConnectionModalStep2Props> = (props) => {
           description={
             <Space size={8}>
               <span>{currentDriverUnavailableReason}</span>
-              <Button
-                type="link"
-                size="small"
-                onClick={() => onOpenDriverManager?.()}
-              >
-                {t("connection.modal.driver.installAction")}
-              </Button>
             </Space>
           }
         />
@@ -3013,13 +3005,6 @@ const ConnectionModalStep2: React.FC<ConnectionModalStep2Props> = (props) => {
           description={
             <Space size={8}>
               <span>{currentDriverUpdateReason}</span>
-              <Button
-                type="link"
-                size="small"
-                onClick={() => onOpenDriverManager?.()}
-              >
-                {t("connection.modal.driver.reinstallAction")}
-              </Button>
             </Space>
           }
         />

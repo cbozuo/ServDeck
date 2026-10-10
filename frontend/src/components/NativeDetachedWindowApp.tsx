@@ -477,8 +477,6 @@ const NativeDetachedWindowApp: React.FC<NativeDetachedWindowAppProps> = ({
   useEffect(() => {
     if (!bootstrap || typeof window === 'undefined' || !client.hostEvent) return undefined;
     const eventNames: NativeDetachedHostEventName[] = [
-      'gonavi:open-download-source-settings',
-      'gonavi:open-global-proxy-settings',
       ...(bootstrap.kind === 'workbench' ? ['gonavi:locate-sidebar-object' as const] : []),
     ];
     const forwardToHost = (event: Event) => {

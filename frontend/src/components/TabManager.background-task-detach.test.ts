@@ -27,12 +27,10 @@ describe('TabManager main-window-bound tab detach', () => {
     expect(isMainWindowBoundWorkbenchTab({ type: 'service-detail' })).toBe(true);
     expect(isMainWindowBoundWorkbenchTab({ type: 'table-export' })).toBe(true);
     expect(isMainWindowBoundWorkbenchTab({ type: 'data-import' })).toBe(true);
-    expect(isMainWindowBoundWorkbenchTab({ type: 'data-sync' })).toBe(true);
   });
 
   it('keeps other workbench tabs on the native detached window path', () => {
     expect(isMainWindowBoundWorkbenchTab({ type: 'query' })).toBe(false);
-    expect(isMainWindowBoundWorkbenchTab({ type: 'driver-manager' })).toBe(false);
     expect(isMainWindowBoundWorkbenchTab({ type: 'jvm-overview' })).toBe(false);
   });
 });

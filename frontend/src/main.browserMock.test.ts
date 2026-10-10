@@ -71,12 +71,8 @@ const importMain = async () => {
         app?: {
           App?: {
             GetBrandIconDataURL: (id: string) => Promise<string>;
-            ImportConfigFile: () => Promise<{ success: boolean; message?: string }>;
-            ImportConnectionsPayload: (raw: string, password?: string) => Promise<unknown>;
-            ExportConnectionsPackage: (options?: { includeSecrets?: boolean; filePassword?: string }) => Promise<{ success: boolean; message?: string }>;
             ApplyDataRootDirectory: (path: string) => Promise<{ success: boolean; message?: string; data?: { path?: string } }>;
             ApplyLogDirectory: (path: string) => Promise<{ success: boolean; message?: string; data?: { logDirectory?: string; logDirectoryRestartRequired?: boolean } }>;
-            ApplySavedQueryDirectory: (path: string) => Promise<{ success: boolean; message?: string; data?: { savedQueryDirectory?: string; savedQueryDirectorySource?: string } }>;
             SaveQuery: (input: { id?: string; name?: string; sql?: string }) => Promise<{ name: string; sql: string }>;
             RenameSavedQuery: (id: string, name: string) => Promise<{ id: string; name: string; sql: string }>;
             RevealSavedQueryInFolder: (id: string) => Promise<{ success: boolean; message?: string; data?: { path?: string } }>;
@@ -117,22 +113,14 @@ describe('main browser mock', () => {
     vi.resetModules();
   });
 
-  it('returns localized browser-mode messages for import picker and unsupported browser mock exports', async () => {
+  it('returns the localized browser-mode message for unsupported SQL export', async () => {
     const app = await importMain();
     const { t } = await import('./i18n');
 
     expect(app).toBeDefined();
-    await expect(app!.ImportConfigFile()).resolves.toEqual({
-      success: false,
-      message: '已取消',
-    });
     await expect(app!.ExportSQLFile('demo.sql', 'select 1')).resolves.toEqual({
       success: false,
       message: t('app.browser_mock.export_sql_unsupported'),
-    });
-    await expect(app!.ExportConnectionsPackage({ includeSecrets: true, filePassword: '' })).resolves.toEqual({
-      success: false,
-      message: t('app.browser_mock.export_connection_package_unsupported'),
     });
   }, 30000);
 
@@ -189,15 +177,6 @@ describe('main browser mock', () => {
       platform: 'browser',
       buildType: 'web',
     });
-  });
-
-  it('rejects non-array payloads with the localized browser mock import limitation', async () => {
-    const app = await importMain();
-    const { t } = await import('./i18n');
-
-    await expect(app!.ImportConnectionsPayload('{"version":1}')).rejects.toThrow(
-      t('app.browser_mock.import_connection_package_unsupported'),
-    );
   });
 
   it('reveals saved host passwords on demand without exposing them in editable connection metadata', async () => {
@@ -304,25 +283,6 @@ describe('main browser mock', () => {
       data: expect.objectContaining({
         logDirectory: 'C:/mock/custom-logs',
         logDirectoryRestartRequired: true,
-      }),
-    }));
-  });
-
-  it('keeps browser mock saved query directory state available for the data-root page', async () => {
-    vi.stubGlobal('navigator', {
-      languages: ['en-US'],
-      language: 'en-US',
-    });
-
-    const app = await importMain();
-    const { t } = await import('./i18n');
-
-    await expect(app!.ApplySavedQueryDirectory('C:/mock/custom-saved-queries')).resolves.toEqual(expect.objectContaining({
-      success: true,
-      message: t('app.data_root.saved_query_directory.message.updated'),
-      data: expect.objectContaining({
-        savedQueryDirectory: 'C:/mock/custom-saved-queries',
-        savedQueryDirectorySource: 'custom',
       }),
     }));
   });

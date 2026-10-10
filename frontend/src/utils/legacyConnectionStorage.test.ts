@@ -8,7 +8,7 @@ import {
 } from './legacyConnectionStorage';
 
 describe('legacy connection storage', () => {
-  it('extracts legacy saved connections and global proxy password from lite-db-storage', () => {
+  it('extracts legacy saved connections from lite-db-storage', () => {
     const payload = JSON.stringify({
       state: {
         connections: [
@@ -25,24 +25,15 @@ describe('legacy connection storage', () => {
             },
           },
         ],
-        globalProxy: {
-          enabled: true,
-          type: 'http',
-          host: '127.0.0.1',
-          port: 8080,
-          user: 'ops',
-          password: 'proxy-secret',
-        },
       },
     });
 
     const result = readLegacyPersistedSecrets(payload);
     expect(result.connections).toHaveLength(1);
     expect(result.connections[0]?.config.password).toBe('secret');
-    expect(result.globalProxy?.password).toBe('proxy-secret');
   });
 
-  it('clears legacy connection and proxy source data after cleanup', () => {
+  it('clears legacy connection source data after cleanup', () => {
     const payload = JSON.stringify({
       state: {
         connections: [
@@ -59,14 +50,6 @@ describe('legacy connection storage', () => {
             },
           },
         ],
-        globalProxy: {
-          enabled: true,
-          type: 'http',
-          host: '127.0.0.1',
-          port: 8080,
-          user: 'ops',
-          password: 'proxy-secret',
-        },
       },
     });
 
@@ -74,23 +57,6 @@ describe('legacy connection storage', () => {
     const parsed = JSON.parse(sanitized);
 
     expect(parsed.state.connections).toEqual([]);
-    expect(parsed.state.globalProxy).toBeUndefined();
-  });
-
-  it('treats a meaningful legacy global proxy as migratable even when it has no password', () => {
-    const payload = JSON.stringify({
-      state: {
-        globalProxy: {
-          enabled: true,
-          type: 'http',
-          host: '127.0.0.1',
-          port: 8080,
-          user: 'ops',
-        },
-      },
-    });
-
-    expect(hasLegacyMigratableSensitiveItems(payload)).toBe(true);
   });
 
   it('detects migratable sensitive items before cleanup and clears the signal after cleanup', () => {
@@ -110,14 +76,6 @@ describe('legacy connection storage', () => {
             },
           },
         ],
-        globalProxy: {
-          enabled: true,
-          type: 'http',
-          host: '127.0.0.1',
-          port: 8080,
-          user: 'ops',
-          password: 'proxy-secret',
-        },
       },
     });
 
@@ -154,14 +112,6 @@ describe('legacy connection storage', () => {
             },
           },
         ],
-        globalProxy: {
-          enabled: true,
-          type: 'http',
-          host: '127.0.0.1',
-          port: 8080,
-          user: 'ops',
-          password: 'proxy-secret',
-        },
       },
     });
 
@@ -176,8 +126,5 @@ describe('legacy connection storage', () => {
         }),
       }),
     ]);
-    expect(parsed.state.globalProxy).toEqual(expect.objectContaining({
-      password: 'proxy-secret',
-    }));
   });
 });

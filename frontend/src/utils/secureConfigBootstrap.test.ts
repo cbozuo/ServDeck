@@ -28,14 +28,6 @@ const legacyPayload = JSON.stringify({
         },
       },
     ],
-    globalProxy: {
-      enabled: true,
-      type: 'http',
-      host: '127.0.0.1',
-      port: 8080,
-      user: 'ops',
-      password: 'proxy-secret',
-    },
   },
 });
 
@@ -56,14 +48,12 @@ const createMemoryStorage = () => {
 
 const createBaseArgs = (storage = createMemoryStorage()) => {
   const replaceConnections = vi.fn();
-  const replaceGlobalProxy = vi.fn();
 
   storage.setItem(LEGACY_PERSIST_KEY, legacyPayload);
 
   return {
     storage,
     replaceConnections,
-    replaceGlobalProxy,
   };
 };
 
@@ -84,9 +74,9 @@ describe('secureConfigBootstrap', () => {
 
     expect(result.status.overallStatus).toBe('pending');
     expect(result.status.summary).toEqual({
-      total: 2,
+      total: 1,
       updated: 0,
-      pending: 2,
+      pending: 1,
       skipped: 0,
       failed: 0,
     });
@@ -95,10 +85,6 @@ describe('secureConfigBootstrap', () => {
         scope: 'connection',
         refId: 'legacy-1',
         action: 'open_connection',
-      }),
-      expect.objectContaining({
-        scope: 'global_proxy',
-        action: 'open_proxy_settings',
       }),
     ]));
   });
@@ -123,11 +109,6 @@ describe('secureConfigBootstrap', () => {
         scope: 'connection',
         title: 'Legacy',
         message: "This connection is still saved in the current app's local configuration. After the security update completes, it will be moved to the new secure storage.",
-      }),
-      expect.objectContaining({
-        scope: 'global_proxy',
-        title: 'Global Proxy',
-        message: "Global proxy settings are still saved in the current app's local configuration. After the security update completes, they will be moved to the new secure storage.",
       }),
     ]));
   });
@@ -234,11 +215,10 @@ describe('secureConfigBootstrap', () => {
     });
 
     expect(result.status.overallStatus).toBe('postponed');
-    expect(result.status.summary.total).toBe(2);
-    expect(result.status.summary.pending).toBe(2);
+    expect(result.status.summary.total).toBe(1);
+    expect(result.status.summary.pending).toBe(1);
     expect(result.status.issues).toEqual(expect.arrayContaining([
       expect.objectContaining({ scope: 'connection', refId: 'legacy-1' }),
-      expect.objectContaining({ scope: 'global_proxy' }),
     ]));
   });
 
@@ -270,16 +250,15 @@ describe('secureConfigBootstrap', () => {
 
     expect(result.status.overallStatus).toBe('pending');
     expect(result.status.summary).toEqual({
-      total: 3,
+      total: 2,
       updated: 0,
-      pending: 3,
+      pending: 2,
       skipped: 0,
       failed: 0,
     });
     expect(result.status.issues).toEqual(expect.arrayContaining([
       expect.objectContaining({ scope: 'ai_provider', refId: 'openai-main' }),
       expect.objectContaining({ scope: 'connection', refId: 'legacy-1' }),
-      expect.objectContaining({ scope: 'global_proxy' }),
     ]));
   });
 
@@ -321,16 +300,15 @@ describe('secureConfigBootstrap', () => {
 
     expect(status.overallStatus).toBe('rolled_back');
     expect(status.summary).toEqual({
-      total: 3,
+      total: 2,
       updated: 0,
-      pending: 2,
+      pending: 1,
       skipped: 0,
       failed: 1,
     });
     expect(status.issues).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'system-blocked', scope: 'system' }),
       expect.objectContaining({ id: 'legacy-connection-legacy-1', scope: 'connection', refId: 'legacy-1' }),
-      expect.objectContaining({ id: 'legacy-global-proxy-default', scope: 'global_proxy' }),
     ]));
   });
 
@@ -364,9 +342,9 @@ describe('secureConfigBootstrap', () => {
 
     expect(status.overallStatus).toBe('needs_attention');
     expect(status.summary).toEqual({
-      total: 4,
+      total: 3,
       updated: 1,
-      pending: 2,
+      pending: 1,
       skipped: 0,
       failed: 1,
     });
@@ -374,7 +352,6 @@ describe('secureConfigBootstrap', () => {
       expect.objectContaining({ id: 'system-partial-failure', scope: 'system' }),
       expect.objectContaining({ id: 'ai-provider-openai-main', scope: 'ai_provider', refId: 'openai-main' }),
       expect.objectContaining({ id: 'legacy-connection-legacy-1', scope: 'connection', refId: 'legacy-1' }),
-      expect.objectContaining({ id: 'legacy-global-proxy-default', scope: 'global_proxy' }),
     ]));
   });
 
@@ -446,12 +423,10 @@ describe('secureConfigBootstrap', () => {
   it('loads backend secure config directly when no legacy source exists', async () => {
     const storage = createMemoryStorage();
     const replaceConnections = vi.fn();
-    const replaceGlobalProxy = vi.fn();
 
     const result = await bootstrapSecureConfig({
       storage,
       replaceConnections,
-      replaceGlobalProxy,
       backend: {
         GetSecurityUpdateStatus: vi.fn().mockResolvedValue({
           overallStatus: 'not_detected',
@@ -483,12 +458,10 @@ describe('secureConfigBootstrap', () => {
   it('shows intro when backend status is pending even without legacy local source', async () => {
     const storage = createMemoryStorage();
     const replaceConnections = vi.fn();
-    const replaceGlobalProxy = vi.fn();
 
     const result = await bootstrapSecureConfig({
       storage,
       replaceConnections,
-      replaceGlobalProxy,
       backend: {
         GetSecurityUpdateStatus: vi.fn().mockResolvedValue({
           overallStatus: 'pending',
@@ -565,7 +538,6 @@ describe('secureConfigBootstrap', () => {
     const result = await prepareSecureConfigForExternalMCP({
       storage,
       replaceConnections: vi.fn(),
-      replaceGlobalProxy: vi.fn(),
       backend: {
         StartSecurityUpdate,
       },
@@ -580,7 +552,6 @@ describe('secureConfigBootstrap', () => {
   it('starts security update even when rawPayload is empty but backend supports AI-only update', async () => {
     const storage = createMemoryStorage();
     const replaceConnections = vi.fn();
-    const replaceGlobalProxy = vi.fn();
     const StartSecurityUpdate = vi.fn().mockResolvedValue({
       overallStatus: 'completed',
       summary: { total: 1, updated: 1, pending: 0, skipped: 0, failed: 0 },
@@ -590,7 +561,6 @@ describe('secureConfigBootstrap', () => {
     const result = await startSecurityUpdateFromBootstrap({
       storage,
       replaceConnections,
-      replaceGlobalProxy,
       backend: {
         StartSecurityUpdate,
       },
@@ -652,17 +622,6 @@ describe('secureConfigBootstrap', () => {
             hasPrimaryPassword: true,
           },
         ]),
-        GetGlobalProxyConfig: vi.fn().mockResolvedValue({
-          success: true,
-          data: {
-            enabled: true,
-            type: 'http',
-            host: '127.0.0.1',
-            port: 8080,
-            user: 'ops',
-            hasPassword: true,
-          },
-        }),
       },
     });
 
@@ -691,14 +650,6 @@ describe('secureConfigBootstrap', () => {
             },
           },
         ],
-        globalProxy: {
-          enabled: true,
-          type: 'http',
-          host: '127.0.0.1',
-          port: 8080,
-          user: 'ops',
-          password: 'proxy-secret',
-        },
         savedQueries: [
           {
             id: 'saved-1',
@@ -733,7 +684,6 @@ describe('secureConfigBootstrap', () => {
     const cleaned = JSON.parse(args.storage.getItem(LEGACY_PERSIST_KEY) || '{}');
     expect(cleaned.state.savedQueries).toBeUndefined();
     expect(cleaned.state.connections).toEqual([]);
-    expect(cleaned.state.globalProxy).toBeUndefined();
   });
 
   it('refreshes backend config and strips source-side secrets when a later round finishes as completed', async () => {
@@ -756,17 +706,6 @@ describe('secureConfigBootstrap', () => {
             hasPrimaryPassword: true,
           },
         ]),
-        GetGlobalProxyConfig: vi.fn().mockResolvedValue({
-          success: true,
-          data: {
-            enabled: true,
-            type: 'http',
-            host: '127.0.0.1',
-            port: 8080,
-            user: 'ops',
-            hasPassword: true,
-          },
-        }),
       },
     }, {
       overallStatus: 'completed',
@@ -779,38 +718,6 @@ describe('secureConfigBootstrap', () => {
     expect(args.replaceConnections).toHaveBeenLastCalledWith(
       expect.arrayContaining([expect.objectContaining({ id: 'secure-1' })]),
     );
-  });
-
-  it('reduces legacy pending issues after a single connection is repaired before the first round starts', () => {
-    const initialStatus = mergeSecurityUpdateStatusWithLegacySource({
-      overallStatus: 'not_detected',
-      summary: { total: 0, updated: 0, pending: 0, skipped: 0, failed: 0 },
-      issues: [],
-    }, legacyPayload);
-    const nextPayload = stripLegacyPersistedConnectionById(legacyPayload, 'legacy-1');
-
-    const status = mergeSecurityUpdateStatusWithLegacySource({
-      overallStatus: 'not_detected',
-      summary: { total: 0, updated: 0, pending: 0, skipped: 0, failed: 0 },
-      issues: [],
-    }, nextPayload, {
-      previousStatus: initialStatus,
-    });
-
-    expect(status.overallStatus).toBe('pending');
-    expect(status.summary).toEqual({
-      total: 2,
-      updated: 1,
-      pending: 1,
-      skipped: 0,
-      failed: 0,
-    });
-    expect(status.issues).toEqual([
-      expect.objectContaining({
-        scope: 'global_proxy',
-        action: 'open_proxy_settings',
-      }),
-    ]);
   });
 
   it('accumulates pre-start repaired progress across multiple connection saves in the same round-free session', () => {
